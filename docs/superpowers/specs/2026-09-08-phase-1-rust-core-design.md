@@ -211,7 +211,7 @@ test que falle primero.
    - `descifrar(cifrar(x)) == x` para todo `x`;
    - `validar_cci`, `validar_tarjeta` y `descifrar` **nunca entran en pánico** con ninguna
      entrada de texto — es un test de seguridad, reciben input arbitrario del usuario.
-3. **Golden** contra `contracts/cases.json`: igualdad exacta de strings sobre los 26 casos
+3. **Golden** contra `contracts/cases.json`: igualdad exacta de strings sobre los 27 casos
    más los dos campos nuevos. Es la evidencia de la POC, no un test más.
 4. **Smoke del FFI** (D7).
 
@@ -225,7 +225,7 @@ Van en su propio commit, separados del código:
 - `rust-core/CONTEXT.md` — de cinco crates a dos, con el porqué, **y la ubicación del
   golden**: hoy lo pone en `rust-core/tests/`, donde nunca se ejecutaría.
 - `CLAUDE.md` — el conteo de crates de la Fase 1.
-- `contracts/cases.json` — v2.1.0 con `comprobante` y `latencia_simulada_ms`.
+- `contracts/cases.json` — v2.2.0: `comprobante` y `latencia_simulada_ms` (Task 1) más `itf-005`, el caso que distingue el redondeo medio-hacia-afuera de banker's (fix de la Task 4).
 - `contracts/README.md` — las dos derivaciones de D3, como especificación normativa.
 - `rust-core/README.md` — **nuevo**, con el diagrama Mermaid y los comandos ejecutados.
 

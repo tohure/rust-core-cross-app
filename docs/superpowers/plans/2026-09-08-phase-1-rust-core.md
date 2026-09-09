@@ -605,20 +605,25 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 mod tests {
     use super::*;
 
-    // Los cuatro casos del grupo `itf` de contracts/cases.json.
+    // Los cinco casos del grupo `itf` de contracts/cases.json.
     #[test]
     fn calculates_the_contract_cases() {
         assert_eq!(calculate_itf("1000.00").unwrap(), "0.05");  // itf-001
         assert_eq!(calculate_itf("3500.00").unwrap(), "0.18");  // itf-002
         assert_eq!(calculate_itf("150.00").unwrap(), "0.01");   // itf-003
         assert_eq!(calculate_itf("87654.32").unwrap(), "4.38"); // itf-004
+        assert_eq!(calculate_itf("2500.00").unwrap(), "0.13");  // itf-005
     }
 
     #[test]
     fn rounds_half_away_from_zero_not_to_even() {
-        // 3500.00 * 0.00005 = 0.175 exacto. Con banker's rounding daría 0.17 y el
-        // contrato lo caza: por eso este caso existe.
-        assert_eq!(calculate_itf("3500.00").unwrap(), "0.18");
+        // 2500.00 * 0.00005 = 0.125 exacto: medio hacia afuera del cero da 0.13, y
+        // banker's rounding daría 0.12 porque el 2 es par. ESTE es el caso que
+        // distingue las dos estrategias.
+        assert_eq!(calculate_itf("2500.00").unwrap(), "0.13"); // itf-005
+        // 3500.00 * 0.00005 = 0.175 exacto, pero acá las dos estrategias coinciden
+        // en 0.18 (el 8 es par). No discrimina; queda por ser caso del contrato.
+        assert_eq!(calculate_itf("3500.00").unwrap(), "0.18"); // itf-002
     }
 
     #[test]
@@ -681,9 +686,9 @@ Expected: PASS
 git add rust-core/
 git commit -m "feat(rust-core): calculo del ITF con la alicuota como constante nombrada
 
-Los cuatro casos del grupo itf de cases.json pasan, incluido itf-002
-(0.175 -> 0.18), que es el que distingue MidpointAwayFromZero de
-banker's rounding.
+Los cinco casos del grupo itf de cases.json pasan, incluido itf-005
+(0.125 -> 0.13), que es el unico que distingue MidpointAwayFromZero de
+banker's rounding: itf-002 (0.175 -> 0.18) da lo mismo bajo las dos.
 
 Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 ```
@@ -1904,7 +1909,7 @@ No es un test más. Que esto pase en las cuatro plataformas **es** la demostraci
 - Create: `rust-core/crates/ffi/tests/golden.rs`
 
 **Interfaces:**
-- Consumes: toda la superficie FFI de la Task 10 y `contracts/cases.json` v2.1.0 de la Task 1.
+- Consumes: toda la superficie FFI de la Task 10 y `contracts/cases.json` v2.2.0 (v2.1.0 de la Task 1 más el caso itf-005 del fix de la Task 4).
 
 - [ ] **Step 1: Escribir el golden**
 
@@ -1936,7 +1941,7 @@ fn field(v: &Value, k: &str) -> String {
 
 #[test]
 fn the_contract_is_the_expected_version() {
-    assert_eq!(field(&contract(), "version"), "2.1.0");
+    assert_eq!(field(&contract(), "version"), "2.2.0");
 }
 
 #[test]
@@ -2089,9 +2094,9 @@ Expected: aparece `Running tests/golden.rs`.
 
 ```bash
 git add rust-core/
-git commit -m "test(ffi): golden contra cases.json v2.1.0
+git commit -m "test(ffi): golden contra cases.json v2.2.0
 
-Los 26 casos del contrato mas comprobante y latencia, con igualdad exacta
+Los 27 casos del contrato mas comprobante y latencia, con igualdad exacta
 de strings. Vive dentro del paquete ffi: en la raiz del workspace cargo
 nunca lo habria compilado ni ejecutado.
 
@@ -2197,7 +2202,7 @@ apps lo consumen sin reescribirlo.
 graph TD
     ffi["<b>crates/ffi</b> · core_financiero<br/>uniffi::export · cdylib<br/>único crate exportado"]
     domain["<b>crates/domain</b><br/>Rust puro · NO declara uniffi<br/>error · arithmetic · itf · transfer<br/>cci · card · crypto"]
-    contrato[("contracts/cases.json<br/>v2.1.0 · 26 casos")]
+    contrato[("contracts/cases.json<br/>v2.2.0 · 27 casos")]
 
     ffi --> domain
     ffi -. "tests/golden.rs" .-> contrato
