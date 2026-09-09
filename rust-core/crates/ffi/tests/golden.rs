@@ -6,6 +6,7 @@
 
 use core_financiero::*;
 use serde_json::Value;
+use std::collections::BTreeSet;
 
 // include_str! embebe el contrato en el binario de test: cambiar cases.json fuerza
 // recompilar, y no hay I/O en tiempo de ejecución.
@@ -66,6 +67,57 @@ fn the_contract_has_the_expected_number_of_cases() {
     assert_eq!(
         total, EXPECTED_TOTAL,
         "el contrato trae {total} casos en total y se esperaban {EXPECTED_TOTAL}"
+    );
+}
+
+/// Guardia contra el grupo que nadie lee. Un escalón por encima del conteo.
+///
+/// Un grupo de casos nuevo que ninguna función `golden_*` lea pasaría en verde sin
+/// comparar un solo string — igual que un grupo vacío, y por el mismo motivo: lo que no
+/// se recorre no aserta nada. La diferencia es que el conteo no puede cazarlo, porque un
+/// grupo desconocido no está en su tabla.
+///
+/// Por eso agregar un grupo al contrato **obliga** a agregarle acá su función `golden_*`
+/// y a sumarlo a esta lista, y lo mismo en las otras tres plataformas. Es la misma
+/// fricción deliberada del conteo: `contracts/cases.json` lo leen cinco bases de código,
+/// y que una se quede atrás sin que nada falle es justo lo que la POC no puede permitirse.
+#[test]
+fn the_contract_has_no_unknown_top_level_keys() {
+    // Las doce claves del contrato v2.2.0: seis de metadatos, cinco grupos de casos, y
+    // `cuentas_iniciales`, que `golden_transfer` usa como fixture y no como casos.
+    const KNOWN: [&str; 12] = [
+        "version",
+        "moneda",
+        "_nota",
+        "_alicuota_itf",
+        "_clave_demo_hex",
+        "_nonce_demo_hex",
+        "aritmetica",
+        "cuentas_iniciales",
+        "transferencia",
+        "cci",
+        "itf",
+        "tarjeta",
+    ];
+
+    let d = contract();
+    let actual: BTreeSet<&str> = d
+        .as_object()
+        .expect("cases.json debe ser un objeto JSON")
+        .keys()
+        .map(String::as_str)
+        .collect();
+    let known: BTreeSet<&str> = KNOWN.into_iter().collect();
+
+    // Se reportan las dos diferencias juntas: si alguien renombra un grupo, ver "sobra
+    // `tarjetas`, falta `tarjeta`" de una vez dice qué pasó, y no solo que algo difiere.
+    let extra: Vec<&str> = actual.difference(&known).copied().collect();
+    let missing: Vec<&str> = known.difference(&actual).copied().collect();
+    assert!(
+        extra.is_empty() && missing.is_empty(),
+        "las claves de primer nivel de cases.json no son las conocidas — sobran: {extra:?}, \
+         faltan: {missing:?}. Si es un grupo de casos nuevo, no alcanza con agregarlo al \
+         contrato: necesita su propia función `golden_*` acá y en las otras tres plataformas"
     );
 }
 
