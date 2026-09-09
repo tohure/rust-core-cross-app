@@ -2,4 +2,4 @@
 
 pub mod error;
 
-pub use error::ErrorDominio;
+pub use error::DomainError;

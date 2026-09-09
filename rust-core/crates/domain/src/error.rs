@@ -3,56 +3,55 @@ use thiserror::Error;
 /// El único tipo de error del núcleo. Se define aquí una sola vez; el crate `ffi`
 /// lo expone a uniffi con un `From`, para que este crate no dependa de uniffi.
 #[derive(Debug, Clone, PartialEq, Eq, Error)]
-pub enum ErrorDominio {
-    #[error("longitud inválida en {campo}: se esperaban {esperado} dígitos, llegaron {recibido}")]
-    Longitud {
-        campo: String,
-        esperado: u32,
-        recibido: u32,
+pub enum DomainError {
+    #[error("longitud inválida en {field}: se esperaban {expected} dígitos, llegaron {received}")]
+    Length {
+        field: String,
+        expected: u32,
+        received: u32,
     },
 
     #[error("dígito de control inválido")]
-    DigitoControl,
+    CheckDigit,
 
-    #[error("banco no reconocido: {codigo}")]
-    BancoDesconocido { codigo: String },
+    #[error("banco no reconocido: {code}")]
+    UnknownBank { code: String },
 
-    #[error("monto inválido: {detalle}")]
-    MontoInvalido { detalle: String },
+    #[error("monto inválido: {detail}")]
+    InvalidAmount { detail: String },
 
     #[error("cuenta no encontrada: {id}")]
-    CuentaNoEncontrada { id: String },
+    AccountNotFound { id: String },
 
     #[error("origen y destino son la misma cuenta")]
-    MismaCuenta,
+    SameAccount,
 
-    #[error("saldo insuficiente: disponible {disponible}, requerido {requerido}")]
-    SaldoInsuficiente {
-        disponible: String,
-        requerido: String,
-    },
+    #[error("saldo insuficiente: disponible {available}, requerido {required}")]
+    InsufficientFunds { available: String, required: String },
 
-    #[error("error de cifrado: {detalle}")]
-    Cifrado { detalle: String },
+    #[error("error de cifrado: {detail}")]
+    Encryption { detail: String },
 
-    #[error("parámetro fuera de rango: {campo}")]
-    FueraDeRango { campo: String },
+    #[error("parámetro fuera de rango: {field}")]
+    OutOfRange { field: String },
 }
 
-impl ErrorDominio {
-    /// Nombre de la variante, para comparar contra el campo `error` de
-    /// `contracts/cases.json`. El contrato identifica el error por nombre, no por mensaje.
-    pub fn nombre(&self) -> &'static str {
+impl DomainError {
+    /// Nombre que el contrato le da a este error. Devuelve el string en español de
+    /// `contracts/cases.json` porque el contrato es un archivo de datos que las cinco
+    /// plataformas comparan por igualdad exacta; este método es el único puente entre
+    /// los identificadores en inglés y ese contrato.
+    pub fn contract_name(&self) -> &'static str {
         match self {
-            Self::Longitud { .. } => "Longitud",
-            Self::DigitoControl => "DigitoControl",
-            Self::BancoDesconocido { .. } => "BancoDesconocido",
-            Self::MontoInvalido { .. } => "MontoInvalido",
-            Self::CuentaNoEncontrada { .. } => "CuentaNoEncontrada",
-            Self::MismaCuenta => "MismaCuenta",
-            Self::SaldoInsuficiente { .. } => "SaldoInsuficiente",
-            Self::Cifrado { .. } => "Cifrado",
-            Self::FueraDeRango { .. } => "FueraDeRango",
+            Self::Length { .. } => "Longitud",
+            Self::CheckDigit => "DigitoControl",
+            Self::UnknownBank { .. } => "BancoDesconocido",
+            Self::InvalidAmount { .. } => "MontoInvalido",
+            Self::AccountNotFound { .. } => "CuentaNoEncontrada",
+            Self::SameAccount => "MismaCuenta",
+            Self::InsufficientFunds { .. } => "SaldoInsuficiente",
+            Self::Encryption { .. } => "Cifrado",
+            Self::OutOfRange { .. } => "FueraDeRango",
         }
     }
 }
@@ -62,36 +61,36 @@ mod tests {
     use super::*;
 
     #[test]
-    fn el_nombre_coincide_con_el_del_contrato() {
+    fn the_contract_name_matches_the_contract() {
         // Los strings del campo "error" de contracts/cases.json.
-        assert_eq!(ErrorDominio::MismaCuenta.nombre(), "MismaCuenta");
-        assert_eq!(ErrorDominio::DigitoControl.nombre(), "DigitoControl");
+        assert_eq!(DomainError::SameAccount.contract_name(), "MismaCuenta");
+        assert_eq!(DomainError::CheckDigit.contract_name(), "DigitoControl");
         assert_eq!(
-            ErrorDominio::Longitud {
-                campo: "cci".into(),
-                esperado: 20,
-                recibido: 18
+            DomainError::Length {
+                field: "cci".into(),
+                expected: 20,
+                received: 18
             }
-            .nombre(),
+            .contract_name(),
             "Longitud"
         );
         assert_eq!(
-            ErrorDominio::CuentaNoEncontrada { id: "x".into() }.nombre(),
+            DomainError::AccountNotFound { id: "x".into() }.contract_name(),
             "CuentaNoEncontrada"
         );
         assert_eq!(
-            ErrorDominio::SaldoInsuficiente {
-                disponible: "1.00".into(),
-                requerido: "2.00".into()
+            DomainError::InsufficientFunds {
+                available: "1.00".into(),
+                required: "2.00".into()
             }
-            .nombre(),
+            .contract_name(),
             "SaldoInsuficiente"
         );
         assert_eq!(
-            ErrorDominio::MontoInvalido {
-                detalle: "cero".into()
+            DomainError::InvalidAmount {
+                detail: "cero".into()
             }
-            .nombre(),
+            .contract_name(),
             "MontoInvalido"
         );
     }
