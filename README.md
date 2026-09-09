@@ -60,9 +60,9 @@ rust-core/crates/ffi        (único crate exportado; domain/calculation/validati
 | 4 | `apps/react-native` — Turbo Module | ⬜ |
 | 5 | `apps/web-angular` — WASM | ⬜ |
 
-Cada fase termina con su test golden en verde contra el contrato **y**, desde la Fase 2,
-con el `README.md` de demo de su app —comandos ya ejecutados, no deducidos. Una fase sin
-las dos cosas no está terminada, por bien que se vea la UI.
+Cada fase termina con su test golden en verde contra el contrato **y** con el `README.md`
+de su subproyecto: comandos ya ejecutados (no deducidos) más un diagrama de arquitectura
+en Mermaid. Una fase sin las dos cosas no está terminada, por bien que se vea la UI.
 
 ## Arranque
 

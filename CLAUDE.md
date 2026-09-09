@@ -171,7 +171,8 @@ El orden no es negociable: lo impone el grafo de dependencias de build de arriba
   antes de la Fase 1: fuera el cronograma francés, la TCEA y `validar_ruc`; dentro
   aritmética decimal, transferencia y cifrado de tarjeta (ver
   [recorte de alcance](docs/superpowers/specs/2026-09-08-scope-simplification-design.md)).
-- **Fase 1 — `rust-core`.** Workspace y los cuatro crates. Dominio y cálculo primero en
+- **Fase 1 — `rust-core`.** Workspace y los cinco crates (`domain`, `calculation`,
+  `validation`, `crypto`, `ffi`). Dominio y cálculo primero en
   Rust puro (unitarias + `proptest`), `ffi` al final. Es la única fase donde se decide
   lógica de negocio.
 - **Fase 2 — `apps/android`.** Primer consumidor: valida el pipeline uniffi + el test
@@ -180,16 +181,22 @@ El orden no es negociable: lo impone el grafo de dependencias de build de arriba
 - **Fase 4 — `apps/react-native`.** Turbo Module vía `ubrn`. Desbloquea la fase 5.
 - **Fase 5 — `apps/web-angular`.** Consume el WASM producido en la fase 4.
 
-Cada fase termina con dos cosas, no una:
+Cada fase termina con tres cosas, no una:
 
 1. **Su test golden en verde** contra `cases.json`.
-2. **Su `README.md` de demo** (`apps/<plataforma>/README.md`, a partir de la Fase 2) con
-   los comandos **efectivamente ejecutados** para construir el core, correr la app y
-   correr el golden. Se escribe al final de la fase copiando comandos que ya corrieron,
-   nunca deducidos del CONTEXT: un README con comandos sin ejecutar se descubre roto el
-   día de la demo, que es el único día que importa.
+2. **El `README.md` de su subproyecto** — `rust-core/README.md` en la Fase 1,
+   `apps/<plataforma>/README.md` de la Fase 2 en adelante — con los comandos
+   **efectivamente ejecutados** para construir, correr la demo y correr el golden. Se
+   escribe al final de la fase copiando comandos que ya corrieron, nunca deducidos del
+   CONTEXT: un README con comandos sin ejecutar se descubre roto el día de la demo, que
+   es el único día que importa.
+3. **Un diagrama de arquitectura en Mermaid dentro de ese README**, que muestre cómo está
+   organizado ese subproyecto: los cinco crates y sus dependencias en `rust-core`; en
+   cada app, el camino desde el artefacto que produce el core hasta la pantalla. Si la
+   estructura no se ve en un diagrama, no está justificada — cinco crates que nadie puede
+   ver de un vistazo son ceremonia, no arquitectura.
 
-Una fase sin las dos no está terminada, por más que la UI se vea bien.
+Una fase sin las tres no está terminada, por más que la UI se vea bien.
 
 Cuando existan al menos dos apps se agrega `docs/demo-runbook.md`: el guion de poner las
 cuatro pantallas lado a lado. Hasta entonces no hay guion real que escribir.
