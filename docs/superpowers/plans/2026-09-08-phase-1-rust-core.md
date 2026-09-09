@@ -25,6 +25,40 @@ Aplican a **todas** las tareas. No se repiten en cada una.
 
 ---
 
+## Estado de ejecución
+
+**Última actualización: 2026-09-08.** Plan aprobado. **Ejecución no empezada** — ninguna
+tarea completada, ninguna línea de Rust en el repo. Rama: `feat/phase-1-rust-core`.
+
+**Para retomar:** invocar `superpowers:subagent-driven-development` y arrancar por la
+**Task 1**. Un subagente fresco por tarea, revisión desde la sesión principal entre cada
+una, con este reparto de modelos:
+
+| Tarea | Modelo | Por qué |
+|---|---|---|
+| 1 · Contrato v2.1.0 | **Opus** | Toca valores esperados. El atajo peligroso es doblar el contrato para que pase el código, y en review es casi invisible. |
+| 2 · Workspace y error | Sonnet | Código literal en el plan, verificado con `cargo build`. |
+| 3 · `arithmetic` | Sonnet | Código literal + los 6 casos del contrato como oráculo. |
+| 4 · `itf` | Sonnet | Ídem, 4 casos. |
+| 5 · `cci` | Sonnet | Ídem, 4 casos. |
+| 6 · `card` | Sonnet | Ídem, 6 casos. |
+| 7 · `crypto` | Sonnet | Ídem, 3 vectores ya reproducidos en Rust. |
+| 8 · `transfer` | Sonnet | Ídem, 6 casos. |
+| 9 · `proptest` | Sonnet | Tests escritos en el plan. |
+| 10 · `ffi` / uniffi | **Opus** | Errores de macro crípticos y uniffi 0.32 es reciente: es donde el código del plan tiene más chances de no compilar tal cual. |
+| 11 · Golden | **Opus** | Es *la* evidencia de la POC. Incluye romperlo a propósito para probar que corre. |
+| 12 · Smoke de bindings | **Opus** | Diagnóstico de FFI, no transcripción. |
+| 13 · Docs y CONTEXT | **Opus** | Criterio: redactar el porqué de un cambio de arquitectura. |
+
+Si una tarea se traba **dos veces en el mismo error de compilación**, subirla a Opus en vez
+de dejar al subagente insistir.
+
+**Pendiente que no bloquea:** instalar `rust-analyzer-lsp` y `security-guidance`
+(`/plugin install …@claude-plugins-official`, los corre el humano). La rama se mergea a
+`main` recién cuando el golden pase.
+
+---
+
 ## File Structure
 
 | Archivo | Responsabilidad |
