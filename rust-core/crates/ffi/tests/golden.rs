@@ -26,6 +26,49 @@ fn the_contract_is_the_expected_version() {
     assert_eq!(field(&contract(), "version"), "2.2.0");
 }
 
+/// Guardia contra el golden que reporta éxito sin haber ejercitado nada.
+///
+/// Dos razones por las que este test vale:
+///
+/// 1. Si alguien agrega un caso a `contracts/cases.json`, **tiene que actualizar el
+///    número de acá a propósito**. La fricción es deliberada: el contrato lo leen cinco
+///    bases de código, y crecerlo es un acto consciente, no algo que se cuela por
+///    descuido en una sola de ellas.
+/// 2. Sin esta guardia, un grupo vaciado o renombrado a la mitad pasaría en verde: un
+///    `for` sobre cero elementos no aserta nada, así que los `golden_*` dirían "ok" sin
+///    haber comparado un solo string. Es exactamente la misma clase de fallo que motivó
+///    poner este archivo dentro del paquete `ffi` y no en la raíz del workspace.
+#[test]
+fn the_contract_has_the_expected_number_of_cases() {
+    // Los conteos reales del contrato v2.2.0. Cambiarlos es cambiar el alcance de la POC.
+    const EXPECTED: [(&str, usize); 5] = [
+        ("aritmetica", 6),
+        ("cci", 4),
+        ("itf", 5),
+        ("tarjeta", 6),
+        ("transferencia", 6),
+    ];
+    const EXPECTED_TOTAL: usize = 27;
+
+    let d = contract();
+    let mut total = 0;
+    for (group, expected) in EXPECTED {
+        let actual = d[group]
+            .as_array()
+            .unwrap_or_else(|| panic!("falta el grupo `{group}` en cases.json"))
+            .len();
+        assert_eq!(
+            actual, expected,
+            "el grupo `{group}` trae {actual} casos y se esperaban {expected}"
+        );
+        total += actual;
+    }
+    assert_eq!(
+        total, EXPECTED_TOTAL,
+        "el contrato trae {total} casos en total y se esperaban {EXPECTED_TOTAL}"
+    );
+}
+
 #[test]
 fn golden_arithmetic() {
     for case in contract()["aritmetica"]
