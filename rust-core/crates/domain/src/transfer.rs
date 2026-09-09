@@ -223,14 +223,40 @@ mod tests {
         assert_eq!(e.contract_name(), "MontoInvalido");
     }
 
+    // Reemplaza a un test anterior (`does_not_mutate_the_input_accounts`) que no podía
+    // fallar: `execute_transfer` toma `Vec<Account>` por valor, así que el test le
+    // pasaba un clon y aseraba sobre el vector original — eso vale para cualquier
+    // implementación imaginable, incluida una que mutara todo lo que recibe. La pureza
+    // ya la garantiza la firma de la función, no hacía falta (ni servía) un test para
+    // eso. Este test sí puede fallar: cubre una tercera cuenta ajena a la transferencia
+    // (que debe salir intacta) y el campo `holder` de las dos cuentas participantes
+    // (que el contrato incluye en `esperado.cuentas` pero ningún test tocaba todavía).
     #[test]
-    fn does_not_mutate_the_input_accounts() {
-        let originales = accounts();
-        let _ = execute_transfer(
-            originales.clone(),
+    fn preserves_untouched_accounts_and_holders() {
+        let bystander = Account {
+            id: "00218900555555555099".into(),
+            holder: "Marta Solis".into(),
+            balance: "777.77".into(),
+        };
+        let mut all_accounts = accounts();
+        all_accounts.push(bystander.clone());
+
+        let r = execute_transfer(
+            all_accounts,
             request("00219100123456789047", "01122000987654321065", "100.00"),
-        );
-        assert_eq!(originales[0].balance, "5000.00");
+        )
+        .unwrap();
+
+        // Las dos cuentas participantes conservan id y holder; solo cambia el balance
+        // (ya verificado por tr_001_happy_transfer).
+        assert_eq!(r.accounts[0].id, "00219100123456789047");
+        assert_eq!(r.accounts[0].holder, "Ana Quispe");
+        assert_eq!(r.accounts[1].id, "01122000987654321065");
+        assert_eq!(r.accounts[1].holder, "Luis Ramos");
+
+        // La tercera cuenta no participa en la transferencia: debe salir intacta, en
+        // la misma posición.
+        assert_eq!(r.accounts[2], bystander);
     }
 
     // Caso extra (no viene en contracts/cases.json): tr-001 y tr-002 usan montos
@@ -239,7 +265,7 @@ mod tests {
     // contracts/README.md:
     //   comision = redondear2(100.55 * 0.00005) = redondear2(0.0050275) = 0.01
     //   total    = redondear2(100.55 + 0.01)      = 100.56
-    //   receipt  = "TRF-" + ultimos4(origen) + "-" + ultimos4(destino) + centavos(100.55)
+    //   receipt  = "TRF-" + ultimos4(origen) + "-" + ultimos4(destino) + "-" + centavos(100.55)
     //            = "TRF-9047-1065-10055"
     //   latencia = 250 + min(100, 500) = 350
     #[test]
