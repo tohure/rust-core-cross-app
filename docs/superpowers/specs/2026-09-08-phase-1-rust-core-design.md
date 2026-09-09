@@ -23,31 +23,39 @@ gusta, esa complejidad viene después; agregarla ahora solo aleja la demo.
 
 ### D1 — Dos crates, no cinco
 
-`rust-core` tiene `core` (Rust puro) y `ffi` (uniffi). Los cuatro crates internos que
+`rust-core` tiene `domain` (Rust puro) y `ffi` (uniffi). Los cuatro crates internos que
 proponía el CONTEXT (`domain`, `calculation`, `validation`, `crypto`) pasan a ser módulos
-dentro de `core`.
+dentro de ese único crate puro.
 
 La POC argumenta **una sola frontera**: la lógica de negocio no conoce el FFI. Separar
 `domain` de `calculation` de `validation` no prueba nada adicional sobre ~400 líneas — es
 una separación que se gana cuando el código crece, no en una demo.
 
-La frontera que sí importa la sigue **haciendo cumplir el compilador**: `core` no declara
+La frontera que sí importa la sigue **haciendo cumplir el compilador**: `domain` no declara
 `uniffi` en su `Cargo.toml`, así que un `#[uniffi::export]` ahí adentro no compila. No es
 convención, es error de compilación.
 
+> **Corrección de ejecución (2026-09-08).** El crate puro se llama `domain` y no `core`,
+> como decía la versión aprobada de esta spec. Un paquete llamado `core` sí choca: `ffi` lo
+> declara como dependencia y el `--extern core` resultante tapa al `core` de la stdlib, así
+> que `#[derive(thiserror::Error)]` —que expande a `::core::fmt`— falla con
+> `cannot find 'fmt' in 'core'`. Verificado con un workspace de prueba antes de escribir la
+> primera línea. El cdylib sigue llamándose `core_financiero`, que es el nombre que esperan
+> las Fases 2 a 5.
+
 ```mermaid
 graph TD
-    ffi["<b>ffi</b><br/>uniffi::export · único crate exportado<br/>+ From&lt;core::ErrorDominio&gt;"]
-    core["<b>core</b><br/>Rust puro · NO declara uniffi<br/>error · arithmetic · itf · transfer<br/>cci · card · crypto"]
-    ffi --> core
+    ffi["<b>ffi</b><br/>uniffi::export · único crate exportado<br/>+ From&lt;domain::ErrorDominio&gt;"]
+    domain["<b>domain</b><br/>Rust puro · NO declara uniffi<br/>error · arithmetic · itf · transfer<br/>cci · card · crypto"]
+    ffi --> domain
 ```
 
 ### D2 — `ErrorDominio` se define una sola vez
 
-Vive en `core/src/error.rs` como `thiserror` puro. `ffi` declara su propio enum con
-`#[derive(uniffi::Error)]` y un `impl From<core::ErrorDominio>` de ~15 líneas.
+Vive en `domain/src/error.rs` como `thiserror` puro. `ffi` declara su propio enum con
+`#[derive(uniffi::Error)]` y un `impl From<domain::ErrorDominio>` de ~15 líneas.
 
-Se descartó derivar uniffi directamente sobre el tipo de `core` con tipos remotos
+Se descartó derivar uniffi directamente sobre el tipo de `domain` con tipos remotos
 (`#[uniffi::remote(...)]`, `use_remote_type!`): la documentación de uniffi cubre records y
 enums y **no confirma enums de error**, con casos borde advertidos. Quince líneas legibles
 valen más que un rincón poco documentado de una dependencia.
@@ -119,7 +127,7 @@ rust-core/
 ├── Cargo.toml                 workspace + [profile.release]
 ├── README.md                  gate de fase: comandos ejecutados + diagrama Mermaid
 ├── crates/
-│   ├── core/                  Rust puro — NO declara uniffi
+│   ├── domain/                Rust puro — NO declara uniffi
 │   │   ├── Cargo.toml
 │   │   └── src/
 │   │       ├── lib.rs
@@ -133,7 +141,7 @@ rust-core/
 │   └── ffi/                   único crate exportado
 │       ├── Cargo.toml
 │       ├── build.rs           inyecta versión + SHA
-│       ├── src/lib.rs         uniffi::export + From<core::ErrorDominio>
+│       ├── src/lib.rs         uniffi::export + From<domain::ErrorDominio>
 │       └── tests/
 │           └── golden.rs      lee ../../../contracts/cases.json
 ```
@@ -161,7 +169,7 @@ Records, mismo enum de error.
 Cuatro niveles, en este orden. La Ley de Hierro aplica desde aquí: ningún cálculo sin un
 test que falle primero.
 
-1. **Unitarias** por módulo, en `core`, Rust puro. `cargo test -p core` no compila uniffi.
+1. **Unitarias** por módulo, en `domain`, Rust puro. `cargo test -p domain` no compila uniffi.
 2. **Proptest**, las invariantes del CONTEXT:
    - una transferencia válida conserva la suma total de saldos menos el ITF;
    - ningún saldo queda negativo tras una transferencia aceptada;

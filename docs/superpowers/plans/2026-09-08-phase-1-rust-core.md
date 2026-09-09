@@ -4,7 +4,7 @@
 
 **Goal:** construir el núcleo de dominio en Rust que las cuatro apps consumirán sin reescribirlo, con el test golden de `contracts/cases.json` en verde.
 
-**Architecture:** dos crates. `core` es Rust puro con toda la lógica en módulos y no declara `uniffi`, así que un `#[uniffi::export]` ahí adentro no compila — la frontera la hace cumplir el compilador. `ffi` es el único crate exportado: aplica las macros de uniffi y traduce `core::ErrorDominio` con un `From`. Todo monto viaja como `String`; `rust_decimal::Decimal` nunca cruza la frontera.
+**Architecture:** dos crates. `domain` es Rust puro con toda la lógica en módulos y no declara `uniffi`, así que un `#[uniffi::export]` ahí adentro no compila — la frontera la hace cumplir el compilador. `ffi` es el único crate exportado: aplica las macros de uniffi y traduce `domain::ErrorDominio` con un `From`. Todo monto viaja como `String`; `rust_decimal::Decimal` nunca cruza la frontera.
 
 **Tech Stack:** Rust 1.98.1 · `rust_decimal` 1.43 · `chacha20poly1305` 0.11 · `hex` 0.4 · `thiserror` 2.0 · `uniffi` 0.32 · `proptest` 1.11 · `serde_json` 1.0 (solo dev)
 
@@ -22,6 +22,28 @@ Aplican a **todas** las tareas. No se repiten en cada una.
 - Nombres de archivos, carpetas y crates en **inglés**; identificadores de dominio en **español** (`validar_cci`, `calcular_itf`, `ejecutar_transferencia`). Commits en español, Conventional Commits, scope `rust-core`.
 - Gates de cada tarea antes de commitear: `cargo test --workspace`, `cargo clippy --workspace --all-targets -- -D warnings`, `cargo fmt --all`.
 - Sin red, sin disco, sin async, sin threads en la API pública.
+
+---
+
+## Correcciones de preflight (2026-09-08, antes de la Task 1)
+
+Tres defectos del plan, encontrados y resueltos en el scan previo a la ejecución. Se
+corrigieron en el texto de arriba; quedan acá anotados para que se pueda auditar qué
+cambió y por qué.
+
+1. **El crate puro se llama `domain`, no `core`.** Un paquete llamado `core` sí choca:
+   dentro de `ffi` lo declara como dependencia, y el `--extern core` resultante tapa al
+   `core` de la stdlib, así que `#[derive(thiserror::Error)]` —que expande a
+   `::core::fmt`— no compila (`cannot find 'fmt' in 'core'`). Verificado con un workspace
+   de prueba, que compila en verde tras renombrar. El cdylib **sigue** llamándose
+   `core_financiero`: es el nombre que esperan las Fases 2 a 5.
+2. **El chequeo del contrato de la Task 1 no usa `float`.** La restricción global de no
+   usar punto flotante vale también para los scripts de verificación; se pasó a
+   `decimal.Decimal`.
+3. **El grep de `unwrap()`/`expect()` de la Task 13 no excluía los tests.** Filtraba la
+   línea `#[cfg(test)]`, no el bloque, así que los `unwrap()` legítimos de los módulos de
+   test daban falso positivo. Se reemplazó por un `awk` que corta cada archivo en su
+   `#[cfg(test)]`.
 
 ---
 
@@ -64,18 +86,18 @@ de dejar al subagente insistir.
 | Archivo | Responsabilidad |
 |---|---|
 | `rust-core/Cargo.toml` | Workspace y `[profile.release]` |
-| `rust-core/crates/core/src/lib.rs` | Declara los módulos y reexporta la API |
-| `rust-core/crates/core/src/error.rs` | `ErrorDominio`, definido **una sola vez** |
-| `rust-core/crates/core/src/arithmetic.rs` | Parseo, redondeo, formateo, `sumar`, `restar` |
-| `rust-core/crates/core/src/itf.rs` | `ALICUOTA_ITF` y `calcular_itf` |
-| `rust-core/crates/core/src/cci.rs` | `validar_cci` y la tabla de bancos |
-| `rust-core/crates/core/src/card.rs` | Luhn, marca, enmascarado |
-| `rust-core/crates/core/src/crypto.rs` | `cifrar` / `descifrar` |
-| `rust-core/crates/core/src/transfer.rs` | `ejecutar_transferencia`, comprobante, latencia |
-| `rust-core/crates/core/tests/properties.rs` | Property-based con `proptest` |
+| `rust-core/crates/domain/src/lib.rs` | Declara los módulos y reexporta la API |
+| `rust-core/crates/domain/src/error.rs` | `ErrorDominio`, definido **una sola vez** |
+| `rust-core/crates/domain/src/arithmetic.rs` | Parseo, redondeo, formateo, `sumar`, `restar` |
+| `rust-core/crates/domain/src/itf.rs` | `ALICUOTA_ITF` y `calcular_itf` |
+| `rust-core/crates/domain/src/cci.rs` | `validar_cci` y la tabla de bancos |
+| `rust-core/crates/domain/src/card.rs` | Luhn, marca, enmascarado |
+| `rust-core/crates/domain/src/crypto.rs` | `cifrar` / `descifrar` |
+| `rust-core/crates/domain/src/transfer.rs` | `ejecutar_transferencia`, comprobante, latencia |
+| `rust-core/crates/domain/tests/properties.rs` | Property-based con `proptest` |
 | `rust-core/crates/ffi/Cargo.toml` | cdylib `core_financiero` + bin `uniffi-bindgen` |
 | `rust-core/crates/ffi/build.rs` | Inyecta versión + SHA de git |
-| `rust-core/crates/ffi/src/lib.rs` | `uniffi::export`, Records, `From<core::ErrorDominio>` |
+| `rust-core/crates/ffi/src/lib.rs` | `uniffi::export`, Records, `From<domain::ErrorDominio>` |
 | `rust-core/crates/ffi/tests/golden.rs` | Corre `contracts/cases.json` |
 | `rust-core/README.md` | Gate de fase: diagrama Mermaid + comandos ejecutados |
 
@@ -138,15 +160,17 @@ core, no la app.
 Run:
 ```bash
 python3 -c "
-import json; d=json.load(open('contracts/cases.json'))
+import json
+from decimal import Decimal      # sin float: la regla vale tambien para los chequeos
+d=json.load(open('contracts/cases.json'))
 assert d['version']=='2.1.0', d['version']
 for c in d['transferencia']:
     if not c['valido']: continue
     e=c['esperado']
-    m=c['entrada']['monto']; o=c['entrada']['origen']; dst=c['entrada']['destino']
-    cent=int(round(float(m)*100))          # solo para verificar el contrato, no es codigo del core
+    m=Decimal(c['entrada']['monto']); o=c['entrada']['origen']; dst=c['entrada']['destino']
+    cent=int(m*100)
     assert e['comprobante']==f'TRF-{o[-4:]}-{dst[-4:]}-{cent}', (c['id'], e['comprobante'])
-    assert e['latencia_simulada_ms']==250+min(int(float(m)),500), (c['id'], e['latencia_simulada_ms'])
+    assert e['latencia_simulada_ms']==250+min(int(m),500), (c['id'], e['latencia_simulada_ms'])
 print('contrato v2.1.0 coherente con las derivaciones')
 "
 ```
@@ -179,11 +203,11 @@ MSG
 ## Task 2: Workspace, los dos crates y `ErrorDominio`
 
 **Files:**
-- Create: `rust-core/Cargo.toml`, `rust-core/crates/core/Cargo.toml`, `rust-core/crates/core/src/lib.rs`, `rust-core/crates/core/src/error.rs`
+- Create: `rust-core/Cargo.toml`, `rust-core/crates/domain/Cargo.toml`, `rust-core/crates/domain/src/lib.rs`, `rust-core/crates/domain/src/error.rs`
 - Create: `rust-core/crates/ffi/Cargo.toml`, `rust-core/crates/ffi/src/lib.rs`, `rust-core/crates/ffi/uniffi-bindgen.rs`
 
 **Interfaces:**
-- Produces: `core::error::ErrorDominio` con las nueve variantes y `ErrorDominio::nombre() -> &'static str`, que usan todas las tareas siguientes y el golden para comparar contra el campo `error` de `cases.json`.
+- Produces: `domain::error::ErrorDominio` con las nueve variantes y `ErrorDominio::nombre() -> &'static str`, que usan todas las tareas siguientes y el golden para comparar contra el campo `error` de `cases.json`.
 
 - [ ] **Step 1: Crear el workspace**
 
@@ -192,7 +216,7 @@ MSG
 ```toml
 [workspace]
 resolver = "2"
-members = ["crates/core", "crates/ffi"]
+members = ["crates/domain", "crates/ffi"]
 
 [workspace.package]
 version = "1.0.0"
@@ -216,11 +240,11 @@ strip = true
 panic = "unwind"   # NO cambiar a abort: desactiva el catch_unwind de uniffi
 ```
 
-`rust-core/crates/core/Cargo.toml` — **no declara uniffi, a propósito**:
+`rust-core/crates/domain/Cargo.toml` — **no declara uniffi, a propósito**:
 
 ```toml
 [package]
-name = "core"
+name = "domain"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -252,7 +276,7 @@ name = "uniffi-bindgen"
 path = "uniffi-bindgen.rs"
 
 [dependencies]
-core = { path = "../core" }
+domain = { path = "../domain" }
 uniffi = { workspace = true, features = ["cli"] }
 thiserror = { workspace = true }
 
@@ -270,7 +294,7 @@ fn main() {
 
 - [ ] **Step 2: Escribir el test que falla**
 
-`rust-core/crates/core/src/error.rs`, al final del archivo:
+`rust-core/crates/domain/src/error.rs`, al final del archivo:
 
 ```rust
 #[cfg(test)]
@@ -304,12 +328,12 @@ mod tests {
 
 - [ ] **Step 3: Correr el test y verificar que falla**
 
-Run: `cd rust-core && cargo test -p core`
+Run: `cd rust-core && cargo test -p domain`
 Expected: FAIL — `cannot find type ErrorDominio` / `no method named nombre`
 
 - [ ] **Step 4: Implementar `ErrorDominio`**
 
-Arriba del bloque de tests en `rust-core/crates/core/src/error.rs`:
+Arriba del bloque de tests en `rust-core/crates/domain/src/error.rs`:
 
 ```rust
 use thiserror::Error;
@@ -365,7 +389,7 @@ impl ErrorDominio {
 }
 ```
 
-`rust-core/crates/core/src/lib.rs`:
+`rust-core/crates/domain/src/lib.rs`:
 
 ```rust
 #![forbid(unsafe_code)]
@@ -396,16 +420,16 @@ Expected: test PASS, clippy sin warnings.
 
 - [ ] **Step 6: Verificar que el compilador hace cumplir la frontera**
 
-Este paso prueba la tesis arquitectónica de la fase. Agregar temporalmente a `crates/core/src/lib.rs`:
+Este paso prueba la tesis arquitectónica de la fase. Agregar temporalmente a `crates/domain/src/lib.rs`:
 
 ```rust
 #[uniffi::export]
 pub fn no_deberia_compilar() {}
 ```
 
-Run: `cargo build -p core`
+Run: `cargo build -p domain`
 Expected: **FAIL** con `failed to resolve: use of undeclared crate or module 'uniffi'`.
-Luego **borrar esas tres líneas** y volver a correr `cargo build -p core`: debe pasar.
+Luego **borrar esas tres líneas** y volver a correr `cargo build -p domain`: debe pasar.
 
 - [ ] **Step 7: Commit**
 
@@ -413,7 +437,7 @@ Luego **borrar esas tres líneas** y volver a correr `cargo build -p core`: debe
 git add rust-core/
 git commit -m "feat(rust-core): workspace de dos crates y ErrorDominio
 
-core no declara uniffi, asi que un uniffi::export ahi adentro no compila:
+domain no declara uniffi, asi que un uniffi::export ahi adentro no compila:
 la frontera que la POC argumenta la hace cumplir el compilador, no la
 disciplina. Verificado en el paso 6 del plan.
 
@@ -430,8 +454,8 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 Es la base de todo lo demás: `itf` y `transfer` usan su parseo y su formateo.
 
 **Files:**
-- Create: `rust-core/crates/core/src/arithmetic.rs`
-- Modify: `rust-core/crates/core/src/lib.rs`
+- Create: `rust-core/crates/domain/src/arithmetic.rs`
+- Modify: `rust-core/crates/domain/src/lib.rs`
 
 **Interfaces:**
 - Produces:
@@ -443,7 +467,7 @@ Es la base de todo lo demás: `itf` y `transfer` usan su parseo y su formateo.
 
 - [ ] **Step 1: Escribir los tests que fallan**
 
-`rust-core/crates/core/src/arithmetic.rs`:
+`rust-core/crates/domain/src/arithmetic.rs`:
 
 ```rust
 #[cfg(test)]
@@ -482,7 +506,7 @@ mod tests {
 
 - [ ] **Step 2: Correr y verificar que falla**
 
-Run: `cd rust-core && cargo test -p core arithmetic`
+Run: `cd rust-core && cargo test -p domain arithmetic`
 Expected: FAIL — `cannot find function sumar`
 
 - [ ] **Step 3: Implementar**
@@ -539,7 +563,7 @@ pub use arithmetic::{restar, sumar};
 
 - [ ] **Step 4: Correr los tests**
 
-Run: `cd rust-core && cargo test -p core && cargo clippy --workspace --all-targets -- -D warnings && cargo fmt --all`
+Run: `cd rust-core && cargo test -p domain && cargo clippy --workspace --all-targets -- -D warnings && cargo fmt --all`
 Expected: PASS, clippy limpio.
 
 - [ ] **Step 5: Commit**
@@ -560,8 +584,8 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 ## Task 4: `itf.rs` — la alícuota como constante nombrada
 
 **Files:**
-- Create: `rust-core/crates/core/src/itf.rs`
-- Modify: `rust-core/crates/core/src/lib.rs`
+- Create: `rust-core/crates/domain/src/itf.rs`
+- Modify: `rust-core/crates/domain/src/lib.rs`
 
 **Interfaces:**
 - Produces:
@@ -571,7 +595,7 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 
 - [ ] **Step 1: Escribir los tests que fallan**
 
-`rust-core/crates/core/src/itf.rs`:
+`rust-core/crates/domain/src/itf.rs`:
 
 ```rust
 #[cfg(test)]
@@ -603,7 +627,7 @@ mod tests {
 
 - [ ] **Step 2: Correr y verificar que falla**
 
-Run: `cd rust-core && cargo test -p core itf`
+Run: `cd rust-core && cargo test -p domain itf`
 Expected: FAIL — `cannot find function calcular_itf`
 
 - [ ] **Step 3: Implementar**
@@ -645,7 +669,7 @@ pub use itf::{calcular_itf, ALICUOTA_ITF};
 
 - [ ] **Step 4: Correr los tests**
 
-Run: `cd rust-core && cargo test -p core && cargo clippy --workspace --all-targets -- -D warnings && cargo fmt --all`
+Run: `cd rust-core && cargo test -p domain && cargo clippy --workspace --all-targets -- -D warnings && cargo fmt --all`
 Expected: PASS
 
 - [ ] **Step 5: Commit**
@@ -666,8 +690,8 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 ## Task 5: `cci.rs` — validación del CCI y tabla de bancos
 
 **Files:**
-- Create: `rust-core/crates/core/src/cci.rs`
-- Modify: `rust-core/crates/core/src/lib.rs`
+- Create: `rust-core/crates/domain/src/cci.rs`
+- Modify: `rust-core/crates/domain/src/lib.rs`
 
 **Interfaces:**
 - Produces:
@@ -676,7 +700,7 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 
 - [ ] **Step 1: Escribir los tests que fallan**
 
-`rust-core/crates/core/src/cci.rs`:
+`rust-core/crates/domain/src/cci.rs`:
 
 ```rust
 #[cfg(test)]
@@ -733,7 +757,7 @@ mod tests {
 
 - [ ] **Step 2: Correr y verificar que falla**
 
-Run: `cd rust-core && cargo test -p core cci`
+Run: `cd rust-core && cargo test -p domain cci`
 Expected: FAIL — `cannot find function validar_cci`
 
 - [ ] **Step 3: Implementar**
@@ -824,7 +848,7 @@ pub use cci::{validar_cci, CciValido};
 
 - [ ] **Step 4: Correr los tests**
 
-Run: `cd rust-core && cargo test -p core && cargo clippy --workspace --all-targets -- -D warnings && cargo fmt --all`
+Run: `cd rust-core && cargo test -p domain && cargo clippy --workspace --all-targets -- -D warnings && cargo fmt --all`
 Expected: PASS
 
 - [ ] **Step 5: Commit**
@@ -846,8 +870,8 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 ## Task 6: `card.rs` — Luhn, marca y enmascarado
 
 **Files:**
-- Create: `rust-core/crates/core/src/card.rs`
-- Modify: `rust-core/crates/core/src/lib.rs`
+- Create: `rust-core/crates/domain/src/card.rs`
+- Modify: `rust-core/crates/domain/src/lib.rs`
 
 **Interfaces:**
 - Produces:
@@ -856,7 +880,7 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 
 - [ ] **Step 1: Escribir los tests que fallan**
 
-`rust-core/crates/core/src/card.rs`:
+`rust-core/crates/domain/src/card.rs`:
 
 ```rust
 #[cfg(test)]
@@ -907,7 +931,7 @@ mod tests {
 
 - [ ] **Step 2: Correr y verificar que falla**
 
-Run: `cd rust-core && cargo test -p core card`
+Run: `cd rust-core && cargo test -p domain card`
 Expected: FAIL — `cannot find function validar_tarjeta`
 
 - [ ] **Step 3: Implementar**
@@ -1007,7 +1031,7 @@ pub use card::{validar_tarjeta, TarjetaValida};
 
 - [ ] **Step 4: Correr los tests**
 
-Run: `cd rust-core && cargo test -p core && cargo clippy --workspace --all-targets -- -D warnings && cargo fmt --all`
+Run: `cd rust-core && cargo test -p domain && cargo clippy --workspace --all-targets -- -D warnings && cargo fmt --all`
 Expected: PASS
 
 - [ ] **Step 5: Commit**
@@ -1030,8 +1054,8 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 La API de `chacha20poly1305` 0.11 está **verificada**: `Key::from_slice` y `Nonce::from_slice` están deprecados y harían fallar `clippy -D warnings`. Se usa `try_into`.
 
 **Files:**
-- Create: `rust-core/crates/core/src/crypto.rs`
-- Modify: `rust-core/crates/core/src/lib.rs`
+- Create: `rust-core/crates/domain/src/crypto.rs`
+- Modify: `rust-core/crates/domain/src/lib.rs`
 
 **Interfaces:**
 - Produces:
@@ -1040,7 +1064,7 @@ La API de `chacha20poly1305` 0.11 está **verificada**: `Key::from_slice` y `Non
 
 - [ ] **Step 1: Escribir los tests que fallan**
 
-`rust-core/crates/core/src/crypto.rs`:
+`rust-core/crates/domain/src/crypto.rs`:
 
 ```rust
 #[cfg(test)]
@@ -1097,7 +1121,7 @@ mod tests {
 
 - [ ] **Step 2: Correr y verificar que falla**
 
-Run: `cd rust-core && cargo test -p core crypto`
+Run: `cd rust-core && cargo test -p domain crypto`
 Expected: FAIL — `cannot find function cifrar`
 
 - [ ] **Step 3: Implementar**
@@ -1161,7 +1185,7 @@ pub use crypto::{cifrar, descifrar};
 
 - [ ] **Step 4: Correr los tests**
 
-Run: `cd rust-core && cargo test -p core && cargo clippy --workspace --all-targets -- -D warnings && cargo fmt --all`
+Run: `cd rust-core && cargo test -p domain && cargo clippy --workspace --all-targets -- -D warnings && cargo fmt --all`
 Expected: PASS
 
 - [ ] **Step 5: Commit**
@@ -1183,8 +1207,8 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 ## Task 8: `transfer.rs` — la transferencia como función pura
 
 **Files:**
-- Create: `rust-core/crates/core/src/transfer.rs`
-- Modify: `rust-core/crates/core/src/lib.rs`
+- Create: `rust-core/crates/domain/src/transfer.rs`
+- Modify: `rust-core/crates/domain/src/lib.rs`
 
 **Interfaces:**
 - Consumes: `arithmetic::{parsear_monto, redondear, formatear}` (Task 3), `itf::itf_redondeado` (Task 4).
@@ -1196,7 +1220,7 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 
 - [ ] **Step 1: Escribir los tests que fallan**
 
-`rust-core/crates/core/src/transfer.rs`:
+`rust-core/crates/domain/src/transfer.rs`:
 
 ```rust
 #[cfg(test)]
@@ -1299,7 +1323,7 @@ mod tests {
 
 - [ ] **Step 2: Correr y verificar que falla**
 
-Run: `cd rust-core && cargo test -p core transfer`
+Run: `cd rust-core && cargo test -p domain transfer`
 Expected: FAIL — `cannot find function ejecutar_transferencia`
 
 - [ ] **Step 3: Implementar**
@@ -1436,7 +1460,7 @@ pub use transfer::{
 
 - [ ] **Step 4: Correr los tests**
 
-Run: `cd rust-core && cargo test -p core && cargo clippy --workspace --all-targets -- -D warnings && cargo fmt --all`
+Run: `cd rust-core && cargo test -p domain && cargo clippy --workspace --all-targets -- -D warnings && cargo fmt --all`
 Expected: PASS — los seis casos de `transferencia` en verde.
 
 - [ ] **Step 5: Commit**
@@ -1462,18 +1486,18 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 Las invariantes que los ejemplos no cubren. Es lo que Rust aporta y que el argumento de robustez necesita.
 
 **Files:**
-- Create: `rust-core/crates/core/tests/properties.rs`
+- Create: `rust-core/crates/domain/tests/properties.rs`
 
 **Interfaces:**
-- Consumes: toda la API pública de `core` (Tasks 3-8).
+- Consumes: toda la API pública de `domain` (Tasks 3-8).
 
 - [ ] **Step 1: Escribir los tests**
 
-`rust-core/crates/core/tests/properties.rs`:
+`rust-core/crates/domain/tests/properties.rs`:
 
 ```rust
-use core::{cifrar, descifrar, ejecutar_transferencia, validar_cci, validar_tarjeta};
-use core::{Cuenta, SolicitudTransferencia};
+use domain::{cifrar, descifrar, ejecutar_transferencia, validar_cci, validar_tarjeta};
+use domain::{Cuenta, SolicitudTransferencia};
 use proptest::prelude::*;
 use rust_decimal::Decimal;
 use std::str::FromStr;
@@ -1542,9 +1566,9 @@ proptest! {
 
 - [ ] **Step 2: Correr los tests**
 
-Run: `cd rust-core && cargo test -p core --test properties`
+Run: `cd rust-core && cargo test -p domain --test properties`
 Expected: PASS. Si `proptest` encuentra un contraejemplo lo guarda en
-`crates/core/proptest-regressions/` — **ese archivo se commitea**, es el caso que hizo
+`crates/domain/proptest-regressions/` — **ese archivo se commitea**, es el caso que hizo
 fallar y no debe perderse.
 
 - [ ] **Step 3: Correr todos los gates**
@@ -1577,7 +1601,7 @@ API de uniffi 0.32 **verificada**: `setup_scaffolding!`, `#[derive(uniffi::Recor
 - Modify: `rust-core/crates/ffi/src/lib.rs`
 
 **Interfaces:**
-- Consumes: toda la API pública de `core`.
+- Consumes: toda la API pública de `domain`.
 - Produces: la superficie FFI completa que consumen las cuatro apps y el golden de la Task 11.
 
 - [ ] **Step 1: Escribir el test que falla**
@@ -1598,9 +1622,9 @@ mod tests {
 
     #[test]
     fn el_error_del_nucleo_se_traduce_conservando_el_nombre() {
-        let e: ErrorDominio = core::ErrorDominio::MismaCuenta.into();
+        let e: ErrorDominio = domain::ErrorDominio::MismaCuenta.into();
         assert_eq!(e.nombre(), "MismaCuenta");
-        let e: ErrorDominio = core::ErrorDominio::SaldoInsuficiente {
+        let e: ErrorDominio = domain::ErrorDominio::SaldoInsuficiente {
             disponible: "1.00".into(),
             requerido: "2.00".into(),
         }
@@ -1660,7 +1684,7 @@ fn main() {
 
 uniffi::setup_scaffolding!();
 
-// ---------- error: se define en `core` una sola vez y acá se le pone la piel de uniffi
+// ---------- error: se define en `domain` una sola vez y acá se le pone la piel de uniffi
 
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error, uniffi::Error)]
 pub enum ErrorDominio {
@@ -1685,7 +1709,7 @@ pub enum ErrorDominio {
 }
 
 impl ErrorDominio {
-    /// Espejo de `core::ErrorDominio::nombre()`. Lo usa el golden.
+    /// Espejo de `domain::ErrorDominio::nombre()`. Lo usa el golden.
     pub fn nombre(&self) -> &'static str {
         match self {
             Self::Longitud { .. } => "Longitud",
@@ -1701,9 +1725,9 @@ impl ErrorDominio {
     }
 }
 
-impl From<core::ErrorDominio> for ErrorDominio {
-    fn from(e: core::ErrorDominio) -> Self {
-        use core::ErrorDominio as N;
+impl From<domain::ErrorDominio> for ErrorDominio {
+    fn from(e: domain::ErrorDominio) -> Self {
+        use domain::ErrorDominio as N;
         match e {
             N::Longitud { campo, esperado, recibido } => Self::Longitud { campo, esperado, recibido },
             N::DigitoControl => Self::DigitoControl,
@@ -1757,13 +1781,13 @@ pub struct TarjetaValida {
     pub enmascarado: String,
 }
 
-impl From<core::Cuenta> for Cuenta {
-    fn from(c: core::Cuenta) -> Self {
+impl From<domain::Cuenta> for Cuenta {
+    fn from(c: domain::Cuenta) -> Self {
         Self { id: c.id, titular: c.titular, saldo: c.saldo }
     }
 }
 
-impl From<Cuenta> for core::Cuenta {
+impl From<Cuenta> for domain::Cuenta {
     fn from(c: Cuenta) -> Self {
         Self { id: c.id, titular: c.titular, saldo: c.saldo }
     }
@@ -1773,12 +1797,12 @@ impl From<Cuenta> for core::Cuenta {
 
 #[uniffi::export]
 pub fn sumar(a: String, b: String) -> Result<String, ErrorDominio> {
-    core::sumar(&a, &b).map_err(Into::into)
+    domain::sumar(&a, &b).map_err(Into::into)
 }
 
 #[uniffi::export]
 pub fn restar(a: String, b: String) -> Result<String, ErrorDominio> {
-    core::restar(&a, &b).map_err(Into::into)
+    domain::restar(&a, &b).map_err(Into::into)
 }
 
 // ---------- caso 2: transferencia
@@ -1788,13 +1812,13 @@ pub fn ejecutar_transferencia(
     cuentas: Vec<Cuenta>,
     solicitud: SolicitudTransferencia,
 ) -> Result<ResultadoTransferencia, ErrorDominio> {
-    let cuentas: Vec<core::Cuenta> = cuentas.into_iter().map(Into::into).collect();
-    let solicitud = core::SolicitudTransferencia {
+    let cuentas: Vec<domain::Cuenta> = cuentas.into_iter().map(Into::into).collect();
+    let solicitud = domain::SolicitudTransferencia {
         origen: solicitud.origen,
         destino: solicitud.destino,
         monto: solicitud.monto,
     };
-    let r = core::ejecutar_transferencia(cuentas, solicitud)?;
+    let r = domain::ejecutar_transferencia(cuentas, solicitud)?;
     Ok(ResultadoTransferencia {
         cuentas: r.cuentas.into_iter().map(Into::into).collect(),
         comision_itf: r.comision_itf,
@@ -1806,7 +1830,7 @@ pub fn ejecutar_transferencia(
 
 #[uniffi::export]
 pub fn validar_cci(cci: String) -> Result<CciValido, ErrorDominio> {
-    let v = core::validar_cci(&cci)?;
+    let v = domain::validar_cci(&cci)?;
     Ok(CciValido {
         codigo_banco: v.codigo_banco,
         nombre_banco: v.nombre_banco,
@@ -1817,25 +1841,25 @@ pub fn validar_cci(cci: String) -> Result<CciValido, ErrorDominio> {
 
 #[uniffi::export]
 pub fn calcular_itf(monto: String) -> Result<String, ErrorDominio> {
-    core::calcular_itf(&monto).map_err(Into::into)
+    domain::calcular_itf(&monto).map_err(Into::into)
 }
 
 // ---------- caso 3: tarjeta y cifrado
 
 #[uniffi::export]
 pub fn validar_tarjeta(numero: String) -> Result<TarjetaValida, ErrorDominio> {
-    let v = core::validar_tarjeta(&numero)?;
+    let v = domain::validar_tarjeta(&numero)?;
     Ok(TarjetaValida { marca: v.marca, enmascarado: v.enmascarado })
 }
 
 #[uniffi::export]
 pub fn cifrar(texto: String, clave_hex: String, nonce_hex: String) -> Result<String, ErrorDominio> {
-    core::cifrar(&texto, &clave_hex, &nonce_hex).map_err(Into::into)
+    domain::cifrar(&texto, &clave_hex, &nonce_hex).map_err(Into::into)
 }
 
 #[uniffi::export]
 pub fn descifrar(cifrado_hex: String, clave_hex: String, nonce_hex: String) -> Result<String, ErrorDominio> {
-    core::descifrar(&cifrado_hex, &clave_hex, &nonce_hex).map_err(Into::into)
+    domain::descifrar(&cifrado_hex, &clave_hex, &nonce_hex).map_err(Into::into)
 }
 
 // ---------- meta
@@ -1859,7 +1883,7 @@ Expected: PASS
 git add rust-core/
 git commit -m "feat(ffi): fachada uniffi con la superficie completa de la POC
 
-core define ErrorDominio una sola vez; aca se le pone la piel de uniffi
+domain define ErrorDominio una sola vez; aca se le pone la piel de uniffi
 con un From. version_core devuelve semver + SHA de git inyectado por
 build.rs: cuatro strings identicos en pantalla son la prueba de que las
 cuatro apps corren el mismo build.
@@ -2169,22 +2193,22 @@ apps lo consumen sin reescribirlo.
 ```mermaid
 graph TD
     ffi["<b>crates/ffi</b> · core_financiero<br/>uniffi::export · cdylib<br/>único crate exportado"]
-    core["<b>crates/core</b><br/>Rust puro · NO declara uniffi<br/>error · arithmetic · itf · transfer<br/>cci · card · crypto"]
+    domain["<b>crates/domain</b><br/>Rust puro · NO declara uniffi<br/>error · arithmetic · itf · transfer<br/>cci · card · crypto"]
     contrato[("contracts/cases.json<br/>v2.1.0 · 26 casos")]
 
-    ffi --> core
+    ffi --> domain
     ffi -. "tests/golden.rs" .-> contrato
 ```
 
 Son dos crates y no más porque la POC argumenta **una** frontera: la lógica de negocio no
-conoce el FFI. Y no es una convención — `crates/core` no declara `uniffi` en su
+conoce el FFI. Y no es una convención — `crates/domain` no declara `uniffi` en su
 `Cargo.toml`, así que un `#[uniffi::export]` ahí adentro **no compila**.
 
 ## Correr los tests
 
 ```bash
 cargo test --workspace                          # todo: unitarias + proptest + golden
-cargo test -p core                              # solo el núcleo, sin compilar uniffi
+cargo test -p domain                              # solo el núcleo, sin compilar uniffi
 cargo test -p core_financiero --test golden     # solo los vectores del contrato
 cargo clippy --workspace --all-targets -- -D warnings
 cargo fmt --all
@@ -2231,13 +2255,13 @@ que más fácil se rompen:
 - [ ] **Step 2: Corregir `rust-core/CONTEXT.md`**
 
 Dos cambios, con su porqué:
-1. La estructura: de cinco crates a dos (`core` + `ffi`), con los módulos adentro de `core`.
+1. La estructura: de cinco crates a dos (`domain` + `ffi`), con los módulos adentro de `domain`.
 2. La ubicación del golden: de `rust-core/tests/` a `crates/ffi/tests/golden.rs`.
 
 - [ ] **Step 3: Corregir `CLAUDE.md`**
 
 En la lista de fases, cambiar "Workspace y los cinco crates (`domain`, `calculation`,
-`validation`, `crypto`, `ffi`)" por "Workspace y los dos crates (`core` + `ffi`)".
+`validation`, `crypto`, `ffi`)" por "Workspace y los dos crates (`domain` + `ffi`)".
 
 - [ ] **Step 4: Verificación final de la fase**
 
@@ -2248,7 +2272,8 @@ cargo test --workspace
 cargo clippy --workspace --all-targets -- -D warnings
 cargo fmt --all --check
 grep -rn "f32\|f64" crates/ --include='*.rs' || echo "sin punto flotante ✅"
-grep -rn "unwrap()\|expect(" crates/core/src crates/ffi/src --include='*.rs' | grep -v "#\[cfg(test)\]" || echo "sin unwrap/expect en produccion ✅"
+# awk corta cada archivo en su `#[cfg(test)]`: lo de abajo son tests, donde unwrap() si se permite
+find crates/domain/src crates/ffi/src -name '*.rs' -exec awk '/#\[cfg\(test\)\]/{exit} /unwrap\(\)|expect\(/{print FILENAME":"FNR": "$0}' {} + | grep . || echo "sin unwrap/expect en produccion ✅"
 ```
 Expected: todo verde y los dos `grep` sin resultados en código de producción.
 
@@ -2285,7 +2310,7 @@ Correr `/security-review` sobre la rama y luego
 | `chacha20poly1305` 0.11 | reproduce los tres vectores del contrato, derivados con Node 22 |
 | `Key::from_slice` / `Nonce::from_slice` | **deprecados**: harían fallar `clippy -D warnings`. Usar `try_into` |
 | `uniffi` 0.32 con `setup_scaffolding!`, `Record`, error con campos, `Vec<Cuenta>` | compila y pasa clippy |
-| Paquete llamado `core` | no choca con el `core` de la stdlib en edición 2021 |
+| Paquete llamado `core` | **choca**: dentro de `ffi`, un dependency llamado `core` tapa al `core` de la stdlib y `#[derive(thiserror::Error)]` no compila (`cannot find 'fmt' in 'core'`). Verificado con un workspace de prueba. Por eso el crate puro se llama **`domain`** |
 | `tests/` en la raíz del workspace | **nunca se ejecuta** — por eso el golden va en `crates/ffi/tests/` |
 
 **Orden:** las tareas 3 a 8 dependen de la 2, y la 8 de la 3 y la 4. La 11 depende de la
