@@ -1,5 +1,5 @@
 {
-  "version": "2.0.0",
+  "version": "2.1.0",
   "moneda": "PEN",
   "_nota": "Datos DUMMY. Tarjetas, cuentas, tasas y claves son inventados. La POC demuestra que las 4 plataformas producen el MISMO string, no exactitud financiera ni seguridad de produccion.",
   "_alicuota_itf": "0.00005",
@@ -84,7 +84,9 @@
           }
         ],
         "comision_itf": "0.01",
-        "total_debitado": "100.01"
+        "total_debitado": "100.01",
+        "comprobante": "TRF-9047-1065-10000",
+        "latencia_simulada_ms": 350
       }
     },
     {
@@ -109,7 +111,9 @@
           }
         ],
         "comision_itf": "0.18",
-        "total_debitado": "3500.18"
+        "total_debitado": "3500.18",
+        "comprobante": "TRF-9047-1065-350000",
+        "latencia_simulada_ms": 750
       }
     },
     {

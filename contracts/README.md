@@ -110,6 +110,17 @@ saldo(origen)  -= total       # el origen paga monto + ITF
 saldo(destino) += monto       # el destino recibe el monto íntegro
 ```
 
+Dos salidas más, ambas **deterministas** — `ejecutar_transferencia` es pura, así que no
+pueden depender de reloj ni de azar: si lo hicieran, las cuatro apps mostrarían valores
+distintos lado a lado, que es lo contrario de lo que la POC prueba.
+
+    comprobante          = "TRF-" + ultimos4(origen) + "-" + ultimos4(destino) + "-" + centavos(monto)
+    latencia_simulada_ms = 250 + min(parte_entera(monto), 500)
+
+`centavos(monto)` es el monto redondeado a 2 decimales por 100, sin decimales. La latencia
+crece con el monto y está topeada en 750 ms: montos grandes "tardan más", y lo decide el
+core, no la app.
+
 `latencia_simulada_ms` lo devuelve el core y la app lo espera antes de pintar, para que la
 demo "parezca" una llamada HTTP. **No hay ningún cliente HTTP en ninguna parte.**
 
