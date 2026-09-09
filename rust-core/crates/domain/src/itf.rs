@@ -28,7 +28,9 @@ pub fn calculate_itf(amount: &str) -> Result<String, DomainError> {
 mod tests {
     use super::*;
 
-    // Los cuatro casos del grupo `itf` de contracts/cases.json.
+    // Cuatro de los cinco casos del grupo `itf` de contracts/cases.json; itf-005 se
+    // cubre en rounds_half_away_from_zero_not_to_even porque es el que discrimina la
+    // estrategia de redondeo.
     #[test]
     fn calculates_the_contract_cases() {
         assert_eq!(calculate_itf("1000.00").unwrap(), "0.05"); // itf-001
@@ -39,9 +41,16 @@ mod tests {
 
     #[test]
     fn rounds_half_away_from_zero_not_to_even() {
-        // 3500.00 * 0.00005 = 0.175 exacto. Con banker's rounding daría 0.17 y el
-        // contrato lo caza: por eso este caso existe.
-        assert_eq!(calculate_itf("3500.00").unwrap(), "0.18");
+        // 3500.00 * 0.00005 = 0.175 exacto. Entre 0.17 y 0.18 el dígito par es el 8,
+        // así que banker's rounding también da 0.18: este caso NO distingue la
+        // estrategia de redondeo, aunque durante un tiempo el comentario dijo que sí.
+        assert_eq!(calculate_itf("3500.00").unwrap(), "0.18"); // itf-002
+
+        // 2500.00 * 0.00005 = 0.125 exacto. Medio hacia afuera del cero da 0.13;
+        // banker's rounding daría 0.12 porque el 2 ya es par. Este es el caso que sí
+        // distingue las dos estrategias: si `round_amount` cambiara de
+        // MidpointAwayFromZero a MidpointNearestEven, este assert lo detectaría.
+        assert_eq!(calculate_itf("2500.00").unwrap(), "0.13"); // itf-005
     }
 
     #[test]
