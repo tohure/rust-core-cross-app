@@ -4,7 +4,7 @@
 
 **Goal:** construir el núcleo de dominio en Rust que las cuatro apps consumirán sin reescribirlo, con el test golden de `contracts/cases.json` en verde.
 
-**Architecture:** dos crates. `domain` es Rust puro con toda la lógica en módulos y no declara `uniffi`, así que un `#[uniffi::export]` ahí adentro no compila — la frontera la hace cumplir el compilador. `ffi` es el único crate exportado: aplica las macros de uniffi y traduce `domain::ErrorDominio` con un `From`. Todo monto viaja como `String`; `rust_decimal::Decimal` nunca cruza la frontera.
+**Architecture:** dos crates. `domain` es Rust puro con toda la lógica en módulos y no declara `uniffi`, así que un `#[uniffi::export]` ahí adentro no compila — la frontera la hace cumplir el compilador. `ffi` es el único crate exportado: aplica las macros de uniffi y traduce `domain::DomainError` con un `From`. Todo monto viaja como `String`; `rust_decimal::Decimal` nunca cruza la frontera.
 
 **Tech Stack:** Rust 1.98.1 · `rust_decimal` 1.43 · `chacha20poly1305` 0.11 · `hex` 0.4 · `thiserror` 2.0 · `uniffi` 0.32 · `proptest` 1.11 · `serde_json` 1.0 (solo dev)
 
@@ -15,11 +15,12 @@
 Aplican a **todas** las tareas. No se repiten en cada una.
 
 - **Ningún `f32` ni `f64`**, en ningún lado, ni en tests. Los montos son `String` en la frontera y `Decimal` adentro.
-- **Ningún `panic!`, `unwrap()` ni `expect()`** en código de producción. Todo error es `Result<_, ErrorDominio>`. En tests sí se permite `unwrap()`.
+- **Ningún `panic!`, `unwrap()` ni `expect()`** en código de producción. Todo error es `Result<_, DomainError>`. En tests sí se permite `unwrap()`.
 - `#![forbid(unsafe_code)]` en la primera línea de cada `lib.rs`.
 - **Cero reglas de negocio inventadas.** Si un caso no está en `contracts/cases.json`, se pregunta antes de implementar. La fuente normativa de los algoritmos es [`contracts/README.md`](../../../contracts/README.md).
 - Redondeo global: **2 decimales, `RoundingStrategy::MidpointAwayFromZero`**. Verificado: `3500.00 × 0.00005 = 0.175 → "0.18"`.
-- Nombres de archivos, carpetas y crates en **inglés**; identificadores de dominio en **español** (`validar_cci`, `calcular_itf`, `ejecutar_transferencia`). Commits en español, Conventional Commits, scope `rust-core`.
+- **Todo identificador va en inglés**: archivos, carpetas, crates, funciones, tipos, campos, variables, constantes y nombres de test (`validate_cci`, `execute_transfer`, `DomainError`, `Account.balance`). Las siglas peruanas `cci` e `itf` no se traducen, pero llevan prefijo en inglés (`validate_cci`, `ITF_RATE`). **Comentarios, docs de función, mensajes de error al usuario y mensajes de commit: español.** Commits en Conventional Commits, scope `rust-core`.
+- **`contracts/cases.json` conserva sus claves y sus nombres de error en español** — es un archivo de datos comparado por igualdad exacta de strings, no código. El puente vive en un solo lugar: `DomainError::contract_name()` devuelve el nombre que espera el contrato.
 - Gates de cada tarea antes de commitear: `cargo test --workspace`, `cargo clippy --workspace --all-targets -- -D warnings`, `cargo fmt --all`.
 - Sin red, sin disco, sin async, sin threads en la API pública.
 
@@ -87,17 +88,17 @@ de dejar al subagente insistir.
 |---|---|
 | `rust-core/Cargo.toml` | Workspace y `[profile.release]` |
 | `rust-core/crates/domain/src/lib.rs` | Declara los módulos y reexporta la API |
-| `rust-core/crates/domain/src/error.rs` | `ErrorDominio`, definido **una sola vez** |
-| `rust-core/crates/domain/src/arithmetic.rs` | Parseo, redondeo, formateo, `sumar`, `restar` |
-| `rust-core/crates/domain/src/itf.rs` | `ALICUOTA_ITF` y `calcular_itf` |
-| `rust-core/crates/domain/src/cci.rs` | `validar_cci` y la tabla de bancos |
+| `rust-core/crates/domain/src/error.rs` | `DomainError`, definido **una sola vez** |
+| `rust-core/crates/domain/src/arithmetic.rs` | Parseo, redondeo, formateo, `add`, `subtract` |
+| `rust-core/crates/domain/src/itf.rs` | `ITF_RATE` y `calculate_itf` |
+| `rust-core/crates/domain/src/cci.rs` | `validate_cci` y la tabla de bancos |
 | `rust-core/crates/domain/src/card.rs` | Luhn, marca, enmascarado |
-| `rust-core/crates/domain/src/crypto.rs` | `cifrar` / `descifrar` |
-| `rust-core/crates/domain/src/transfer.rs` | `ejecutar_transferencia`, comprobante, latencia |
+| `rust-core/crates/domain/src/crypto.rs` | `encrypt` / `decrypt` |
+| `rust-core/crates/domain/src/transfer.rs` | `execute_transfer`, comprobante, latencia |
 | `rust-core/crates/domain/tests/properties.rs` | Property-based con `proptest` |
 | `rust-core/crates/ffi/Cargo.toml` | cdylib `core_financiero` + bin `uniffi-bindgen` |
 | `rust-core/crates/ffi/build.rs` | Inyecta versión + SHA de git |
-| `rust-core/crates/ffi/src/lib.rs` | `uniffi::export`, Records, `From<domain::ErrorDominio>` |
+| `rust-core/crates/ffi/src/lib.rs` | `uniffi::export`, Records, `From<domain::DomainError>` |
 | `rust-core/crates/ffi/tests/golden.rs` | Corre `contracts/cases.json` |
 | `rust-core/README.md` | Gate de fase: diagrama Mermaid + comandos ejecutados |
 
@@ -200,14 +201,14 @@ MSG
 
 ---
 
-## Task 2: Workspace, los dos crates y `ErrorDominio`
+## Task 2: Workspace, los dos crates y `DomainError`
 
 **Files:**
 - Create: `rust-core/Cargo.toml`, `rust-core/crates/domain/Cargo.toml`, `rust-core/crates/domain/src/lib.rs`, `rust-core/crates/domain/src/error.rs`
 - Create: `rust-core/crates/ffi/Cargo.toml`, `rust-core/crates/ffi/src/lib.rs`, `rust-core/crates/ffi/uniffi-bindgen.rs`
 
 **Interfaces:**
-- Produces: `domain::error::ErrorDominio` con las nueve variantes y `ErrorDominio::nombre() -> &'static str`, que usan todas las tareas siguientes y el golden para comparar contra el campo `error` de `cases.json`.
+- Produces: `domain::error::DomainError` con las nueve variantes y `DomainError::contract_name() -> &'static str`, que usan todas las tareas siguientes y el golden para comparar contra el campo `error` de `cases.json`.
 
 - [ ] **Step 1: Crear el workspace**
 
@@ -302,24 +303,24 @@ mod tests {
     use super::*;
 
     #[test]
-    fn el_nombre_coincide_con_el_del_contrato() {
+    fn the_contract_name_matches_the_contract() {
         // Los strings del campo "error" de contracts/cases.json.
-        assert_eq!(ErrorDominio::MismaCuenta.nombre(), "MismaCuenta");
-        assert_eq!(ErrorDominio::DigitoControl.nombre(), "DigitoControl");
+        assert_eq!(DomainError::SameAccount.contract_name(), "MismaCuenta");
+        assert_eq!(DomainError::CheckDigit.contract_name(), "DigitoControl");
         assert_eq!(
-            ErrorDominio::Longitud { campo: "cci".into(), esperado: 20, recibido: 18 }.nombre(),
+            DomainError::Length { field: "cci".into(), expected: 20, received: 18 }.contract_name(),
             "Longitud"
         );
         assert_eq!(
-            ErrorDominio::CuentaNoEncontrada { id: "x".into() }.nombre(),
+            DomainError::AccountNotFound { id: "x".into() }.contract_name(),
             "CuentaNoEncontrada"
         );
         assert_eq!(
-            ErrorDominio::SaldoInsuficiente { disponible: "1.00".into(), requerido: "2.00".into() }.nombre(),
+            DomainError::InsufficientFunds { available: "1.00".into(), required: "2.00".into() }.contract_name(),
             "SaldoInsuficiente"
         );
         assert_eq!(
-            ErrorDominio::MontoInvalido { detalle: "cero".into() }.nombre(),
+            DomainError::InvalidAmount { detail: "cero".into() }.contract_name(),
             "MontoInvalido"
         );
     }
@@ -329,9 +330,9 @@ mod tests {
 - [ ] **Step 3: Correr el test y verificar que falla**
 
 Run: `cd rust-core && cargo test -p domain`
-Expected: FAIL — `cannot find type ErrorDominio` / `no method named nombre`
+Expected: FAIL — `cannot find type DomainError` / `no method named contract_name`
 
-- [ ] **Step 4: Implementar `ErrorDominio`**
+- [ ] **Step 4: Implementar `DomainError`**
 
 Arriba del bloque de tests en `rust-core/crates/domain/src/error.rs`:
 
@@ -341,49 +342,49 @@ use thiserror::Error;
 /// El único tipo de error del núcleo. Se define aquí una sola vez; el crate `ffi`
 /// lo expone a uniffi con un `From`, para que este crate no dependa de uniffi.
 #[derive(Debug, Clone, PartialEq, Eq, Error)]
-pub enum ErrorDominio {
-    #[error("longitud inválida en {campo}: se esperaban {esperado} dígitos, llegaron {recibido}")]
-    Longitud { campo: String, esperado: u32, recibido: u32 },
+pub enum DomainError {
+    #[error("longitud inválida en {field}: se esperaban {expected} dígitos, llegaron {received}")]
+    Length { field: String, expected: u32, received: u32 },
 
     #[error("dígito de control inválido")]
-    DigitoControl,
+    CheckDigit,
 
-    #[error("banco no reconocido: {codigo}")]
-    BancoDesconocido { codigo: String },
+    #[error("banco no reconocido: {code}")]
+    UnknownBank { code: String },
 
-    #[error("monto inválido: {detalle}")]
-    MontoInvalido { detalle: String },
+    #[error("monto inválido: {detail}")]
+    InvalidAmount { detail: String },
 
     #[error("cuenta no encontrada: {id}")]
-    CuentaNoEncontrada { id: String },
+    AccountNotFound { id: String },
 
     #[error("origen y destino son la misma cuenta")]
-    MismaCuenta,
+    SameAccount,
 
-    #[error("saldo insuficiente: disponible {disponible}, requerido {requerido}")]
-    SaldoInsuficiente { disponible: String, requerido: String },
+    #[error("saldo insuficiente: disponible {available}, requerido {required}")]
+    InsufficientFunds { available: String, required: String },
 
-    #[error("error de cifrado: {detalle}")]
-    Cifrado { detalle: String },
+    #[error("error de cifrado: {detail}")]
+    Encryption { detail: String },
 
-    #[error("parámetro fuera de rango: {campo}")]
-    FueraDeRango { campo: String },
+    #[error("parámetro fuera de rango: {field}")]
+    OutOfRange { field: String },
 }
 
-impl ErrorDominio {
+impl DomainError {
     /// Nombre de la variante, para comparar contra el campo `error` de
     /// `contracts/cases.json`. El contrato identifica el error por nombre, no por mensaje.
-    pub fn nombre(&self) -> &'static str {
+    pub fn contract_name(&self) -> &'static str {
         match self {
-            Self::Longitud { .. } => "Longitud",
-            Self::DigitoControl => "DigitoControl",
-            Self::BancoDesconocido { .. } => "BancoDesconocido",
-            Self::MontoInvalido { .. } => "MontoInvalido",
-            Self::CuentaNoEncontrada { .. } => "CuentaNoEncontrada",
-            Self::MismaCuenta => "MismaCuenta",
-            Self::SaldoInsuficiente { .. } => "SaldoInsuficiente",
-            Self::Cifrado { .. } => "Cifrado",
-            Self::FueraDeRango { .. } => "FueraDeRango",
+            Self::Length { .. } => "Longitud",
+            Self::CheckDigit => "DigitoControl",
+            Self::UnknownBank { .. } => "BancoDesconocido",
+            Self::InvalidAmount { .. } => "MontoInvalido",
+            Self::AccountNotFound { .. } => "CuentaNoEncontrada",
+            Self::SameAccount => "MismaCuenta",
+            Self::InsufficientFunds { .. } => "SaldoInsuficiente",
+            Self::Encryption { .. } => "Cifrado",
+            Self::OutOfRange { .. } => "FueraDeRango",
         }
     }
 }
@@ -396,7 +397,7 @@ impl ErrorDominio {
 
 pub mod error;
 
-pub use error::ErrorDominio;
+pub use error::DomainError;
 ```
 
 `rust-core/crates/ffi/src/lib.rs` — por ahora solo el andamiaje, para que el workspace compile:
@@ -424,7 +425,7 @@ Este paso prueba la tesis arquitectónica de la fase. Agregar temporalmente a `c
 
 ```rust
 #[uniffi::export]
-pub fn no_deberia_compilar() {}
+pub fn should_not_compile() {}
 ```
 
 Run: `cargo build -p domain`
@@ -435,21 +436,23 @@ Luego **borrar esas tres líneas** y volver a correr `cargo build -p domain`: de
 
 ```bash
 git add rust-core/
-git commit -m "feat(rust-core): workspace de dos crates y ErrorDominio
+git commit -m "feat(rust-core): workspace de dos crates y DomainError
 
 domain no declara uniffi, asi que un uniffi::export ahi adentro no compila:
 la frontera que la POC argumenta la hace cumplir el compilador, no la
 disciplina. Verificado en el paso 6 del plan.
 
-ErrorDominio se define una sola vez, con nombre() para que el golden
-compare contra el campo error de cases.json por nombre de variante.
+DomainError se define una sola vez, con contract_name() para que el golden
+compare contra el campo error de cases.json. Los identificadores son
+ingles; contract_name() devuelve el nombre en espanol del contrato, que es
+un archivo de datos y no se traduce.
 
 Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 ```
 
 ---
 
-## Task 3: `arithmetic.rs` — parseo, redondeo, `sumar` y `restar`
+## Task 3: `arithmetic.rs` — parseo, redondeo, `add` y `subtract`
 
 Es la base de todo lo demás: `itf` y `transfer` usan su parseo y su formateo.
 
@@ -459,11 +462,11 @@ Es la base de todo lo demás: `itf` y `transfer` usan su parseo y su formateo.
 
 **Interfaces:**
 - Produces:
-  - `pub fn sumar(a: &str, b: &str) -> Result<String, ErrorDominio>`
-  - `pub fn restar(a: &str, b: &str) -> Result<String, ErrorDominio>`
-  - `pub(crate) fn parsear_monto(valor: &str, campo: &str) -> Result<Decimal, ErrorDominio>`
-  - `pub(crate) fn redondear(valor: Decimal) -> Decimal`
-  - `pub(crate) fn formatear(valor: Decimal) -> String`
+  - `pub fn add(a: &str, b: &str) -> Result<String, DomainError>`
+  - `pub fn subtract(a: &str, b: &str) -> Result<String, DomainError>`
+  - `pub(crate) fn parse_amount(value: &str, field: &str) -> Result<Decimal, DomainError>`
+  - `pub(crate) fn round_amount(value: Decimal) -> Decimal`
+  - `pub(crate) fn format_amount(value: Decimal) -> String`
 
 - [ ] **Step 1: Escribir los tests que fallan**
 
@@ -477,29 +480,29 @@ mod tests {
     // Los seis casos del grupo `aritmetica` de contracts/cases.json.
     // Los seis divergen bajo IEEE-754; ese es el punto de la pantalla.
     #[test]
-    fn suma_los_casos_del_contrato() {
-        assert_eq!(sumar("0.1", "0.2").unwrap(), "0.30");            // ar-001
-        assert_eq!(sumar("0.7", "0.1").unwrap(), "0.80");            // ar-002
-        assert_eq!(sumar("1000000.10", "0.20").unwrap(), "1000000.30"); // ar-003
+    fn adds_the_contract_cases() {
+        assert_eq!(add("0.1", "0.2").unwrap(), "0.30");            // ar-001
+        assert_eq!(add("0.7", "0.1").unwrap(), "0.80");            // ar-002
+        assert_eq!(add("1000000.10", "0.20").unwrap(), "1000000.30"); // ar-003
     }
 
     #[test]
-    fn resta_los_casos_del_contrato() {
-        assert_eq!(restar("1.00", "0.90").unwrap(), "0.10");   // ar-004
-        assert_eq!(restar("100.00", "99.99").unwrap(), "0.01"); // ar-005
-        assert_eq!(restar("82.35", "12.34").unwrap(), "70.01"); // ar-006
+    fn subtracts_the_contract_cases() {
+        assert_eq!(subtract("1.00", "0.90").unwrap(), "0.10");   // ar-004
+        assert_eq!(subtract("100.00", "99.99").unwrap(), "0.01"); // ar-005
+        assert_eq!(subtract("82.35", "12.34").unwrap(), "70.01"); // ar-006
     }
 
     #[test]
-    fn la_salida_siempre_trae_dos_decimales() {
-        assert_eq!(sumar("1", "1").unwrap(), "2.00");
-        assert_eq!(sumar("0", "0").unwrap(), "0.00");
+    fn the_output_always_has_two_decimals() {
+        assert_eq!(add("1", "1").unwrap(), "2.00");
+        assert_eq!(add("0", "0").unwrap(), "0.00");
     }
 
     #[test]
-    fn el_texto_que_no_es_monto_da_error_no_panico() {
-        assert_eq!(sumar("hola", "1").unwrap_err().nombre(), "MontoInvalido");
-        assert_eq!(restar("1", "").unwrap_err().nombre(), "MontoInvalido");
+    fn non_amount_text_errors_without_panicking() {
+        assert_eq!(add("hola", "1").unwrap_err().contract_name(), "MontoInvalido");
+        assert_eq!(subtract("1", "").unwrap_err().contract_name(), "MontoInvalido");
     }
 }
 ```
@@ -507,49 +510,49 @@ mod tests {
 - [ ] **Step 2: Correr y verificar que falla**
 
 Run: `cd rust-core && cargo test -p domain arithmetic`
-Expected: FAIL — `cannot find function sumar`
+Expected: FAIL — `cannot find function add`
 
 - [ ] **Step 3: Implementar**
 
 Arriba del bloque de tests en `arithmetic.rs`:
 
 ```rust
-use crate::error::ErrorDominio;
+use crate::error::DomainError;
 use rust_decimal::{Decimal, RoundingStrategy};
 use std::str::FromStr;
 
 /// Escala de salida de todo monto: 2 decimales (PEN).
-pub const ESCALA: u32 = 2;
+pub const SCALE: u32 = 2;
 
 /// Parsea un monto que llegó como texto. Nunca entra en pánico: el texto viene del usuario.
-pub(crate) fn parsear_monto(valor: &str, campo: &str) -> Result<Decimal, ErrorDominio> {
-    Decimal::from_str(valor.trim()).map_err(|e| ErrorDominio::MontoInvalido {
-        detalle: format!("{campo}: {e}"),
+pub(crate) fn parse_amount(value: &str, field: &str) -> Result<Decimal, DomainError> {
+    Decimal::from_str(value.trim()).map_err(|e| DomainError::InvalidAmount {
+        detail: format!("{field}: {e}"),
     })
 }
 
 /// Redondeo normativo del contrato: 2 decimales, medio hacia afuera del cero.
-pub(crate) fn redondear(valor: Decimal) -> Decimal {
-    valor.round_dp_with_strategy(ESCALA, RoundingStrategy::MidpointAwayFromZero)
+pub(crate) fn round_amount(value: Decimal) -> Decimal {
+    value.round_dp_with_strategy(SCALE, RoundingStrategy::MidpointAwayFromZero)
 }
 
 /// Todo monto sale con exactamente 2 decimales. El símbolo y los separadores los pone la UI.
-pub(crate) fn formatear(valor: Decimal) -> String {
-    format!("{:.*}", ESCALA as usize, redondear(valor))
+pub(crate) fn format_amount(value: Decimal) -> String {
+    format!("{:.*}", SCALE as usize, round_amount(value))
 }
 
-pub fn sumar(a: &str, b: &str) -> Result<String, ErrorDominio> {
-    let x = parsear_monto(a, "a")?;
-    let y = parsear_monto(b, "b")?;
-    let r = x.checked_add(y).ok_or(ErrorDominio::FueraDeRango { campo: "suma".into() })?;
-    Ok(formatear(r))
+pub fn add(a: &str, b: &str) -> Result<String, DomainError> {
+    let x = parse_amount(a, "a")?;
+    let y = parse_amount(b, "b")?;
+    let r = x.checked_add(y).ok_or(DomainError::OutOfRange { field: "suma".into() })?;
+    Ok(format_amount(r))
 }
 
-pub fn restar(a: &str, b: &str) -> Result<String, ErrorDominio> {
-    let x = parsear_monto(a, "a")?;
-    let y = parsear_monto(b, "b")?;
-    let r = x.checked_sub(y).ok_or(ErrorDominio::FueraDeRango { campo: "resta".into() })?;
-    Ok(formatear(r))
+pub fn subtract(a: &str, b: &str) -> Result<String, DomainError> {
+    let x = parse_amount(a, "a")?;
+    let y = parse_amount(b, "b")?;
+    let r = x.checked_sub(y).ok_or(DomainError::OutOfRange { field: "resta".into() })?;
+    Ok(format_amount(r))
 }
 ```
 
@@ -558,7 +561,7 @@ En `lib.rs`, agregar:
 ```rust
 pub mod arithmetic;
 
-pub use arithmetic::{restar, sumar};
+pub use arithmetic::{subtract, add};
 ```
 
 - [ ] **Step 4: Correr los tests**
@@ -572,7 +575,7 @@ Expected: PASS, clippy limpio.
 git add rust-core/
 git commit -m "feat(rust-core): aritmetica decimal con redondeo del contrato
 
-sumar y restar sobre rust_decimal, redondeo a 2 decimales
+add y subtract sobre rust_decimal, redondeo a 2 decimales
 MidpointAwayFromZero. Los seis casos del grupo aritmetica de cases.json
 pasan; los seis divergen bajo IEEE-754, que es lo que la pantalla exhibe.
 
@@ -589,9 +592,9 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 
 **Interfaces:**
 - Produces:
-  - `pub const ALICUOTA_ITF: &str`
-  - `pub fn calcular_itf(monto: &str) -> Result<String, ErrorDominio>`
-  - `pub(crate) fn itf_redondeado(monto: Decimal) -> Result<Decimal, ErrorDominio>` — lo consume la Task 8.
+  - `pub const ITF_RATE: &str`
+  - `pub fn calculate_itf(amount: &str) -> Result<String, DomainError>`
+  - `pub(crate) fn rounded_itf(amount: Decimal) -> Result<Decimal, DomainError>` — lo consume la Task 8.
 
 - [ ] **Step 1: Escribir los tests que fallan**
 
@@ -604,23 +607,23 @@ mod tests {
 
     // Los cuatro casos del grupo `itf` de contracts/cases.json.
     #[test]
-    fn calcula_los_casos_del_contrato() {
-        assert_eq!(calcular_itf("1000.00").unwrap(), "0.05");  // itf-001
-        assert_eq!(calcular_itf("3500.00").unwrap(), "0.18");  // itf-002
-        assert_eq!(calcular_itf("150.00").unwrap(), "0.01");   // itf-003
-        assert_eq!(calcular_itf("87654.32").unwrap(), "4.38"); // itf-004
+    fn calculates_the_contract_cases() {
+        assert_eq!(calculate_itf("1000.00").unwrap(), "0.05");  // itf-001
+        assert_eq!(calculate_itf("3500.00").unwrap(), "0.18");  // itf-002
+        assert_eq!(calculate_itf("150.00").unwrap(), "0.01");   // itf-003
+        assert_eq!(calculate_itf("87654.32").unwrap(), "4.38"); // itf-004
     }
 
     #[test]
-    fn redondea_el_medio_hacia_afuera_no_al_par() {
+    fn rounds_half_away_from_zero_not_to_even() {
         // 3500.00 * 0.00005 = 0.175 exacto. Con banker's rounding daría 0.17 y el
         // contrato lo caza: por eso este caso existe.
-        assert_eq!(calcular_itf("3500.00").unwrap(), "0.18");
+        assert_eq!(calculate_itf("3500.00").unwrap(), "0.18");
     }
 
     #[test]
-    fn el_texto_invalido_da_error_no_panico() {
-        assert_eq!(calcular_itf("no-soy-un-monto").unwrap_err().nombre(), "MontoInvalido");
+    fn invalid_text_errors_without_panicking() {
+        assert_eq!(calculate_itf("no-soy-un-monto").unwrap_err().contract_name(), "MontoInvalido");
     }
 }
 ```
@@ -628,34 +631,34 @@ mod tests {
 - [ ] **Step 2: Correr y verificar que falla**
 
 Run: `cd rust-core && cargo test -p domain itf`
-Expected: FAIL — `cannot find function calcular_itf`
+Expected: FAIL — `cannot find function calculate_itf`
 
 - [ ] **Step 3: Implementar**
 
 ```rust
-use crate::arithmetic::{formatear, parsear_monto, redondear};
-use crate::error::ErrorDominio;
+use crate::arithmetic::{format_amount, parse_amount, round_amount};
+use crate::error::DomainError;
 use rust_decimal::Decimal;
 use std::str::FromStr;
 
 /// Alícuota del ITF. **Dato dummy de la POC.** Es constante nombrada y no un literal
 /// suelto justamente para que cambiarla acá y ver moverse las cuatro apps sea parte
 /// del guion de la demo.
-pub const ALICUOTA_ITF: &str = "0.00005";
+pub const ITF_RATE: &str = "0.00005";
 
-/// El ITF ya redondeado a 2 decimales. Lo usa `ejecutar_transferencia` para el total.
-pub(crate) fn itf_redondeado(monto: Decimal) -> Result<Decimal, ErrorDominio> {
-    let alicuota = Decimal::from_str(ALICUOTA_ITF)
-        .map_err(|_| ErrorDominio::FueraDeRango { campo: "alicuota".into() })?;
-    let bruto = monto
-        .checked_mul(alicuota)
-        .ok_or(ErrorDominio::FueraDeRango { campo: "itf".into() })?;
-    Ok(redondear(bruto))
+/// El ITF ya redondeado a 2 decimales. Lo usa `execute_transfer` para el total.
+pub(crate) fn rounded_itf(amount: Decimal) -> Result<Decimal, DomainError> {
+    let rate = Decimal::from_str(ITF_RATE)
+        .map_err(|_| DomainError::OutOfRange { field: "alicuota".into() })?;
+    let raw = amount
+        .checked_mul(rate)
+        .ok_or(DomainError::OutOfRange { field: "itf".into() })?;
+    Ok(round_amount(raw))
 }
 
-pub fn calcular_itf(monto: &str) -> Result<String, ErrorDominio> {
-    let m = parsear_monto(monto, "monto")?;
-    Ok(formatear(itf_redondeado(m)?))
+pub fn calculate_itf(amount: &str) -> Result<String, DomainError> {
+    let m = parse_amount(amount, "monto")?;
+    Ok(format_amount(rounded_itf(m)?))
 }
 ```
 
@@ -664,7 +667,7 @@ En `lib.rs`:
 ```rust
 pub mod itf;
 
-pub use itf::{calcular_itf, ALICUOTA_ITF};
+pub use itf::{calculate_itf, ITF_RATE};
 ```
 
 - [ ] **Step 4: Correr los tests**
@@ -695,8 +698,8 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 
 **Interfaces:**
 - Produces:
-  - `pub struct CciValido { pub codigo_banco: String, pub nombre_banco: String, pub oficina: String, pub cuenta: String }`
-  - `pub fn validar_cci(cci: &str) -> Result<CciValido, ErrorDominio>`
+  - `pub struct ValidCci { pub bank_code: String, pub bank_name: String, pub branch: String, pub account: String }`
+  - `pub fn validate_cci(cci: &str) -> Result<ValidCci, DomainError>`
 
 - [ ] **Step 1: Escribir los tests que fallan**
 
@@ -709,47 +712,47 @@ mod tests {
 
     // Los cuatro casos del grupo `cci` de contracts/cases.json.
     #[test]
-    fn acepta_un_cci_valido() {
-        let r = validar_cci("00219100123456789047").unwrap(); // cci-001
-        assert_eq!(r.codigo_banco, "002");
-        assert_eq!(r.nombre_banco, "Banco Demo Uno");
-        assert_eq!(r.oficina, "191");
-        assert_eq!(r.cuenta, "001234567890");
+    fn accepts_a_valid_cci() {
+        let r = validate_cci("00219100123456789047").unwrap(); // cci-001
+        assert_eq!(r.bank_code, "002");
+        assert_eq!(r.bank_name, "Banco Demo Uno");
+        assert_eq!(r.branch, "191");
+        assert_eq!(r.account, "001234567890");
     }
 
     #[test]
-    fn acepta_un_cci_de_otro_banco() {
-        let r = validar_cci("01122000987654321065").unwrap(); // cci-002
-        assert_eq!(r.codigo_banco, "011");
-        assert_eq!(r.nombre_banco, "Banco Demo Dos");
-        assert_eq!(r.oficina, "220");
-        assert_eq!(r.cuenta, "009876543210");
+    fn accepts_a_cci_from_another_bank() {
+        let r = validate_cci("01122000987654321065").unwrap(); // cci-002
+        assert_eq!(r.bank_code, "011");
+        assert_eq!(r.bank_name, "Banco Demo Dos");
+        assert_eq!(r.branch, "220");
+        assert_eq!(r.account, "009876543210");
     }
 
     #[test]
-    fn rechaza_el_digito_de_control_malo() {
+    fn rejects_a_bad_check_digit() {
         // cci-003: mismo CCI que cci-001 con el ultimo digito cambiado.
-        assert_eq!(validar_cci("00219100123456789048").unwrap_err().nombre(), "DigitoControl");
+        assert_eq!(validate_cci("00219100123456789048").unwrap_err().contract_name(), "DigitoControl");
     }
 
     #[test]
-    fn rechaza_la_longitud_mala() {
+    fn rejects_a_bad_length() {
         // cci-004: 18 digitos.
-        assert_eq!(validar_cci("002191001234567890").unwrap_err().nombre(), "Longitud");
+        assert_eq!(validate_cci("002191001234567890").unwrap_err().contract_name(), "Longitud");
     }
 
     #[test]
-    fn rechaza_un_banco_fuera_de_la_tabla() {
+    fn rejects_a_bank_outside_the_table() {
         // Todo ceros pasa el digito de control (la suma ponderada da 0) pero el banco
         // 000 no esta en la tabla. Es el destino de tr-004 y por eso la transferencia
         // NO valida CCI: el contrato exige ahi CuentaNoEncontrada, no BancoDesconocido.
-        assert_eq!(validar_cci("00000000000000000000").unwrap_err().nombre(), "BancoDesconocido");
+        assert_eq!(validate_cci("00000000000000000000").unwrap_err().contract_name(), "BancoDesconocido");
     }
 
     #[test]
-    fn no_entra_en_panico_con_texto_arbitrario() {
-        for entrada in ["", "abc", "ñ", "0021910012345678904x", "0".repeat(500).as_str()] {
-            let _ = validar_cci(entrada); // solo debe no romper
+    fn never_panics_with_arbitrary_text() {
+        for input in ["", "abc", "ñ", "0021910012345678904x", "0".repeat(500).as_str()] {
+            let _ = validate_cci(input); // solo debe no romper
         }
     }
 }
@@ -758,37 +761,37 @@ mod tests {
 - [ ] **Step 2: Correr y verificar que falla**
 
 Run: `cd rust-core && cargo test -p domain cci`
-Expected: FAIL — `cannot find function validar_cci`
+Expected: FAIL — `cannot find function validate_cci`
 
 - [ ] **Step 3: Implementar**
 
 ```rust
-use crate::error::ErrorDominio;
+use crate::error::DomainError;
 
 /// Pesos del dígito de control, especificados en contracts/README.md.
-const PESOS: [u32; 18] = [3, 2, 9, 8, 7, 6, 5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2];
+const WEIGHTS: [u32; 18] = [3, 2, 9, 8, 7, 6, 5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2];
 
 /// Tabla de bancos. **Códigos dummy de la POC**, no corresponden a bancos reales.
-const BANCOS: [(&str, &str); 3] = [
+const BANKS: [(&str, &str); 3] = [
     ("002", "Banco Demo Uno"),
     ("011", "Banco Demo Dos"),
     ("009", "Banco Demo Tres"),
 ];
 
-const LARGO_CCI: u32 = 20;
+const CCI_LENGTH: u32 = 20;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct CciValido {
-    pub codigo_banco: String,
-    pub nombre_banco: String,
-    pub oficina: String,
-    pub cuenta: String,
+pub struct ValidCci {
+    pub bank_code: String,
+    pub bank_name: String,
+    pub branch: String,
+    pub account: String,
 }
 
 /// Dígito de control: `(11 - (Σ dígito·peso) mod 11) mod 11`, y 0 si da mayor que 9.
-fn digito_control(digitos: &[u32], pesos: &[u32]) -> u32 {
-    let suma: u32 = digitos.iter().zip(pesos).map(|(d, p)| d * p).sum();
-    let d = (11 - (suma % 11)) % 11;
+fn check_digit(digits: &[u32], weights: &[u32]) -> u32 {
+    let sum: u32 = digits.iter().zip(weights).map(|(d, p)| d * p).sum();
+    let d = (11 - (sum % 11)) % 11;
     if d > 9 {
         0
     } else {
@@ -796,42 +799,42 @@ fn digito_control(digitos: &[u32], pesos: &[u32]) -> u32 {
     }
 }
 
-pub fn validar_cci(cci: &str) -> Result<CciValido, ErrorDominio> {
+pub fn validate_cci(cci: &str) -> Result<ValidCci, DomainError> {
     let cci = cci.trim();
-    let recibido = cci.chars().count() as u32;
+    let received = cci.chars().count() as u32;
 
     // Un solo error para "no son 20 dígitos", tenga letras o no.
-    let digitos: Vec<u32> = match cci.chars().map(|c| c.to_digit(10)).collect::<Option<Vec<_>>>() {
-        Some(d) if d.len() as u32 == LARGO_CCI => d,
+    let digits: Vec<u32> = match cci.chars().map(|c| c.to_digit(10)).collect::<Option<Vec<_>>>() {
+        Some(d) if d.len() as u32 == CCI_LENGTH => d,
         _ => {
-            return Err(ErrorDominio::Longitud {
-                campo: "cci".into(),
-                esperado: LARGO_CCI,
-                recibido,
+            return Err(DomainError::Length {
+                field: "cci".into(),
+                expected: CCI_LENGTH,
+                received,
             })
         }
     };
 
-    let d19 = digito_control(&digitos[..18], &PESOS);
-    let pesos_20: Vec<u32> = PESOS.iter().copied().chain([2]).collect();
-    let d20 = digito_control(&digitos[..19], &pesos_20);
+    let d19 = check_digit(&digits[..18], &WEIGHTS);
+    let weights_20: Vec<u32> = WEIGHTS.iter().copied().chain([2]).collect();
+    let d20 = check_digit(&digits[..19], &weights_20);
 
-    if d19 != digitos[18] || d20 != digitos[19] {
-        return Err(ErrorDominio::DigitoControl);
+    if d19 != digits[18] || d20 != digits[19] {
+        return Err(DomainError::CheckDigit);
     }
 
-    let codigo_banco = &cci[0..3];
-    let nombre_banco = BANCOS
+    let bank_code = &cci[0..3];
+    let bank_name = BANKS
         .iter()
-        .find(|(codigo, _)| *codigo == codigo_banco)
-        .map(|(_, nombre)| *nombre)
-        .ok_or_else(|| ErrorDominio::BancoDesconocido { codigo: codigo_banco.to_string() })?;
+        .find(|(code, _)| *code == bank_code)
+        .map(|(_, contract_name)| *contract_name)
+        .ok_or_else(|| DomainError::UnknownBank { code: bank_code.to_string() })?;
 
-    Ok(CciValido {
-        codigo_banco: codigo_banco.to_string(),
-        nombre_banco: nombre_banco.to_string(),
-        oficina: cci[3..6].to_string(),
-        cuenta: cci[6..18].to_string(),
+    Ok(ValidCci {
+        bank_code: bank_code.to_string(),
+        bank_name: bank_name.to_string(),
+        branch: cci[3..6].to_string(),
+        account: cci[6..18].to_string(),
     })
 }
 ```
@@ -843,7 +846,7 @@ En `lib.rs`:
 ```rust
 pub mod cci;
 
-pub use cci::{validar_cci, CciValido};
+pub use cci::{validate_cci, ValidCci};
 ```
 
 - [ ] **Step 4: Correr los tests**
@@ -858,7 +861,7 @@ git add rust-core/
 git commit -m "feat(rust-core): validacion de CCI con digitos de control
 
 Los cuatro casos del grupo cci de cases.json, mas el caso de banco fuera
-de tabla que documenta por que ejecutar_transferencia NO valida CCI: el
+de tabla que documenta por que execute_transfer NO valida CCI: el
 destino de tr-004 pasa el digito de control pero el contrato exige
 CuentaNoEncontrada.
 
@@ -875,8 +878,8 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 
 **Interfaces:**
 - Produces:
-  - `pub struct TarjetaValida { pub marca: String, pub enmascarado: String }`
-  - `pub fn validar_tarjeta(numero: &str) -> Result<TarjetaValida, ErrorDominio>`
+  - `pub struct ValidCard { pub brand: String, pub masked: String }`
+  - `pub fn validate_card(number: &str) -> Result<ValidCard, DomainError>`
 
 - [ ] **Step 1: Escribir los tests que fallan**
 
@@ -889,41 +892,41 @@ mod tests {
 
     // Los seis casos del grupo `tarjeta` de contracts/cases.json.
     #[test]
-    fn acepta_visa() {
-        let r = validar_tarjeta("4111111111111111").unwrap(); // tj-001
-        assert_eq!(r.marca, "Visa");
-        assert_eq!(r.enmascarado, "4111 **** **** 1111");
+    fn accepts_visa() {
+        let r = validate_card("4111111111111111").unwrap(); // tj-001
+        assert_eq!(r.brand, "Visa");
+        assert_eq!(r.masked, "4111 **** **** 1111");
     }
 
     #[test]
-    fn acepta_mastercard() {
-        let r = validar_tarjeta("5555555555554444").unwrap(); // tj-002
-        assert_eq!(r.marca, "Mastercard");
-        assert_eq!(r.enmascarado, "5555 **** **** 4444");
+    fn accepts_mastercard() {
+        let r = validate_card("5555555555554444").unwrap(); // tj-002
+        assert_eq!(r.brand, "Mastercard");
+        assert_eq!(r.masked, "5555 **** **** 4444");
     }
 
     #[test]
-    fn acepta_amex_de_quince_digitos() {
-        let r = validar_tarjeta("378282246310005").unwrap(); // tj-003
-        assert_eq!(r.marca, "Amex");
-        assert_eq!(r.enmascarado, "3782 **** **** 0005");
+    fn accepts_a_fifteen_digit_amex() {
+        let r = validate_card("378282246310005").unwrap(); // tj-003
+        assert_eq!(r.brand, "Amex");
+        assert_eq!(r.masked, "3782 **** **** 0005");
     }
 
     #[test]
-    fn rechaza_luhn_invalido() {
-        assert_eq!(validar_tarjeta("4111111111111112").unwrap_err().nombre(), "DigitoControl"); // tj-004
-        assert_eq!(validar_tarjeta("1234567890123456").unwrap_err().nombre(), "DigitoControl"); // tj-005
+    fn rejects_an_invalid_luhn() {
+        assert_eq!(validate_card("4111111111111112").unwrap_err().contract_name(), "DigitoControl"); // tj-004
+        assert_eq!(validate_card("1234567890123456").unwrap_err().contract_name(), "DigitoControl"); // tj-005
     }
 
     #[test]
-    fn rechaza_la_longitud_mala() {
-        assert_eq!(validar_tarjeta("41111").unwrap_err().nombre(), "Longitud"); // tj-006
+    fn rejects_a_bad_length() {
+        assert_eq!(validate_card("41111").unwrap_err().contract_name(), "Longitud"); // tj-006
     }
 
     #[test]
-    fn no_entra_en_panico_con_texto_arbitrario() {
-        for entrada in ["", "abcd", "ñññññññññññññ", "4111-1111-1111-1111"] {
-            let _ = validar_tarjeta(entrada);
+    fn never_panics_with_arbitrary_text() {
+        for input in ["", "abcd", "ñññññññññññññ", "4111-1111-1111-1111"] {
+            let _ = validate_card(input);
         }
     }
 }
@@ -932,91 +935,91 @@ mod tests {
 - [ ] **Step 2: Correr y verificar que falla**
 
 Run: `cd rust-core && cargo test -p domain card`
-Expected: FAIL — `cannot find function validar_tarjeta`
+Expected: FAIL — `cannot find function validate_card`
 
 - [ ] **Step 3: Implementar**
 
 ```rust
-use crate::error::ErrorDominio;
+use crate::error::DomainError;
 
-const LARGO_MIN: usize = 13;
-const LARGO_MAX: usize = 19;
-/// Solo se usa para poblar el campo `esperado` del error; el rango real es 13-19.
-const LARGO_TIPICO: u32 = 16;
+const MIN_LENGTH: usize = 13;
+const MAX_LENGTH: usize = 19;
+/// Solo se usa para poblar el campo `expected` del error; el rango real es 13-19.
+const TYPICAL_LENGTH: u32 = 16;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct TarjetaValida {
-    pub marca: String,
-    pub enmascarado: String,
+pub struct ValidCard {
+    pub brand: String,
+    pub masked: String,
 }
 
-fn luhn(digitos: &[u32]) -> bool {
-    let suma: u32 = digitos
+fn luhn(digits: &[u32]) -> bool {
+    let sum: u32 = digits
         .iter()
         .rev()
         .enumerate()
         .map(|(i, &d)| {
             if i % 2 == 1 {
-                let doble = d * 2;
-                if doble > 9 {
-                    doble - 9
+                let double = d * 2;
+                if double > 9 {
+                    double - 9
                 } else {
-                    doble
+                    double
                 }
             } else {
                 d
             }
         })
         .sum();
-    suma % 10 == 0
+    sum % 10 == 0
 }
 
 /// Marca por prefijo, según contracts/README.md.
-fn marca(numero: &str) -> Option<&'static str> {
-    if numero.starts_with('4') {
+fn brand(number: &str) -> Option<&'static str> {
+    if number.starts_with('4') {
         return Some("Visa");
     }
-    let dos: u32 = numero.get(..2)?.parse().ok()?;
-    if (51..=55).contains(&dos) {
+    let two: u32 = number.get(..2)?.parse().ok()?;
+    if (51..=55).contains(&two) {
         return Some("Mastercard");
     }
-    if dos == 34 || dos == 37 {
+    if two == 34 || two == 37 {
         return Some("Amex");
     }
-    let cuatro: u32 = numero.get(..4)?.parse().ok()?;
-    if (2221..=2720).contains(&cuatro) {
+    let four: u32 = number.get(..4)?.parse().ok()?;
+    if (2221..=2720).contains(&four) {
         return Some("Mastercard");
     }
     None
 }
 
-pub fn validar_tarjeta(numero: &str) -> Result<TarjetaValida, ErrorDominio> {
-    let numero = numero.trim();
-    let recibido = numero.chars().count() as u32;
+pub fn validate_card(number: &str) -> Result<ValidCard, DomainError> {
+    let number = number.trim();
+    let received = number.chars().count() as u32;
 
-    let digitos: Vec<u32> = match numero.chars().map(|c| c.to_digit(10)).collect::<Option<Vec<_>>>() {
-        Some(d) if (LARGO_MIN..=LARGO_MAX).contains(&d.len()) => d,
+    let digits: Vec<u32> = match number.chars().map(|c| c.to_digit(10)).collect::<Option<Vec<_>>>() {
+        Some(d) if (MIN_LENGTH..=MAX_LENGTH).contains(&d.len()) => d,
         _ => {
-            return Err(ErrorDominio::Longitud {
-                campo: "tarjeta".into(),
-                esperado: LARGO_TIPICO,
-                recibido,
+            return Err(DomainError::Length {
+                field: "tarjeta".into(),
+                expected: TYPICAL_LENGTH,
+                received,
             })
         }
     };
 
-    if !luhn(&digitos) {
-        return Err(ErrorDominio::DigitoControl);
+    if !luhn(&digits) {
+        return Err(DomainError::CheckDigit);
     }
 
     // Ningún caso del contrato pasa Luhn con un prefijo desconocido. Si llegara uno,
     // el core dice "no sé" en vez de inventar una marca.
-    let marca = marca(numero).ok_or_else(|| ErrorDominio::FueraDeRango { campo: "marca".into() })?;
+    let brand = brand(number).ok_or_else(|| DomainError::OutOfRange { field: "marca".into() })?;
 
-    let largo = numero.len();
-    Ok(TarjetaValida {
-        marca: marca.to_string(),
-        enmascarado: format!("{} **** **** {}", &numero[..4], &numero[largo - 4..]),
+    let length = number.len();
+    Ok(ValidCard {
+        brand: brand.to_string(),
+        masked: format!("{} **** **** {}", &number[..4], &number[length - 4..]),
     })
 }
 ```
@@ -1026,7 +1029,7 @@ En `lib.rs`:
 ```rust
 pub mod card;
 
-pub use card::{validar_tarjeta, TarjetaValida};
+pub use card::{validate_card, ValidCard};
 ```
 
 - [ ] **Step 4: Correr los tests**
@@ -1059,8 +1062,8 @@ La API de `chacha20poly1305` 0.11 está **verificada**: `Key::from_slice` y `Non
 
 **Interfaces:**
 - Produces:
-  - `pub fn cifrar(texto: &str, clave_hex: &str, nonce_hex: &str) -> Result<String, ErrorDominio>`
-  - `pub fn descifrar(cifrado_hex: &str, clave_hex: &str, nonce_hex: &str) -> Result<String, ErrorDominio>`
+  - `pub fn encrypt(text: &str, key_hex: &str, nonce_hex: &str) -> Result<String, DomainError>`
+  - `pub fn decrypt(ciphertext_hex: &str, key_hex: &str, nonce_hex: &str) -> Result<String, DomainError>`
 
 - [ ] **Step 1: Escribir los tests que fallan**
 
@@ -1078,43 +1081,43 @@ mod tests {
     // stdlib de Node 22, o sea son independientes de Rust: que Rust los reproduzca
     // es evidencia real, no un snapshot de si mismo.
     #[test]
-    fn reproduce_los_vectores_del_contrato() {
+    fn reproduces_the_contract_vectors() {
         assert_eq!(
-            cifrar("4111111111111111", CLAVE, NONCE).unwrap(),
+            encrypt("4111111111111111", CLAVE, NONCE).unwrap(),
             "bdca39311826947186b20ec2a92c3f521aacff902e37d519bcd2754fc7c7c0dd"
         );
         assert_eq!(
-            cifrar("5555555555554444", CLAVE, NONCE).unwrap(),
+            encrypt("5555555555554444", CLAVE, NONCE).unwrap(),
             "bcce3d351c22907582b60ac6ac293a57e26c8e6007abc9a2b0c323bf74184036"
         );
         assert_eq!(
-            cifrar("378282246310005", CLAVE, NONCE).unwrap(),
+            encrypt("378282246310005", CLAVE, NONCE).unwrap(),
             "bacc30321125977481b00ec3a82d3b43191141e9da8b2ad948e1c7b3a8ee5e"
         );
     }
 
     #[test]
-    fn el_roundtrip_devuelve_el_original() {
-        let cifrado = cifrar("4111111111111111", CLAVE, NONCE).unwrap();
-        assert_eq!(descifrar(&cifrado, CLAVE, NONCE).unwrap(), "4111111111111111");
+    fn roundtrip_returns_the_original() {
+        let ciphertext = encrypt("4111111111111111", CLAVE, NONCE).unwrap();
+        assert_eq!(decrypt(&ciphertext, CLAVE, NONCE).unwrap(), "4111111111111111");
     }
 
     #[test]
-    fn la_clave_de_largo_incorrecto_da_error_no_panico() {
-        assert_eq!(cifrar("x", "0001", NONCE).unwrap_err().nombre(), "Cifrado");
+    fn a_wrong_length_key_errors_without_panicking() {
+        assert_eq!(encrypt("x", "0001", NONCE).unwrap_err().contract_name(), "Cifrado");
     }
 
     #[test]
-    fn el_hex_invalido_da_error_no_panico() {
-        assert_eq!(cifrar("x", "zzzz", NONCE).unwrap_err().nombre(), "Cifrado");
-        assert_eq!(descifrar("zzzz", CLAVE, NONCE).unwrap_err().nombre(), "Cifrado");
+    fn invalid_hex_errors_without_panicking() {
+        assert_eq!(encrypt("x", "zzzz", NONCE).unwrap_err().contract_name(), "Cifrado");
+        assert_eq!(decrypt("zzzz", CLAVE, NONCE).unwrap_err().contract_name(), "Cifrado");
     }
 
     #[test]
-    fn el_tag_adulterado_no_descifra() {
-        let mut cifrado = cifrar("4111111111111111", CLAVE, NONCE).unwrap();
-        cifrado.replace_range(0..1, "0");
-        assert!(descifrar(&cifrado, CLAVE, NONCE).is_err());
+    fn a_tampered_tag_does_not_decrypt() {
+        let mut ciphertext = encrypt("4111111111111111", CLAVE, NONCE).unwrap();
+        ciphertext.replace_range(0..1, "0");
+        assert!(decrypt(&ciphertext, CLAVE, NONCE).is_err());
     }
 }
 ```
@@ -1122,19 +1125,19 @@ mod tests {
 - [ ] **Step 2: Correr y verificar que falla**
 
 Run: `cd rust-core && cargo test -p domain crypto`
-Expected: FAIL — `cannot find function cifrar`
+Expected: FAIL — `cannot find function encrypt`
 
 - [ ] **Step 3: Implementar**
 
 ```rust
-use crate::error::ErrorDominio;
+use crate::error::DomainError;
 use chacha20poly1305::{
     aead::{Aead, KeyInit},
     ChaCha20Poly1305, Key, Nonce,
 };
 
-fn error(detalle: &str) -> ErrorDominio {
-    ErrorDominio::Cifrado { detalle: detalle.to_string() }
+fn error(detail: &str) -> DomainError {
+    DomainError::Encryption { detail: detail.to_string() }
 }
 
 /// El nonce entra como parámetro y **no** se genera acá: generarlo pediría entropía del
@@ -1142,36 +1145,36 @@ fn error(detalle: &str) -> ErrorDominio {
 /// o sea no comparable entre plataformas — que es justo lo que el contrato prueba.
 ///
 /// ⚠️ Reutilizar el par (clave, nonce) es catastrófico en producción. Acá es a propósito.
-fn preparar(clave_hex: &str, nonce_hex: &str) -> Result<(ChaCha20Poly1305, Vec<u8>), ErrorDominio> {
-    let clave = hex::decode(clave_hex.trim()).map_err(|_| error("la clave no es hex válido"))?;
+fn prepare(key_hex: &str, nonce_hex: &str) -> Result<(ChaCha20Poly1305, Vec<u8>), DomainError> {
+    let key = hex::decode(key_hex.trim()).map_err(|_| error("la clave no es hex válido"))?;
     let nonce = hex::decode(nonce_hex.trim()).map_err(|_| error("el nonce no es hex válido"))?;
-    let clave: &Key = clave
+    let key: &Key = key
         .as_slice()
         .try_into()
         .map_err(|_| error("la clave debe tener 32 bytes"))?;
     if nonce.len() != 12 {
         return Err(error("el nonce debe tener 12 bytes"));
     }
-    Ok((ChaCha20Poly1305::new(clave), nonce))
+    Ok((ChaCha20Poly1305::new(key), nonce))
 }
 
-pub fn cifrar(texto: &str, clave_hex: &str, nonce_hex: &str) -> Result<String, ErrorDominio> {
-    let (cipher, nonce) = preparar(clave_hex, nonce_hex)?;
+pub fn encrypt(text: &str, key_hex: &str, nonce_hex: &str) -> Result<String, DomainError> {
+    let (cipher, nonce) = prepare(key_hex, nonce_hex)?;
     let nonce: &Nonce = nonce.as_slice().try_into().map_err(|_| error("nonce inválido"))?;
-    let salida = cipher
-        .encrypt(nonce, texto.as_bytes())
+    let output = cipher
+        .encrypt(nonce, text.as_bytes())
         .map_err(|_| error("no se pudo cifrar"))?;
-    Ok(hex::encode(salida))
+    Ok(hex::encode(output))
 }
 
-pub fn descifrar(cifrado_hex: &str, clave_hex: &str, nonce_hex: &str) -> Result<String, ErrorDominio> {
-    let (cipher, nonce) = preparar(clave_hex, nonce_hex)?;
+pub fn decrypt(ciphertext_hex: &str, key_hex: &str, nonce_hex: &str) -> Result<String, DomainError> {
+    let (cipher, nonce) = prepare(key_hex, nonce_hex)?;
     let nonce: &Nonce = nonce.as_slice().try_into().map_err(|_| error("nonce inválido"))?;
-    let bytes = hex::decode(cifrado_hex.trim()).map_err(|_| error("el cifrado no es hex válido"))?;
-    let claro = cipher
+    let bytes = hex::decode(ciphertext_hex.trim()).map_err(|_| error("el cifrado no es hex válido"))?;
+    let plain = cipher
         .decrypt(nonce, bytes.as_slice())
         .map_err(|_| error("no se pudo descifrar: clave, nonce o tag incorrectos"))?;
-    String::from_utf8(claro).map_err(|_| error("el texto descifrado no es UTF-8"))
+    String::from_utf8(plain).map_err(|_| error("el texto descifrado no es UTF-8"))
 }
 ```
 
@@ -1180,7 +1183,7 @@ En `lib.rs`:
 ```rust
 pub mod crypto;
 
-pub use crypto::{cifrar, descifrar};
+pub use crypto::{encrypt, decrypt};
 ```
 
 - [ ] **Step 4: Correr los tests**
@@ -1211,12 +1214,12 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 - Modify: `rust-core/crates/domain/src/lib.rs`
 
 **Interfaces:**
-- Consumes: `arithmetic::{parsear_monto, redondear, formatear}` (Task 3), `itf::itf_redondeado` (Task 4).
+- Consumes: `arithmetic::{parse_amount, round_amount, format_amount}` (Task 3), `itf::rounded_itf` (Task 4).
 - Produces:
-  - `pub struct Cuenta { pub id: String, pub titular: String, pub saldo: String }`
-  - `pub struct SolicitudTransferencia { pub origen: String, pub destino: String, pub monto: String }`
-  - `pub struct ResultadoTransferencia { pub cuentas: Vec<Cuenta>, pub comision_itf: String, pub total_debitado: String, pub comprobante: String, pub latencia_simulada_ms: u32 }`
-  - `pub fn ejecutar_transferencia(cuentas: Vec<Cuenta>, solicitud: SolicitudTransferencia) -> Result<ResultadoTransferencia, ErrorDominio>`
+  - `pub struct Account { pub id: String, pub holder: String, pub balance: String }`
+  - `pub struct TransferRequest { pub origin: String, pub destination: String, pub amount: String }`
+  - `pub struct TransferResult { pub accounts: Vec<Account>, pub itf_fee: String, pub total_debited: String, pub receipt: String, pub simulated_latency_ms: u32 }`
+  - `pub fn execute_transfer(accounts: Vec<Account>, request: TransferRequest) -> Result<TransferResult, DomainError>`
 
 - [ ] **Step 1: Escribir los tests que fallan**
 
@@ -1227,96 +1230,96 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 mod tests {
     use super::*;
 
-    // `cuentas_iniciales` de contracts/cases.json.
-    fn cuentas() -> Vec<Cuenta> {
+    // `initial_accounts` de contracts/cases.json.
+    fn accounts() -> Vec<Account> {
         vec![
-            Cuenta { id: "00219100123456789047".into(), titular: "Ana Quispe".into(), saldo: "5000.00".into() },
-            Cuenta { id: "01122000987654321065".into(), titular: "Luis Ramos".into(), saldo: "1200.50".into() },
+            Account { id: "00219100123456789047".into(), holder: "Ana Quispe".into(), balance: "5000.00".into() },
+            Account { id: "01122000987654321065".into(), holder: "Luis Ramos".into(), balance: "1200.50".into() },
         ]
     }
 
-    fn solicitud(origen: &str, destino: &str, monto: &str) -> SolicitudTransferencia {
-        SolicitudTransferencia { origen: origen.into(), destino: destino.into(), monto: monto.into() }
+    fn request(origin: &str, destination: &str, amount: &str) -> TransferRequest {
+        TransferRequest { origin: origin.into(), destination: destination.into(), amount: amount.into() }
     }
 
     #[test]
-    fn tr_001_transferencia_feliz() {
-        let r = ejecutar_transferencia(
-            cuentas(),
-            solicitud("00219100123456789047", "01122000987654321065", "100.00"),
+    fn tr_001_happy_transfer() {
+        let r = execute_transfer(
+            accounts(),
+            request("00219100123456789047", "01122000987654321065", "100.00"),
         )
         .unwrap();
-        assert_eq!(r.cuentas[0].saldo, "4899.99");
-        assert_eq!(r.cuentas[1].saldo, "1300.50");
-        assert_eq!(r.comision_itf, "0.01");
-        assert_eq!(r.total_debitado, "100.01");
-        assert_eq!(r.comprobante, "TRF-9047-1065-10000");
-        assert_eq!(r.latencia_simulada_ms, 350);
+        assert_eq!(r.accounts[0].balance, "4899.99");
+        assert_eq!(r.accounts[1].balance, "1300.50");
+        assert_eq!(r.itf_fee, "0.01");
+        assert_eq!(r.total_debited, "100.01");
+        assert_eq!(r.receipt, "TRF-9047-1065-10000");
+        assert_eq!(r.simulated_latency_ms, 350);
     }
 
     #[test]
-    fn tr_002_con_redondeo_del_itf() {
-        let r = ejecutar_transferencia(
-            cuentas(),
-            solicitud("00219100123456789047", "01122000987654321065", "3500.00"),
+    fn tr_002_with_itf_rounding() {
+        let r = execute_transfer(
+            accounts(),
+            request("00219100123456789047", "01122000987654321065", "3500.00"),
         )
         .unwrap();
-        assert_eq!(r.cuentas[0].saldo, "1499.82");
-        assert_eq!(r.cuentas[1].saldo, "4700.50");
-        assert_eq!(r.comision_itf, "0.18");
-        assert_eq!(r.total_debitado, "3500.18");
-        assert_eq!(r.comprobante, "TRF-9047-1065-350000");
-        assert_eq!(r.latencia_simulada_ms, 750);
+        assert_eq!(r.accounts[0].balance, "1499.82");
+        assert_eq!(r.accounts[1].balance, "4700.50");
+        assert_eq!(r.itf_fee, "0.18");
+        assert_eq!(r.total_debited, "3500.18");
+        assert_eq!(r.receipt, "TRF-9047-1065-350000");
+        assert_eq!(r.simulated_latency_ms, 750);
     }
 
     #[test]
-    fn tr_003_saldo_insuficiente() {
-        let e = ejecutar_transferencia(
-            cuentas(),
-            solicitud("01122000987654321065", "00219100123456789047", "10000.00"),
+    fn tr_003_insufficient_funds() {
+        let e = execute_transfer(
+            accounts(),
+            request("01122000987654321065", "00219100123456789047", "10000.00"),
         )
         .unwrap_err();
-        assert_eq!(e.nombre(), "SaldoInsuficiente");
+        assert_eq!(e.contract_name(), "SaldoInsuficiente");
     }
 
     #[test]
-    fn tr_004_cuenta_inexistente() {
-        let e = ejecutar_transferencia(
-            cuentas(),
-            solicitud("00219100123456789047", "00000000000000000000", "50.00"),
+    fn tr_004_account_not_found() {
+        let e = execute_transfer(
+            accounts(),
+            request("00219100123456789047", "00000000000000000000", "50.00"),
         )
         .unwrap_err();
-        assert_eq!(e.nombre(), "CuentaNoEncontrada");
+        assert_eq!(e.contract_name(), "CuentaNoEncontrada");
     }
 
     #[test]
-    fn tr_005_misma_cuenta() {
-        let e = ejecutar_transferencia(
-            cuentas(),
-            solicitud("00219100123456789047", "00219100123456789047", "50.00"),
+    fn tr_005_same_account() {
+        let e = execute_transfer(
+            accounts(),
+            request("00219100123456789047", "00219100123456789047", "50.00"),
         )
         .unwrap_err();
-        assert_eq!(e.nombre(), "MismaCuenta");
+        assert_eq!(e.contract_name(), "MismaCuenta");
     }
 
     #[test]
-    fn tr_006_monto_cero() {
-        let e = ejecutar_transferencia(
-            cuentas(),
-            solicitud("00219100123456789047", "01122000987654321065", "0.00"),
+    fn tr_006_zero_amount() {
+        let e = execute_transfer(
+            accounts(),
+            request("00219100123456789047", "01122000987654321065", "0.00"),
         )
         .unwrap_err();
-        assert_eq!(e.nombre(), "MontoInvalido");
+        assert_eq!(e.contract_name(), "MontoInvalido");
     }
 
     #[test]
-    fn no_muta_las_cuentas_de_entrada() {
-        let originales = cuentas();
-        let _ = ejecutar_transferencia(
+    fn does_not_mutate_the_input_accounts() {
+        let originales = accounts();
+        let _ = execute_transfer(
             originales.clone(),
-            solicitud("00219100123456789047", "01122000987654321065", "100.00"),
+            request("00219100123456789047", "01122000987654321065", "100.00"),
         );
-        assert_eq!(originales[0].saldo, "5000.00");
+        assert_eq!(originales[0].balance, "5000.00");
     }
 }
 ```
@@ -1324,126 +1327,126 @@ mod tests {
 - [ ] **Step 2: Correr y verificar que falla**
 
 Run: `cd rust-core && cargo test -p domain transfer`
-Expected: FAIL — `cannot find function ejecutar_transferencia`
+Expected: FAIL — `cannot find function execute_transfer`
 
 - [ ] **Step 3: Implementar**
 
 ```rust
-use crate::arithmetic::{formatear, parsear_monto, redondear};
-use crate::error::ErrorDominio;
-use crate::itf::itf_redondeado;
+use crate::arithmetic::{format_amount, parse_amount, round_amount};
+use crate::error::DomainError;
+use crate::itf::rounded_itf;
 use rust_decimal::prelude::ToPrimitive;
 use rust_decimal::Decimal;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Cuenta {
+pub struct Account {
     pub id: String,
-    pub titular: String,
-    pub saldo: String,
+    pub holder: String,
+    pub balance: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct SolicitudTransferencia {
-    pub origen: String,
-    pub destino: String,
-    pub monto: String,
+pub struct TransferRequest {
+    pub origin: String,
+    pub destination: String,
+    pub amount: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct ResultadoTransferencia {
+pub struct TransferResult {
     /// El estado NUEVO, ya aplicado. La app guarda esto en memoria y lo tira al cerrar.
-    pub cuentas: Vec<Cuenta>,
-    pub comision_itf: String,
-    pub total_debitado: String,
-    pub comprobante: String,
+    pub accounts: Vec<Account>,
+    pub itf_fee: String,
+    pub total_debited: String,
+    pub receipt: String,
     /// La app espera estos ms antes de pintar, para que la demo "parezca" HTTP.
     /// No hay ningún cliente HTTP en ninguna parte.
-    pub latencia_simulada_ms: u32,
+    pub simulated_latency_ms: u32,
 }
 
-fn ultimos4(id: &str) -> String {
-    let caracteres: Vec<char> = id.chars().collect();
-    let inicio = caracteres.len().saturating_sub(4);
-    caracteres[inicio..].iter().collect()
+fn last4(id: &str) -> String {
+    let chars: Vec<char> = id.chars().collect();
+    let start = chars.len().saturating_sub(4);
+    chars[start..].iter().collect()
 }
 
 /// Determinista a propósito: si dependiera del reloj, las cuatro apps mostrarían
 /// comprobantes distintos lado a lado. Ver contracts/README.md.
-fn comprobante(origen: &str, destino: &str, monto: Decimal) -> Result<String, ErrorDominio> {
-    let centavos = redondear(monto)
+fn receipt(origin: &str, destination: &str, amount: Decimal) -> Result<String, DomainError> {
+    let cents = round_amount(amount)
         .checked_mul(Decimal::from(100))
         .and_then(|c| c.trunc().to_i64())
-        .ok_or(ErrorDominio::FueraDeRango { campo: "comprobante".into() })?;
-    Ok(format!("TRF-{}-{}-{}", ultimos4(origen), ultimos4(destino), centavos))
+        .ok_or(DomainError::OutOfRange { field: "comprobante".into() })?;
+    Ok(format!("TRF-{}-{}-{}", last4(origin), last4(destination), cents))
 }
 
-/// `250 + min(parte entera del monto, 500)`, topeada en 750 ms.
-fn latencia_simulada(monto: Decimal) -> u32 {
-    let entero = monto.trunc().to_u32().unwrap_or(500);
-    250 + entero.min(500)
+/// `250 + min(parte entera del amount, 500)`, topeada en 750 ms.
+fn simulated_latency(amount: Decimal) -> u32 {
+    let whole = amount.trunc().to_u32().unwrap_or(500);
+    250 + whole.min(500)
 }
 
-pub fn ejecutar_transferencia(
-    cuentas: Vec<Cuenta>,
-    solicitud: SolicitudTransferencia,
-) -> Result<ResultadoTransferencia, ErrorDominio> {
+pub fn execute_transfer(
+    accounts: Vec<Account>,
+    request: TransferRequest,
+) -> Result<TransferResult, DomainError> {
     // El orden de las validaciones lo fija contracts/README.md y los casos tr-003..tr-006
     // lo verifican. No reordenar sin cambiar el contrato.
-    if solicitud.origen == solicitud.destino {
-        return Err(ErrorDominio::MismaCuenta);
+    if request.origin == request.destination {
+        return Err(DomainError::SameAccount);
     }
 
-    let i_origen = cuentas
+    let i_origin = accounts
         .iter()
-        .position(|c| c.id == solicitud.origen)
-        .ok_or_else(|| ErrorDominio::CuentaNoEncontrada { id: solicitud.origen.clone() })?;
-    let i_destino = cuentas
+        .position(|c| c.id == request.origin)
+        .ok_or_else(|| DomainError::AccountNotFound { id: request.origin.clone() })?;
+    let i_destination = accounts
         .iter()
-        .position(|c| c.id == solicitud.destino)
-        .ok_or_else(|| ErrorDominio::CuentaNoEncontrada { id: solicitud.destino.clone() })?;
+        .position(|c| c.id == request.destination)
+        .ok_or_else(|| DomainError::AccountNotFound { id: request.destination.clone() })?;
 
-    let monto = parsear_monto(&solicitud.monto, "monto")?;
-    if monto <= Decimal::ZERO {
-        return Err(ErrorDominio::MontoInvalido {
-            detalle: "el monto debe ser mayor que cero".into(),
+    let amount = parse_amount(&request.amount, "monto")?;
+    if amount <= Decimal::ZERO {
+        return Err(DomainError::InvalidAmount {
+            detail: "el monto debe ser mayor que cero".into(),
         });
     }
 
-    let comision = itf_redondeado(monto)?;
-    let total = redondear(
-        monto
-            .checked_add(comision)
-            .ok_or(ErrorDominio::FueraDeRango { campo: "total".into() })?,
+    let fee = rounded_itf(amount)?;
+    let total = round_amount(
+        amount
+            .checked_add(fee)
+            .ok_or(DomainError::OutOfRange { field: "total".into() })?,
     );
 
-    let saldo_origen = parsear_monto(&cuentas[i_origen].saldo, "saldo origen")?;
-    if saldo_origen < total {
-        return Err(ErrorDominio::SaldoInsuficiente {
-            disponible: formatear(saldo_origen),
-            requerido: formatear(total),
+    let origin_balance = parse_amount(&accounts[i_origin].balance, "saldo origen")?;
+    if origin_balance < total {
+        return Err(DomainError::InsufficientFunds {
+            available: format_amount(origin_balance),
+            required: format_amount(total),
         });
     }
-    let saldo_destino = parsear_monto(&cuentas[i_destino].saldo, "saldo destino")?;
+    let destination_balance = parse_amount(&accounts[i_destination].balance, "saldo destino")?;
 
     // Entra el estado, sale el estado nuevo: la entrada no se muta.
-    let mut nuevas = cuentas.clone();
-    nuevas[i_origen].saldo = formatear(
-        saldo_origen
+    let mut updated = accounts.clone();
+    updated[i_origin].balance = format_amount(
+        origin_balance
             .checked_sub(total)
-            .ok_or(ErrorDominio::FueraDeRango { campo: "saldo origen".into() })?,
+            .ok_or(DomainError::OutOfRange { field: "saldo origen".into() })?,
     );
-    nuevas[i_destino].saldo = formatear(
-        saldo_destino
-            .checked_add(monto)
-            .ok_or(ErrorDominio::FueraDeRango { campo: "saldo destino".into() })?,
+    updated[i_destination].balance = format_amount(
+        destination_balance
+            .checked_add(amount)
+            .ok_or(DomainError::OutOfRange { field: "saldo destino".into() })?,
     );
 
-    Ok(ResultadoTransferencia {
-        cuentas: nuevas,
-        comision_itf: formatear(comision),
-        total_debitado: formatear(total),
-        comprobante: comprobante(&solicitud.origen, &solicitud.destino, monto)?,
-        latencia_simulada_ms: latencia_simulada(monto),
+    Ok(TransferResult {
+        accounts: updated,
+        itf_fee: format_amount(fee),
+        total_debited: format_amount(total),
+        receipt: receipt(&request.origin, &request.destination, amount)?,
+        simulated_latency_ms: simulated_latency(amount),
     })
 }
 ```
@@ -1454,7 +1457,7 @@ En `lib.rs`:
 pub mod transfer;
 
 pub use transfer::{
-    ejecutar_transferencia, Cuenta, ResultadoTransferencia, SolicitudTransferencia,
+    execute_transfer, Account, TransferResult, TransferRequest,
 };
 ```
 
@@ -1496,8 +1499,8 @@ Las invariantes que los ejemplos no cubren. Es lo que Rust aporta y que el argum
 `rust-core/crates/domain/tests/properties.rs`:
 
 ```rust
-use domain::{cifrar, descifrar, ejecutar_transferencia, validar_cci, validar_tarjeta};
-use domain::{Cuenta, SolicitudTransferencia};
+use domain::{encrypt, decrypt, execute_transfer, validate_cci, validate_card};
+use domain::{Account, TransferRequest};
 use proptest::prelude::*;
 use rust_decimal::Decimal;
 use std::str::FromStr;
@@ -1505,10 +1508,10 @@ use std::str::FromStr;
 const CLAVE: &str = "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f";
 const NONCE: &str = "000102030405060708090a0b";
 
-fn suma_saldos(cuentas: &[Cuenta]) -> Decimal {
-    cuentas
+fn sum_balances(accounts: &[Account]) -> Decimal {
+    accounts
         .iter()
-        .filter_map(|c| Decimal::from_str(&c.saldo).ok())
+        .filter_map(|c| Decimal::from_str(&c.balance).ok())
         .sum()
 }
 
@@ -1516,48 +1519,48 @@ proptest! {
     /// Test de SEGURIDAD, no solo de robustez: estas funciones reciben texto
     /// arbitrario del usuario a través del FFI. Un pánico acá es un crash de la app.
     #[test]
-    fn validar_cci_nunca_entra_en_panico(entrada in ".*") {
-        let _ = validar_cci(&entrada);
+    fn validate_cci_never_panics(input in ".*") {
+        let _ = validate_cci(&input);
     }
 
     #[test]
-    fn validar_tarjeta_nunca_entra_en_panico(entrada in ".*") {
-        let _ = validar_tarjeta(&entrada);
+    fn validate_card_never_panics(input in ".*") {
+        let _ = validate_card(&input);
     }
 
     #[test]
-    fn descifrar_nunca_entra_en_panico(entrada in ".*", clave in ".*", nonce in ".*") {
-        let _ = descifrar(&entrada, &clave, &nonce);
+    fn decrypt_never_panics(input in ".*", key in ".*", nonce in ".*") {
+        let _ = decrypt(&input, &key, &nonce);
     }
 
     #[test]
-    fn el_roundtrip_de_cifrado_devuelve_el_original(texto in ".{0,200}") {
-        let cifrado = cifrar(&texto, CLAVE, NONCE).unwrap();
-        prop_assert_eq!(descifrar(&cifrado, CLAVE, NONCE).unwrap(), texto);
+    fn the_encryption_roundtrip_returns_the_original(text in ".{0,200}") {
+        let ciphertext = encrypt(&text, CLAVE, NONCE).unwrap();
+        prop_assert_eq!(decrypt(&ciphertext, CLAVE, NONCE).unwrap(), text);
     }
 
     /// No se crea ni se destruye dinero: la suma de saldos baja exactamente el ITF.
     #[test]
-    fn la_transferencia_conserva_el_dinero(centavos in 1i64..400_000i64) {
-        let monto = Decimal::new(centavos, 2);
-        let cuentas = vec![
-            Cuenta { id: "00219100123456789047".into(), titular: "Ana".into(), saldo: "5000.00".into() },
-            Cuenta { id: "01122000987654321065".into(), titular: "Luis".into(), saldo: "1200.50".into() },
+    fn a_transfer_conserves_money(cents in 1i64..400_000i64) {
+        let amount = Decimal::new(cents, 2);
+        let accounts = vec![
+            Account { id: "00219100123456789047".into(), holder: "Ana".into(), balance: "5000.00".into() },
+            Account { id: "01122000987654321065".into(), holder: "Luis".into(), balance: "1200.50".into() },
         ];
-        let antes = suma_saldos(&cuentas);
-        let solicitud = SolicitudTransferencia {
-            origen: "00219100123456789047".into(),
-            destino: "01122000987654321065".into(),
-            monto: format!("{monto:.2}"),
+        let antes = sum_balances(&accounts);
+        let request = TransferRequest {
+            origin: "00219100123456789047".into(),
+            destination: "01122000987654321065".into(),
+            amount: format!("{amount:.2}"),
         };
-        if let Ok(r) = ejecutar_transferencia(cuentas, solicitud) {
-            let despues = suma_saldos(&r.cuentas);
-            let comision = Decimal::from_str(&r.comision_itf).unwrap();
-            prop_assert_eq!(despues, antes - comision);
+        if let Ok(r) = execute_transfer(accounts, request) {
+            let despues = sum_balances(&r.accounts);
+            let fee = Decimal::from_str(&r.itf_fee).unwrap();
+            prop_assert_eq!(despues, antes - fee);
 
             // Y ningún saldo queda negativo.
-            for cuenta in &r.cuentas {
-                prop_assert!(Decimal::from_str(&cuenta.saldo).unwrap() >= Decimal::ZERO);
+            for account in &r.accounts {
+                prop_assert!(Decimal::from_str(&account.balance).unwrap() >= Decimal::ZERO);
             }
         }
     }
@@ -1583,7 +1586,7 @@ git add rust-core/
 git commit -m "test(rust-core): invariantes con proptest
 
 Conservacion del dinero, ningun saldo negativo, roundtrip del cifrado, y
-el test de seguridad: validar_cci, validar_tarjeta y descifrar nunca
+el test de seguridad: validate_cci, validate_card y decrypt nunca
 entran en panico con texto arbitrario. Reciben input del usuario a traves
 del FFI, asi que un panico ahi es un crash de la app del banco.
 
@@ -1594,7 +1597,7 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 
 ## Task 10: El crate `ffi` — la fachada uniffi
 
-API de uniffi 0.32 **verificada**: `setup_scaffolding!`, `#[derive(uniffi::Record)]`, enum de error con campos y `Vec<Cuenta>` cruzando la frontera compilan y pasan clippy.
+API de uniffi 0.32 **verificada**: `setup_scaffolding!`, `#[derive(uniffi::Record)]`, enum de error con campos y `Vec<Account>` cruzando la frontera compilan y pasan clippy.
 
 **Files:**
 - Create: `rust-core/crates/ffi/build.rs`
@@ -1614,29 +1617,29 @@ mod tests {
     use super::*;
 
     #[test]
-    fn la_version_trae_semver_y_sha() {
-        let v = version_core();
-        assert!(v.contains('+'), "version_core debe ser <semver>+<sha>, fue {v}");
+    fn the_version_has_semver_and_sha() {
+        let v = core_version();
+        assert!(v.contains('+'), "core_version debe ser <semver>+<sha>, fue {v}");
         assert!(v.starts_with("1.0.0"), "fue {v}");
     }
 
     #[test]
-    fn el_error_del_nucleo_se_traduce_conservando_el_nombre() {
-        let e: ErrorDominio = domain::ErrorDominio::MismaCuenta.into();
-        assert_eq!(e.nombre(), "MismaCuenta");
-        let e: ErrorDominio = domain::ErrorDominio::SaldoInsuficiente {
-            disponible: "1.00".into(),
-            requerido: "2.00".into(),
+    fn the_domain_error_translates_preserving_its_name() {
+        let e: DomainError = domain::DomainError::SameAccount.into();
+        assert_eq!(e.contract_name(), "MismaCuenta");
+        let e: DomainError = domain::DomainError::InsufficientFunds {
+            available: "1.00".into(),
+            required: "2.00".into(),
         }
         .into();
-        assert_eq!(e.nombre(), "SaldoInsuficiente");
+        assert_eq!(e.contract_name(), "SaldoInsuficiente");
     }
 
     #[test]
-    fn la_api_publica_responde() {
-        assert_eq!(sumar("0.1".into(), "0.2".into()).unwrap(), "0.30");
-        assert_eq!(calcular_itf("3500.00".into()).unwrap(), "0.18");
-        assert_eq!(validar_tarjeta("4111111111111111".into()).unwrap().marca, "Visa");
+    fn the_public_api_responds() {
+        assert_eq!(add("0.1".into(), "0.2".into()).unwrap(), "0.30");
+        assert_eq!(calculate_itf("3500.00".into()).unwrap(), "0.18");
+        assert_eq!(validate_card("4111111111111111".into()).unwrap().brand, "Visa");
     }
 }
 ```
@@ -1644,7 +1647,7 @@ mod tests {
 - [ ] **Step 2: Correr y verificar que falla**
 
 Run: `cd rust-core && cargo test -p core_financiero`
-Expected: FAIL — `cannot find function version_core`
+Expected: FAIL — `cannot find function core_version`
 
 - [ ] **Step 3: Escribir `build.rs`**
 
@@ -1653,7 +1656,7 @@ Expected: FAIL — `cannot find function version_core`
 ```rust
 use std::process::Command;
 
-/// Inyecta el SHA de git en compilación. `version_core()` devuelve versión + SHA para
+/// Inyecta el SHA de git en compilación. `core_version()` devuelve versión + SHA para
 /// que cuatro strings idénticos en pantalla sean evidencia de que las cuatro apps corren
 /// el mismo build — un semver escrito a mano no probaría nada.
 ///
@@ -1664,8 +1667,8 @@ fn main() {
         .args(["rev-parse", "--short", "HEAD"])
         .output()
         .ok()
-        .filter(|salida| salida.status.success())
-        .and_then(|salida| String::from_utf8(salida.stdout).ok())
+        .filter(|output| output.status.success())
+        .and_then(|output| String::from_utf8(output.stdout).ok())
         .map(|s| s.trim().to_string())
         .filter(|s| !s.is_empty())
         .unwrap_or_else(|| "sin-git".to_string());
@@ -1687,57 +1690,57 @@ uniffi::setup_scaffolding!();
 // ---------- error: se define en `domain` una sola vez y acá se le pone la piel de uniffi
 
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error, uniffi::Error)]
-pub enum ErrorDominio {
-    #[error("longitud inválida en {campo}: se esperaban {esperado} dígitos, llegaron {recibido}")]
-    Longitud { campo: String, esperado: u32, recibido: u32 },
+pub enum DomainError {
+    #[error("longitud inválida en {field}: se esperaban {expected} dígitos, llegaron {received}")]
+    Length { field: String, expected: u32, received: u32 },
     #[error("dígito de control inválido")]
-    DigitoControl,
-    #[error("banco no reconocido: {codigo}")]
-    BancoDesconocido { codigo: String },
-    #[error("monto inválido: {detalle}")]
-    MontoInvalido { detalle: String },
+    CheckDigit,
+    #[error("banco no reconocido: {code}")]
+    UnknownBank { code: String },
+    #[error("monto inválido: {detail}")]
+    InvalidAmount { detail: String },
     #[error("cuenta no encontrada: {id}")]
-    CuentaNoEncontrada { id: String },
+    AccountNotFound { id: String },
     #[error("origen y destino son la misma cuenta")]
-    MismaCuenta,
-    #[error("saldo insuficiente: disponible {disponible}, requerido {requerido}")]
-    SaldoInsuficiente { disponible: String, requerido: String },
-    #[error("error de cifrado: {detalle}")]
-    Cifrado { detalle: String },
-    #[error("parámetro fuera de rango: {campo}")]
-    FueraDeRango { campo: String },
+    SameAccount,
+    #[error("saldo insuficiente: disponible {available}, requerido {required}")]
+    InsufficientFunds { available: String, required: String },
+    #[error("error de cifrado: {detail}")]
+    Encryption { detail: String },
+    #[error("parámetro fuera de rango: {field}")]
+    OutOfRange { field: String },
 }
 
-impl ErrorDominio {
-    /// Espejo de `domain::ErrorDominio::nombre()`. Lo usa el golden.
-    pub fn nombre(&self) -> &'static str {
+impl DomainError {
+    /// Espejo de `domain::DomainError::contract_name()`. Lo usa el golden.
+    pub fn contract_name(&self) -> &'static str {
         match self {
-            Self::Longitud { .. } => "Longitud",
-            Self::DigitoControl => "DigitoControl",
-            Self::BancoDesconocido { .. } => "BancoDesconocido",
-            Self::MontoInvalido { .. } => "MontoInvalido",
-            Self::CuentaNoEncontrada { .. } => "CuentaNoEncontrada",
-            Self::MismaCuenta => "MismaCuenta",
-            Self::SaldoInsuficiente { .. } => "SaldoInsuficiente",
-            Self::Cifrado { .. } => "Cifrado",
-            Self::FueraDeRango { .. } => "FueraDeRango",
+            Self::Length { .. } => "Longitud",
+            Self::CheckDigit => "DigitoControl",
+            Self::UnknownBank { .. } => "BancoDesconocido",
+            Self::InvalidAmount { .. } => "MontoInvalido",
+            Self::AccountNotFound { .. } => "CuentaNoEncontrada",
+            Self::SameAccount => "MismaCuenta",
+            Self::InsufficientFunds { .. } => "SaldoInsuficiente",
+            Self::Encryption { .. } => "Cifrado",
+            Self::OutOfRange { .. } => "FueraDeRango",
         }
     }
 }
 
-impl From<domain::ErrorDominio> for ErrorDominio {
-    fn from(e: domain::ErrorDominio) -> Self {
-        use domain::ErrorDominio as N;
+impl From<domain::DomainError> for DomainError {
+    fn from(e: domain::DomainError) -> Self {
+        use domain::DomainError as N;
         match e {
-            N::Longitud { campo, esperado, recibido } => Self::Longitud { campo, esperado, recibido },
-            N::DigitoControl => Self::DigitoControl,
-            N::BancoDesconocido { codigo } => Self::BancoDesconocido { codigo },
-            N::MontoInvalido { detalle } => Self::MontoInvalido { detalle },
-            N::CuentaNoEncontrada { id } => Self::CuentaNoEncontrada { id },
-            N::MismaCuenta => Self::MismaCuenta,
-            N::SaldoInsuficiente { disponible, requerido } => Self::SaldoInsuficiente { disponible, requerido },
-            N::Cifrado { detalle } => Self::Cifrado { detalle },
-            N::FueraDeRango { campo } => Self::FueraDeRango { campo },
+            N::Length { field, expected, received } => Self::Length { field, expected, received },
+            N::CheckDigit => Self::CheckDigit,
+            N::UnknownBank { code } => Self::UnknownBank { code },
+            N::InvalidAmount { detail } => Self::InvalidAmount { detail },
+            N::AccountNotFound { id } => Self::AccountNotFound { id },
+            N::SameAccount => Self::SameAccount,
+            N::InsufficientFunds { available, required } => Self::InsufficientFunds { available, required },
+            N::Encryption { detail } => Self::Encryption { detail },
+            N::OutOfRange { field } => Self::OutOfRange { field },
         }
     }
 }
@@ -1745,121 +1748,121 @@ impl From<domain::ErrorDominio> for ErrorDominio {
 // ---------- records
 
 #[derive(Debug, Clone, uniffi::Record)]
-pub struct Cuenta {
+pub struct Account {
     pub id: String,
-    pub titular: String,
-    pub saldo: String,
+    pub holder: String,
+    pub balance: String,
 }
 
 #[derive(Debug, Clone, uniffi::Record)]
-pub struct SolicitudTransferencia {
-    pub origen: String,
-    pub destino: String,
-    pub monto: String,
+pub struct TransferRequest {
+    pub origin: String,
+    pub destination: String,
+    pub amount: String,
 }
 
 #[derive(Debug, Clone, uniffi::Record)]
-pub struct ResultadoTransferencia {
-    pub cuentas: Vec<Cuenta>,
-    pub comision_itf: String,
-    pub total_debitado: String,
-    pub comprobante: String,
-    pub latencia_simulada_ms: u32,
+pub struct TransferResult {
+    pub accounts: Vec<Account>,
+    pub itf_fee: String,
+    pub total_debited: String,
+    pub receipt: String,
+    pub simulated_latency_ms: u32,
 }
 
 #[derive(Debug, Clone, uniffi::Record)]
-pub struct CciValido {
-    pub codigo_banco: String,
-    pub nombre_banco: String,
-    pub oficina: String,
-    pub cuenta: String,
+pub struct ValidCci {
+    pub bank_code: String,
+    pub bank_name: String,
+    pub branch: String,
+    pub account: String,
 }
 
 #[derive(Debug, Clone, uniffi::Record)]
-pub struct TarjetaValida {
-    pub marca: String,
-    pub enmascarado: String,
+pub struct ValidCard {
+    pub brand: String,
+    pub masked: String,
 }
 
-impl From<domain::Cuenta> for Cuenta {
-    fn from(c: domain::Cuenta) -> Self {
-        Self { id: c.id, titular: c.titular, saldo: c.saldo }
+impl From<domain::Account> for Account {
+    fn from(c: domain::Account) -> Self {
+        Self { id: c.id, holder: c.holder, balance: c.balance }
     }
 }
 
-impl From<Cuenta> for domain::Cuenta {
-    fn from(c: Cuenta) -> Self {
-        Self { id: c.id, titular: c.titular, saldo: c.saldo }
+impl From<Account> for domain::Account {
+    fn from(c: Account) -> Self {
+        Self { id: c.id, holder: c.holder, balance: c.balance }
     }
 }
 
 // ---------- caso 1: aritmética decimal
 
 #[uniffi::export]
-pub fn sumar(a: String, b: String) -> Result<String, ErrorDominio> {
-    domain::sumar(&a, &b).map_err(Into::into)
+pub fn add(a: String, b: String) -> Result<String, DomainError> {
+    domain::add(&a, &b).map_err(Into::into)
 }
 
 #[uniffi::export]
-pub fn restar(a: String, b: String) -> Result<String, ErrorDominio> {
-    domain::restar(&a, &b).map_err(Into::into)
+pub fn subtract(a: String, b: String) -> Result<String, DomainError> {
+    domain::subtract(&a, &b).map_err(Into::into)
 }
 
 // ---------- caso 2: transferencia
 
 #[uniffi::export]
-pub fn ejecutar_transferencia(
-    cuentas: Vec<Cuenta>,
-    solicitud: SolicitudTransferencia,
-) -> Result<ResultadoTransferencia, ErrorDominio> {
-    let cuentas: Vec<domain::Cuenta> = cuentas.into_iter().map(Into::into).collect();
-    let solicitud = domain::SolicitudTransferencia {
-        origen: solicitud.origen,
-        destino: solicitud.destino,
-        monto: solicitud.monto,
+pub fn execute_transfer(
+    accounts: Vec<Account>,
+    request: TransferRequest,
+) -> Result<TransferResult, DomainError> {
+    let accounts: Vec<domain::Account> = accounts.into_iter().map(Into::into).collect();
+    let request = domain::TransferRequest {
+        origin: request.origin,
+        destination: request.destination,
+        amount: request.amount,
     };
-    let r = domain::ejecutar_transferencia(cuentas, solicitud)?;
-    Ok(ResultadoTransferencia {
-        cuentas: r.cuentas.into_iter().map(Into::into).collect(),
-        comision_itf: r.comision_itf,
-        total_debitado: r.total_debitado,
-        comprobante: r.comprobante,
-        latencia_simulada_ms: r.latencia_simulada_ms,
+    let r = domain::execute_transfer(accounts, request)?;
+    Ok(TransferResult {
+        accounts: r.accounts.into_iter().map(Into::into).collect(),
+        itf_fee: r.itf_fee,
+        total_debited: r.total_debited,
+        receipt: r.receipt,
+        simulated_latency_ms: r.simulated_latency_ms,
     })
 }
 
 #[uniffi::export]
-pub fn validar_cci(cci: String) -> Result<CciValido, ErrorDominio> {
-    let v = domain::validar_cci(&cci)?;
-    Ok(CciValido {
-        codigo_banco: v.codigo_banco,
-        nombre_banco: v.nombre_banco,
-        oficina: v.oficina,
-        cuenta: v.cuenta,
+pub fn validate_cci(cci: String) -> Result<ValidCci, DomainError> {
+    let v = domain::validate_cci(&cci)?;
+    Ok(ValidCci {
+        bank_code: v.bank_code,
+        bank_name: v.bank_name,
+        branch: v.branch,
+        account: v.account,
     })
 }
 
 #[uniffi::export]
-pub fn calcular_itf(monto: String) -> Result<String, ErrorDominio> {
-    domain::calcular_itf(&monto).map_err(Into::into)
+pub fn calculate_itf(amount: String) -> Result<String, DomainError> {
+    domain::calculate_itf(&amount).map_err(Into::into)
 }
 
 // ---------- caso 3: tarjeta y cifrado
 
 #[uniffi::export]
-pub fn validar_tarjeta(numero: String) -> Result<TarjetaValida, ErrorDominio> {
-    let v = domain::validar_tarjeta(&numero)?;
-    Ok(TarjetaValida { marca: v.marca, enmascarado: v.enmascarado })
+pub fn validate_card(number: String) -> Result<ValidCard, DomainError> {
+    let v = domain::validate_card(&number)?;
+    Ok(ValidCard { brand: v.brand, masked: v.masked })
 }
 
 #[uniffi::export]
-pub fn cifrar(texto: String, clave_hex: String, nonce_hex: String) -> Result<String, ErrorDominio> {
-    domain::cifrar(&texto, &clave_hex, &nonce_hex).map_err(Into::into)
+pub fn encrypt(text: String, key_hex: String, nonce_hex: String) -> Result<String, DomainError> {
+    domain::encrypt(&text, &key_hex, &nonce_hex).map_err(Into::into)
 }
 
 #[uniffi::export]
-pub fn descifrar(cifrado_hex: String, clave_hex: String, nonce_hex: String) -> Result<String, ErrorDominio> {
-    domain::descifrar(&cifrado_hex, &clave_hex, &nonce_hex).map_err(Into::into)
+pub fn decrypt(ciphertext_hex: String, key_hex: String, nonce_hex: String) -> Result<String, DomainError> {
+    domain::decrypt(&ciphertext_hex, &key_hex, &nonce_hex).map_err(Into::into)
 }
 
 // ---------- meta
@@ -1867,7 +1870,7 @@ pub fn descifrar(cifrado_hex: String, clave_hex: String, nonce_hex: String) -> R
 /// Versión del crate + SHA corto de git. Cuatro strings idénticos en pantalla son la
 /// prueba de que las cuatro apps corren exactamente el mismo build.
 #[uniffi::export]
-pub fn version_core() -> String {
+pub fn core_version() -> String {
     format!("{}+{}", env!("CARGO_PKG_VERSION"), env!("GIT_SHA"))
 }
 ```
@@ -1883,8 +1886,8 @@ Expected: PASS
 git add rust-core/
 git commit -m "feat(ffi): fachada uniffi con la superficie completa de la POC
 
-domain define ErrorDominio una sola vez; aca se le pone la piel de uniffi
-con un From. version_core devuelve semver + SHA de git inyectado por
+domain define DomainError una sola vez; aca se le pone la piel de uniffi
+con un From. core_version devuelve semver + SHA de git inyectado por
 build.rs: cuatro strings identicos en pantalla son la prueba de que las
 cuatro apps corren el mismo build.
 
@@ -1921,146 +1924,146 @@ use serde_json::Value;
 // recompilar, y no hay I/O en tiempo de ejecución.
 const CASES: &str = include_str!("../../../../contracts/cases.json");
 
-fn contrato() -> Value {
+fn contract() -> Value {
     serde_json::from_str(CASES).expect("cases.json debe ser JSON válido")
 }
 
-fn campo(v: &Value, k: &str) -> String {
+fn field(v: &Value, k: &str) -> String {
     v[k].as_str()
         .unwrap_or_else(|| panic!("falta el campo de texto `{k}` en {v}"))
         .to_string()
 }
 
 #[test]
-fn el_contrato_es_la_version_esperada() {
-    assert_eq!(campo(&contrato(), "version"), "2.1.0");
+fn the_contract_is_the_expected_version() {
+    assert_eq!(field(&contract(), "version"), "2.1.0");
 }
 
 #[test]
-fn golden_aritmetica() {
-    for caso in contrato()["aritmetica"].as_array().expect("grupo aritmetica") {
-        let id = campo(caso, "id");
-        let op = campo(caso, "op");
-        let (a, b) = (campo(caso, "a"), campo(caso, "b"));
-        let obtenido = match op.as_str() {
-            "sumar" => sumar(a, b),
-            "restar" => restar(a, b),
-            otra => panic!("{id}: operación desconocida `{otra}`"),
+fn golden_arithmetic() {
+    for case in contract()["aritmetica"].as_array().expect("grupo aritmetica") {
+        let id = field(case, "id");
+        let op = field(case, "op");
+        let (a, b) = (field(case, "a"), field(case, "b"));
+        let actual = match op.as_str() {
+            "sumar" => add(a, b),
+            "restar" => subtract(a, b),
+            other => panic!("{id}: operación desconocida `{other}`"),
         }
         .unwrap_or_else(|e| panic!("{id}: error inesperado {e}"));
-        assert_eq!(obtenido, campo(caso, "esperado"), "caso {id}");
+        assert_eq!(actual, field(case, "esperado"), "caso {id}");
     }
 }
 
 #[test]
 fn golden_itf() {
-    for caso in contrato()["itf"].as_array().expect("grupo itf") {
-        let id = campo(caso, "id");
-        let obtenido = calcular_itf(campo(caso, "entrada"))
+    for case in contract()["itf"].as_array().expect("grupo itf") {
+        let id = field(case, "id");
+        let actual = calculate_itf(field(case, "entrada"))
             .unwrap_or_else(|e| panic!("{id}: error inesperado {e}"));
-        assert_eq!(obtenido, campo(caso, "esperado"), "caso {id}");
+        assert_eq!(actual, field(case, "esperado"), "caso {id}");
     }
 }
 
 #[test]
 fn golden_cci() {
-    for caso in contrato()["cci"].as_array().expect("grupo cci") {
-        let id = campo(caso, "id");
-        let entrada = campo(caso, "entrada");
-        match validar_cci(entrada) {
+    for case in contract()["cci"].as_array().expect("grupo cci") {
+        let id = field(case, "id");
+        let input = field(case, "entrada");
+        match validate_cci(input) {
             Ok(v) => {
-                assert!(caso["valido"].as_bool() == Some(true), "{id}: debía fallar");
-                let e = &caso["esperado"];
-                assert_eq!(v.codigo_banco, campo(e, "codigo_banco"), "caso {id}");
-                assert_eq!(v.nombre_banco, campo(e, "nombre_banco"), "caso {id}");
-                assert_eq!(v.oficina, campo(e, "oficina"), "caso {id}");
-                assert_eq!(v.cuenta, campo(e, "cuenta"), "caso {id}");
+                assert!(case["valido"].as_bool() == Some(true), "{id}: debía fallar");
+                let e = &case["esperado"];
+                assert_eq!(v.bank_code, field(e, "codigo_banco"), "caso {id}");
+                assert_eq!(v.bank_name, field(e, "nombre_banco"), "caso {id}");
+                assert_eq!(v.branch, field(e, "oficina"), "caso {id}");
+                assert_eq!(v.account, field(e, "cuenta"), "caso {id}");
             }
             Err(err) => {
-                assert!(caso["valido"].as_bool() == Some(false), "{id}: debía pasar");
-                assert_eq!(err.nombre(), campo(caso, "error"), "caso {id}");
+                assert!(case["valido"].as_bool() == Some(false), "{id}: debía pasar");
+                assert_eq!(err.contract_name(), field(case, "error"), "caso {id}");
             }
         }
     }
 }
 
 #[test]
-fn golden_tarjeta() {
-    let d = contrato();
-    let clave = campo(&d, "_clave_demo_hex");
-    let nonce = campo(&d, "_nonce_demo_hex");
-    for caso in d["tarjeta"].as_array().expect("grupo tarjeta") {
-        let id = campo(caso, "id");
-        let entrada = campo(caso, "entrada");
-        match validar_tarjeta(entrada.clone()) {
+fn golden_card() {
+    let d = contract();
+    let key = field(&d, "_clave_demo_hex");
+    let nonce = field(&d, "_nonce_demo_hex");
+    for case in d["tarjeta"].as_array().expect("grupo tarjeta") {
+        let id = field(case, "id");
+        let input = field(case, "entrada");
+        match validate_card(input.clone()) {
             Ok(v) => {
-                assert!(caso["valido"].as_bool() == Some(true), "{id}: debía fallar");
-                let e = &caso["esperado"];
-                assert_eq!(v.marca, campo(e, "marca"), "caso {id}");
-                assert_eq!(v.enmascarado, campo(e, "enmascarado"), "caso {id}");
+                assert!(case["valido"].as_bool() == Some(true), "{id}: debía fallar");
+                let e = &case["esperado"];
+                assert_eq!(v.brand, field(e, "marca"), "caso {id}");
+                assert_eq!(v.masked, field(e, "enmascarado"), "caso {id}");
 
-                let cifrado = cifrar(entrada.clone(), clave.clone(), nonce.clone())
+                let ciphertext = encrypt(input.clone(), key.clone(), nonce.clone())
                     .unwrap_or_else(|err| panic!("{id}: {err}"));
-                assert_eq!(cifrado, campo(e, "cifrado_hex"), "caso {id} (cifrado)");
+                assert_eq!(ciphertext, field(e, "cifrado_hex"), "caso {id} (cifrado)");
 
-                let vuelta = descifrar(cifrado, clave.clone(), nonce.clone())
+                let roundtrip = decrypt(ciphertext, key.clone(), nonce.clone())
                     .unwrap_or_else(|err| panic!("{id}: {err}"));
-                assert_eq!(vuelta, entrada, "caso {id} (roundtrip)");
+                assert_eq!(roundtrip, input, "caso {id} (roundtrip)");
             }
             Err(err) => {
-                assert!(caso["valido"].as_bool() == Some(false), "{id}: debía pasar");
-                assert_eq!(err.nombre(), campo(caso, "error"), "caso {id}");
+                assert!(case["valido"].as_bool() == Some(false), "{id}: debía pasar");
+                assert_eq!(err.contract_name(), field(case, "error"), "caso {id}");
             }
         }
     }
 }
 
 #[test]
-fn golden_transferencia() {
-    let d = contrato();
-    let iniciales: Vec<Cuenta> = d["cuentas_iniciales"]
+fn golden_transfer() {
+    let d = contract();
+    let initial: Vec<Account> = d["cuentas_iniciales"]
         .as_array()
         .expect("cuentas_iniciales")
         .iter()
-        .map(|c| Cuenta {
-            id: campo(c, "id"),
-            titular: campo(c, "titular"),
-            saldo: campo(c, "saldo"),
+        .map(|c| Account {
+            id: field(c, "id"),
+            holder: field(c, "titular"),
+            balance: field(c, "saldo"),
         })
         .collect();
 
-    for caso in d["transferencia"].as_array().expect("grupo transferencia") {
-        let id = campo(caso, "id");
-        let entrada = &caso["entrada"];
-        let solicitud = SolicitudTransferencia {
-            origen: campo(entrada, "origen"),
-            destino: campo(entrada, "destino"),
-            monto: campo(entrada, "monto"),
+    for case in d["transferencia"].as_array().expect("grupo transferencia") {
+        let id = field(case, "id");
+        let input = &case["entrada"];
+        let request = TransferRequest {
+            origin: field(input, "origen"),
+            destination: field(input, "destino"),
+            amount: field(input, "monto"),
         };
 
-        match ejecutar_transferencia(iniciales.clone(), solicitud) {
+        match execute_transfer(initial.clone(), request) {
             Ok(r) => {
-                assert!(caso["valido"].as_bool() == Some(true), "{id}: debía fallar");
-                let e = &caso["esperado"];
-                assert_eq!(r.comision_itf, campo(e, "comision_itf"), "caso {id}");
-                assert_eq!(r.total_debitado, campo(e, "total_debitado"), "caso {id}");
-                assert_eq!(r.comprobante, campo(e, "comprobante"), "caso {id}");
+                assert!(case["valido"].as_bool() == Some(true), "{id}: debía fallar");
+                let e = &case["esperado"];
+                assert_eq!(r.itf_fee, field(e, "comision_itf"), "caso {id}");
+                assert_eq!(r.total_debited, field(e, "total_debitado"), "caso {id}");
+                assert_eq!(r.receipt, field(e, "comprobante"), "caso {id}");
                 assert_eq!(
-                    u64::from(r.latencia_simulada_ms),
+                    u64::from(r.simulated_latency_ms),
                     e["latencia_simulada_ms"].as_u64().expect("latencia"),
                     "caso {id}"
                 );
-                let esperadas = e["cuentas"].as_array().expect("cuentas esperadas");
-                assert_eq!(r.cuentas.len(), esperadas.len(), "caso {id}");
-                for (obtenida, esperada) in r.cuentas.iter().zip(esperadas) {
-                    assert_eq!(obtenida.id, campo(esperada, "id"), "caso {id}");
-                    assert_eq!(obtenida.titular, campo(esperada, "titular"), "caso {id}");
-                    assert_eq!(obtenida.saldo, campo(esperada, "saldo"), "caso {id}");
+                let expected_accounts = e["cuentas"].as_array().expect("cuentas esperadas");
+                assert_eq!(r.accounts.len(), expected_accounts.len(), "caso {id}");
+                for (actual_account, expected_account) in r.accounts.iter().zip(expected_accounts) {
+                    assert_eq!(actual_account.id, field(expected_account, "id"), "caso {id}");
+                    assert_eq!(actual_account.holder, field(expected_account, "titular"), "caso {id}");
+                    assert_eq!(actual_account.balance, field(expected_account, "saldo"), "caso {id}");
                 }
             }
             Err(err) => {
-                assert!(caso["valido"].as_bool() == Some(false), "{id}: debía pasar");
-                assert_eq!(err.nombre(), campo(caso, "error"), "caso {id}");
+                assert!(case["valido"].as_bool() == Some(false), "{id}: debía pasar");
+                assert_eq!(err.contract_name(), field(case, "error"), "caso {id}");
             }
         }
     }
@@ -2074,7 +2077,7 @@ Expected: `running 6 tests` … `test result: ok. 6 passed`.
 
 **Verificación obligatoria de que el test no es un fantasma.** Un golden que no se ejecuta
 pasa igual. Cambiar temporalmente en `golden_itf` el `assert_eq!` por
-`assert_eq!(obtenido, "NO-DEBE-PASAR", "caso {id}")`, correr, y confirmar que **falla**.
+`assert_eq!(actual, "NO-DEBE-PASAR", "case {id}")`, correr, y confirmar que **falla**.
 Luego revertir y confirmar que vuelve a pasar.
 
 - [ ] **Step 3: Confirmar que el atajo documentado también lo alcanza**
@@ -2152,7 +2155,7 @@ del review de CONTEXT).
 Run:
 ```bash
 cd rust-core
-for f in sumar restar ejecutar_transferencia validar_cci calcular_itf validar_tarjeta cifrar descifrar version_core; do
+for f in add subtract execute_transfer validate_cci calculate_itf validate_card encrypt decrypt core_version; do
   k=$(grep -rl "$f" target/bindings-smoke/kotlin | wc -l | tr -d ' ')
   s=$(grep -rl "$f" target/bindings-smoke/swift  | wc -l | tr -d ' ')
   printf "%-24s kotlin:%s swift:%s\n" "$f" "$k" "$s"
@@ -2309,7 +2312,7 @@ Correr `/security-review` sobre la rama y luego
 | `round_dp_with_strategy(2, MidpointAwayFromZero)` + `{:.2}` | da `0.18` para `3500×0.00005`, y `0.30`/`70.01` para los casos de aritmética |
 | `chacha20poly1305` 0.11 | reproduce los tres vectores del contrato, derivados con Node 22 |
 | `Key::from_slice` / `Nonce::from_slice` | **deprecados**: harían fallar `clippy -D warnings`. Usar `try_into` |
-| `uniffi` 0.32 con `setup_scaffolding!`, `Record`, error con campos, `Vec<Cuenta>` | compila y pasa clippy |
+| `uniffi` 0.32 con `setup_scaffolding!`, `Record`, error con campos, `Vec<Account>` | compila y pasa clippy |
 | Paquete llamado `core` | **choca**: dentro de `ffi`, un dependency llamado `core` tapa al `core` de la stdlib y `#[derive(thiserror::Error)]` no compila (`cannot find 'fmt' in 'core'`). Verificado con un workspace de prueba. Por eso el crate puro se llama **`domain`** |
 | `tests/` en la raíz del workspace | **nunca se ejecuta** — por eso el golden va en `crates/ffi/tests/` |
 

@@ -5,6 +5,41 @@
 [`contracts/README.md`](../../../contracts/README.md), que es la fuente normativa de los
 algoritmos.
 
+## Corrección de ejecución (2026-09-08) — idioma de los identificadores
+
+Esta spec se aprobó con los identificadores en español. **Se cambió durante la ejecución:
+todo identificador va en inglés** —funciones, tipos, campos, variables, constantes y
+nombres de test—, y solo los comentarios, las docs de función, los mensajes de error al
+usuario y los mensajes de commit quedan en español. Las siglas peruanas `cci` e `itf` no
+se traducen: son nombres propios.
+
+**`contracts/cases.json` no cambia.** Sus claves (`comision_itf`, `saldo`, `titular`) y sus
+nombres de error (`"MismaCuenta"`, `"Longitud"`) siguen en español: es un archivo de datos
+que las cinco bases de código comparan por igualdad exacta de strings, y traducirlo sería
+un cambio *major* del contrato sin ganancia. El puente vive en **un solo lugar**:
+`DomainError::contract_name()` devuelve el nombre en español que el contrato espera.
+
+| Español (spec original) | Inglés (vigente) |
+|---|---|
+| `ErrorDominio` | `DomainError` |
+| `Cuenta` · `titular` · `saldo` | `Account` · `holder` · `balance` |
+| `SolicitudTransferencia` · `origen` · `destino` · `monto` | `TransferRequest` · `origin` · `destination` · `amount` |
+| `ResultadoTransferencia` · `cuentas` · `comision_itf` · `total_debitado` · `comprobante` · `latencia_simulada_ms` | `TransferResult` · `accounts` · `itf_fee` · `total_debited` · `receipt` · `simulated_latency_ms` |
+| `CciValido` · `codigo_banco` · `nombre_banco` · `oficina` · `cuenta` | `ValidCci` · `bank_code` · `bank_name` · `branch` · `account` |
+| `TarjetaValida` · `marca` · `enmascarado` | `ValidCard` · `brand` · `masked` |
+| `sumar` · `restar` | `add` · `subtract` |
+| `calcular_itf` · `ALICUOTA_ITF` · `itf_redondeado` | `calculate_itf` · `ITF_RATE` · `rounded_itf` |
+| `validar_cci` · `validar_tarjeta` | `validate_cci` · `validate_card` |
+| `ejecutar_transferencia` | `execute_transfer` |
+| `cifrar` · `descifrar` | `encrypt` · `decrypt` |
+| `version_core` | `core_version` |
+| `parsear_monto` · `redondear` · `formatear` | `parse_amount` · `round_amount` · `format_amount` |
+| `nombre()` | `contract_name()` — devuelve el string del contrato, en español |
+| Variantes: `Longitud` `DigitoControl` `BancoDesconocido` `MontoInvalido` `CuentaNoEncontrada` `MismaCuenta` `SaldoInsuficiente` `Cifrado` `FueraDeRango` | `Length` `CheckDigit` `UnknownBank` `InvalidAmount` `AccountNotFound` `SameAccount` `InsufficientFunds` `Encryption` `OutOfRange` |
+
+El plan de la fase ya está reescrito con estos nombres; el resto de esta spec conserva la
+redacción aprobada y se lee con esta tabla al lado.
+
 ## Qué prueba esta fase, y qué no
 
 La POC demuestra **una** cosa: que la lógica de negocio se escribe una vez en Rust y las

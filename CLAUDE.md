@@ -12,11 +12,20 @@ La tesis que la POC debe probar es una sola: **la lógica de negocio (dominio + 
 se comparte, la UI varía por plataforma.** La evidencia es que las cuatro apps
 producen strings idénticos carácter por carácter sobre el mismo set de casos.
 
-**Idioma.** Nombres de archivos, carpetas, crates y ramas: **inglés**. Contenido de la
-documentación, textos de UI y mensajes de commit: **español**. Los identificadores de
-dominio conservan la terminología bancaria peruana (`validar_cci`, `transferencia`,
-`itf`, `tarjeta`) — son lenguaje ubicuo, no traducible sin perder significado.
-Commits en Conventional Commits.
+**Idioma.** **Todo identificador va en inglés**, en las cinco bases de código: nombres de
+archivos, carpetas, crates, ramas, funciones, tipos, campos, variables, constantes y
+nombres de test (`validate_cci`, `execute_transfer`, `DomainError`, `Account.balance`).
+Contenido de la documentación, comentarios, docs de función, textos de UI y mensajes de
+commit: **español**. Commits en Conventional Commits.
+
+Las siglas bancarias peruanas —`cci`, `itf`— **no se traducen**: son nombres propios, no
+palabras. Sí llevan prefijo en inglés (`validate_cci`, `calculate_itf`, `ITF_RATE`).
+
+**Excepción: `contracts/cases.json` conserva sus claves y sus nombres de error en
+español** (`comision_itf`, `saldo`, `"MismaCuenta"`). Es un archivo de datos que las cinco
+bases de código comparan por igualdad exacta de strings, no código; traducirlo obligaría a
+un cambio *major* del contrato sin ganar nada. El puente vive en un solo lugar: en Rust,
+`DomainError::contract_name()` devuelve el nombre en español que espera el contrato.
 
 ## Documentos de contexto por proyecto
 
