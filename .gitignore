@@ -1,0 +1,35 @@
+# macOS
+.DS_Store
+
+# Python (solo el generador de referencia de contratos/)
+__pycache__/
+*.py[cod]
+
+# Rust
+/rust-core/target/
+**/*.rs.bk
+
+# Artefactos generados por uniffi/ubrn — se regeneran, nunca se commitean
+# (ver el CONTEXT.md de cada app)
+/apps/android/app/src/main/jniLibs/
+/apps/ios/CoreFinanciero.xcframework/
+/apps/ios/Generated/
+/apps/react-native/cpp/
+/apps/react-native/src/generated/
+
+# Node
+node_modules/
+*.log
+
+# Android
+.gradle/
+/apps/android/local.properties
+build/
+
+# iOS
+xcuserdata/
+*.xcworkspace/xcshareddata/
+
+# Angular
+/apps/web-angular/.angular/
+/apps/web-angular/dist/

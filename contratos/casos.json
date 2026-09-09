@@ -1,0 +1,813 @@
+{
+  "version": "1.0.0",
+  "moneda": "PEN",
+  "_nota": "Datos DUMMY para la POC. Tasas, codigos de banco y montos son inventados y no corresponden a productos reales. Lo que se demuestra es que las 4 plataformas producen el MISMO string, no la exactitud financiera.",
+  "_alicuota_itf": "0.00005",
+  "cci": [
+    {
+      "id": "cci-001",
+      "entrada": "00219100123456789047",
+      "valido": true,
+      "esperado": {
+        "codigo_banco": "002",
+        "nombre_banco": "Banco Demo Uno",
+        "oficina": "191",
+        "cuenta": "001234567890"
+      }
+    },
+    {
+      "id": "cci-002",
+      "entrada": "01122000987654321065",
+      "valido": true,
+      "esperado": {
+        "codigo_banco": "011",
+        "nombre_banco": "Banco Demo Dos",
+        "oficina": "220",
+        "cuenta": "009876543210"
+      }
+    },
+    {
+      "id": "cci-003",
+      "entrada": "00219100123456789048",
+      "valido": false,
+      "error": "DigitoControl"
+    },
+    {
+      "id": "cci-004",
+      "entrada": "002191001234567890",
+      "valido": false,
+      "error": "Longitud"
+    }
+  ],
+  "ruc": [
+    {
+      "id": "ruc-001",
+      "entrada": "20100123453",
+      "valido": true
+    },
+    {
+      "id": "ruc-002",
+      "entrada": "10234567891",
+      "valido": true
+    },
+    {
+      "id": "ruc-003",
+      "entrada": "20100123454",
+      "valido": false,
+      "error": "DigitoControl"
+    },
+    {
+      "id": "ruc-004",
+      "entrada": "201001234",
+      "valido": false,
+      "error": "Longitud"
+    }
+  ],
+  "itf": [
+    {
+      "id": "itf-001",
+      "entrada": "1000.00",
+      "esperado": "0.05"
+    },
+    {
+      "id": "itf-002",
+      "entrada": "3500.00",
+      "esperado": "0.18"
+    },
+    {
+      "id": "itf-003",
+      "entrada": "150.00",
+      "esperado": "0.01"
+    },
+    {
+      "id": "itf-004",
+      "entrada": "87654.32",
+      "esperado": "4.38"
+    }
+  ],
+  "cronograma": [
+    {
+      "id": "cred-001",
+      "entrada": {
+        "monto": "15000.00",
+        "tea": "18.50",
+        "cuotas": 24,
+        "seguro": "0.05"
+      },
+      "esperado": {
+        "tcea": "19.20",
+        "total_intereses": "2815.63",
+        "primera_cuota": "749.82",
+        "ultima_cuota": "742.64",
+        "cuotas": [
+          {
+            "numero": 1,
+            "capital": "528.63",
+            "interes": "213.69",
+            "seguro": "7.50",
+            "cuota_total": "749.82",
+            "saldo": "14471.37"
+          },
+          {
+            "numero": 2,
+            "capital": "536.16",
+            "interes": "206.16",
+            "seguro": "7.24",
+            "cuota_total": "749.56",
+            "saldo": "13935.21"
+          },
+          {
+            "numero": 3,
+            "capital": "543.80",
+            "interes": "198.52",
+            "seguro": "6.97",
+            "cuota_total": "749.29",
+            "saldo": "13391.41"
+          },
+          {
+            "numero": 4,
+            "capital": "551.55",
+            "interes": "190.77",
+            "seguro": "6.70",
+            "cuota_total": "749.02",
+            "saldo": "12839.86"
+          },
+          {
+            "numero": 5,
+            "capital": "559.41",
+            "interes": "182.91",
+            "seguro": "6.42",
+            "cuota_total": "748.74",
+            "saldo": "12280.45"
+          },
+          {
+            "numero": 6,
+            "capital": "567.38",
+            "interes": "174.94",
+            "seguro": "6.14",
+            "cuota_total": "748.46",
+            "saldo": "11713.07"
+          },
+          {
+            "numero": 7,
+            "capital": "575.46",
+            "interes": "166.86",
+            "seguro": "5.86",
+            "cuota_total": "748.18",
+            "saldo": "11137.61"
+          },
+          {
+            "numero": 8,
+            "capital": "583.66",
+            "interes": "158.66",
+            "seguro": "5.57",
+            "cuota_total": "747.89",
+            "saldo": "10553.95"
+          },
+          {
+            "numero": 9,
+            "capital": "591.97",
+            "interes": "150.35",
+            "seguro": "5.28",
+            "cuota_total": "747.60",
+            "saldo": "9961.98"
+          },
+          {
+            "numero": 10,
+            "capital": "600.40",
+            "interes": "141.92",
+            "seguro": "4.98",
+            "cuota_total": "747.30",
+            "saldo": "9361.58"
+          },
+          {
+            "numero": 11,
+            "capital": "608.96",
+            "interes": "133.36",
+            "seguro": "4.68",
+            "cuota_total": "747.00",
+            "saldo": "8752.62"
+          },
+          {
+            "numero": 12,
+            "capital": "617.63",
+            "interes": "124.69",
+            "seguro": "4.38",
+            "cuota_total": "746.70",
+            "saldo": "8134.99"
+          },
+          {
+            "numero": 13,
+            "capital": "626.43",
+            "interes": "115.89",
+            "seguro": "4.07",
+            "cuota_total": "746.39",
+            "saldo": "7508.56"
+          },
+          {
+            "numero": 14,
+            "capital": "635.35",
+            "interes": "106.97",
+            "seguro": "3.75",
+            "cuota_total": "746.07",
+            "saldo": "6873.21"
+          },
+          {
+            "numero": 15,
+            "capital": "644.41",
+            "interes": "97.91",
+            "seguro": "3.44",
+            "cuota_total": "745.76",
+            "saldo": "6228.80"
+          },
+          {
+            "numero": 16,
+            "capital": "653.59",
+            "interes": "88.73",
+            "seguro": "3.11",
+            "cuota_total": "745.43",
+            "saldo": "5575.21"
+          },
+          {
+            "numero": 17,
+            "capital": "662.90",
+            "interes": "79.42",
+            "seguro": "2.79",
+            "cuota_total": "745.11",
+            "saldo": "4912.31"
+          },
+          {
+            "numero": 18,
+            "capital": "672.34",
+            "interes": "69.98",
+            "seguro": "2.46",
+            "cuota_total": "744.78",
+            "saldo": "4239.97"
+          },
+          {
+            "numero": 19,
+            "capital": "681.92",
+            "interes": "60.40",
+            "seguro": "2.12",
+            "cuota_total": "744.44",
+            "saldo": "3558.05"
+          },
+          {
+            "numero": 20,
+            "capital": "691.63",
+            "interes": "50.69",
+            "seguro": "1.78",
+            "cuota_total": "744.10",
+            "saldo": "2866.42"
+          },
+          {
+            "numero": 21,
+            "capital": "701.49",
+            "interes": "40.83",
+            "seguro": "1.43",
+            "cuota_total": "743.75",
+            "saldo": "2164.93"
+          },
+          {
+            "numero": 22,
+            "capital": "711.48",
+            "interes": "30.84",
+            "seguro": "1.08",
+            "cuota_total": "743.40",
+            "saldo": "1453.45"
+          },
+          {
+            "numero": 23,
+            "capital": "721.61",
+            "interes": "20.71",
+            "seguro": "0.73",
+            "cuota_total": "743.05",
+            "saldo": "731.84"
+          },
+          {
+            "numero": 24,
+            "capital": "731.84",
+            "interes": "10.43",
+            "seguro": "0.37",
+            "cuota_total": "742.64",
+            "saldo": "0.00"
+          }
+        ]
+      }
+    },
+    {
+      "id": "cred-002",
+      "entrada": {
+        "monto": "10000.00",
+        "tea": "22.00",
+        "cuotas": 12,
+        "seguro": "0.00"
+      },
+      "esperado": {
+        "tcea": "22.00",
+        "total_intereses": "1119.07",
+        "primera_cuota": "926.59",
+        "ultima_cuota": "926.58",
+        "cuotas": [
+          {
+            "numero": 1,
+            "capital": "759.50",
+            "interes": "167.09",
+            "seguro": "0.00",
+            "cuota_total": "926.59",
+            "saldo": "9240.50"
+          },
+          {
+            "numero": 2,
+            "capital": "772.19",
+            "interes": "154.40",
+            "seguro": "0.00",
+            "cuota_total": "926.59",
+            "saldo": "8468.31"
+          },
+          {
+            "numero": 3,
+            "capital": "785.09",
+            "interes": "141.50",
+            "seguro": "0.00",
+            "cuota_total": "926.59",
+            "saldo": "7683.22"
+          },
+          {
+            "numero": 4,
+            "capital": "798.21",
+            "interes": "128.38",
+            "seguro": "0.00",
+            "cuota_total": "926.59",
+            "saldo": "6885.01"
+          },
+          {
+            "numero": 5,
+            "capital": "811.55",
+            "interes": "115.04",
+            "seguro": "0.00",
+            "cuota_total": "926.59",
+            "saldo": "6073.46"
+          },
+          {
+            "numero": 6,
+            "capital": "825.11",
+            "interes": "101.48",
+            "seguro": "0.00",
+            "cuota_total": "926.59",
+            "saldo": "5248.35"
+          },
+          {
+            "numero": 7,
+            "capital": "838.90",
+            "interes": "87.69",
+            "seguro": "0.00",
+            "cuota_total": "926.59",
+            "saldo": "4409.45"
+          },
+          {
+            "numero": 8,
+            "capital": "852.91",
+            "interes": "73.68",
+            "seguro": "0.00",
+            "cuota_total": "926.59",
+            "saldo": "3556.54"
+          },
+          {
+            "numero": 9,
+            "capital": "867.16",
+            "interes": "59.43",
+            "seguro": "0.00",
+            "cuota_total": "926.59",
+            "saldo": "2689.38"
+          },
+          {
+            "numero": 10,
+            "capital": "881.65",
+            "interes": "44.94",
+            "seguro": "0.00",
+            "cuota_total": "926.59",
+            "saldo": "1807.73"
+          },
+          {
+            "numero": 11,
+            "capital": "896.38",
+            "interes": "30.21",
+            "seguro": "0.00",
+            "cuota_total": "926.59",
+            "saldo": "911.35"
+          },
+          {
+            "numero": 12,
+            "capital": "911.35",
+            "interes": "15.23",
+            "seguro": "0.00",
+            "cuota_total": "926.58",
+            "saldo": "0.00"
+          }
+        ]
+      }
+    },
+    {
+      "id": "cred-003",
+      "entrada": {
+        "monto": "37500.55",
+        "tea": "15.75",
+        "cuotas": 48,
+        "seguro": "0.03"
+      },
+      "esperado": {
+        "tcea": "16.16",
+        "total_intereses": "12336.62",
+        "primera_cuota": "1049.52",
+        "ultima_cuota": "1038.79",
+        "cuotas": [
+          {
+            "numero": 1,
+            "capital": "578.40",
+            "interes": "459.87",
+            "seguro": "11.25",
+            "cuota_total": "1049.52",
+            "saldo": "36922.15"
+          },
+          {
+            "numero": 2,
+            "capital": "585.49",
+            "interes": "452.78",
+            "seguro": "11.08",
+            "cuota_total": "1049.35",
+            "saldo": "36336.66"
+          },
+          {
+            "numero": 3,
+            "capital": "592.67",
+            "interes": "445.60",
+            "seguro": "10.90",
+            "cuota_total": "1049.17",
+            "saldo": "35743.99"
+          },
+          {
+            "numero": 4,
+            "capital": "599.94",
+            "interes": "438.33",
+            "seguro": "10.72",
+            "cuota_total": "1048.99",
+            "saldo": "35144.05"
+          },
+          {
+            "numero": 5,
+            "capital": "607.29",
+            "interes": "430.98",
+            "seguro": "10.54",
+            "cuota_total": "1048.81",
+            "saldo": "34536.76"
+          },
+          {
+            "numero": 6,
+            "capital": "614.74",
+            "interes": "423.53",
+            "seguro": "10.36",
+            "cuota_total": "1048.63",
+            "saldo": "33922.02"
+          },
+          {
+            "numero": 7,
+            "capital": "622.28",
+            "interes": "415.99",
+            "seguro": "10.18",
+            "cuota_total": "1048.45",
+            "saldo": "33299.74"
+          },
+          {
+            "numero": 8,
+            "capital": "629.91",
+            "interes": "408.36",
+            "seguro": "9.99",
+            "cuota_total": "1048.26",
+            "saldo": "32669.83"
+          },
+          {
+            "numero": 9,
+            "capital": "637.64",
+            "interes": "400.63",
+            "seguro": "9.80",
+            "cuota_total": "1048.07",
+            "saldo": "32032.19"
+          },
+          {
+            "numero": 10,
+            "capital": "645.46",
+            "interes": "392.81",
+            "seguro": "9.61",
+            "cuota_total": "1047.88",
+            "saldo": "31386.73"
+          },
+          {
+            "numero": 11,
+            "capital": "653.37",
+            "interes": "384.90",
+            "seguro": "9.42",
+            "cuota_total": "1047.69",
+            "saldo": "30733.36"
+          },
+          {
+            "numero": 12,
+            "capital": "661.38",
+            "interes": "376.89",
+            "seguro": "9.22",
+            "cuota_total": "1047.49",
+            "saldo": "30071.98"
+          },
+          {
+            "numero": 13,
+            "capital": "669.49",
+            "interes": "368.78",
+            "seguro": "9.02",
+            "cuota_total": "1047.29",
+            "saldo": "29402.49"
+          },
+          {
+            "numero": 14,
+            "capital": "677.70",
+            "interes": "360.57",
+            "seguro": "8.82",
+            "cuota_total": "1047.09",
+            "saldo": "28724.79"
+          },
+          {
+            "numero": 15,
+            "capital": "686.01",
+            "interes": "352.26",
+            "seguro": "8.62",
+            "cuota_total": "1046.89",
+            "saldo": "28038.78"
+          },
+          {
+            "numero": 16,
+            "capital": "694.43",
+            "interes": "343.84",
+            "seguro": "8.41",
+            "cuota_total": "1046.68",
+            "saldo": "27344.35"
+          },
+          {
+            "numero": 17,
+            "capital": "702.94",
+            "interes": "335.33",
+            "seguro": "8.20",
+            "cuota_total": "1046.47",
+            "saldo": "26641.41"
+          },
+          {
+            "numero": 18,
+            "capital": "711.56",
+            "interes": "326.71",
+            "seguro": "7.99",
+            "cuota_total": "1046.26",
+            "saldo": "25929.85"
+          },
+          {
+            "numero": 19,
+            "capital": "720.29",
+            "interes": "317.98",
+            "seguro": "7.78",
+            "cuota_total": "1046.05",
+            "saldo": "25209.56"
+          },
+          {
+            "numero": 20,
+            "capital": "729.12",
+            "interes": "309.15",
+            "seguro": "7.56",
+            "cuota_total": "1045.83",
+            "saldo": "24480.44"
+          },
+          {
+            "numero": 21,
+            "capital": "738.06",
+            "interes": "300.21",
+            "seguro": "7.34",
+            "cuota_total": "1045.61",
+            "saldo": "23742.38"
+          },
+          {
+            "numero": 22,
+            "capital": "747.11",
+            "interes": "291.16",
+            "seguro": "7.12",
+            "cuota_total": "1045.39",
+            "saldo": "22995.27"
+          },
+          {
+            "numero": 23,
+            "capital": "756.28",
+            "interes": "281.99",
+            "seguro": "6.90",
+            "cuota_total": "1045.17",
+            "saldo": "22238.99"
+          },
+          {
+            "numero": 24,
+            "capital": "765.55",
+            "interes": "272.72",
+            "seguro": "6.67",
+            "cuota_total": "1044.94",
+            "saldo": "21473.44"
+          },
+          {
+            "numero": 25,
+            "capital": "774.94",
+            "interes": "263.33",
+            "seguro": "6.44",
+            "cuota_total": "1044.71",
+            "saldo": "20698.50"
+          },
+          {
+            "numero": 26,
+            "capital": "784.44",
+            "interes": "253.83",
+            "seguro": "6.21",
+            "cuota_total": "1044.48",
+            "saldo": "19914.06"
+          },
+          {
+            "numero": 27,
+            "capital": "794.06",
+            "interes": "244.21",
+            "seguro": "5.97",
+            "cuota_total": "1044.24",
+            "saldo": "19120.00"
+          },
+          {
+            "numero": 28,
+            "capital": "803.80",
+            "interes": "234.47",
+            "seguro": "5.74",
+            "cuota_total": "1044.01",
+            "saldo": "18316.20"
+          },
+          {
+            "numero": 29,
+            "capital": "813.66",
+            "interes": "224.61",
+            "seguro": "5.49",
+            "cuota_total": "1043.76",
+            "saldo": "17502.54"
+          },
+          {
+            "numero": 30,
+            "capital": "823.63",
+            "interes": "214.64",
+            "seguro": "5.25",
+            "cuota_total": "1043.52",
+            "saldo": "16678.91"
+          },
+          {
+            "numero": 31,
+            "capital": "833.73",
+            "interes": "204.54",
+            "seguro": "5.00",
+            "cuota_total": "1043.27",
+            "saldo": "15845.18"
+          },
+          {
+            "numero": 32,
+            "capital": "843.96",
+            "interes": "194.31",
+            "seguro": "4.75",
+            "cuota_total": "1043.02",
+            "saldo": "15001.22"
+          },
+          {
+            "numero": 33,
+            "capital": "854.31",
+            "interes": "183.96",
+            "seguro": "4.50",
+            "cuota_total": "1042.77",
+            "saldo": "14146.91"
+          },
+          {
+            "numero": 34,
+            "capital": "864.78",
+            "interes": "173.49",
+            "seguro": "4.24",
+            "cuota_total": "1042.51",
+            "saldo": "13282.13"
+          },
+          {
+            "numero": 35,
+            "capital": "875.39",
+            "interes": "162.88",
+            "seguro": "3.98",
+            "cuota_total": "1042.25",
+            "saldo": "12406.74"
+          },
+          {
+            "numero": 36,
+            "capital": "886.12",
+            "interes": "152.15",
+            "seguro": "3.72",
+            "cuota_total": "1041.99",
+            "saldo": "11520.62"
+          },
+          {
+            "numero": 37,
+            "capital": "896.99",
+            "interes": "141.28",
+            "seguro": "3.46",
+            "cuota_total": "1041.73",
+            "saldo": "10623.63"
+          },
+          {
+            "numero": 38,
+            "capital": "907.99",
+            "interes": "130.28",
+            "seguro": "3.19",
+            "cuota_total": "1041.46",
+            "saldo": "9715.64"
+          },
+          {
+            "numero": 39,
+            "capital": "919.13",
+            "interes": "119.14",
+            "seguro": "2.91",
+            "cuota_total": "1041.18",
+            "saldo": "8796.51"
+          },
+          {
+            "numero": 40,
+            "capital": "930.40",
+            "interes": "107.87",
+            "seguro": "2.64",
+            "cuota_total": "1040.91",
+            "saldo": "7866.11"
+          },
+          {
+            "numero": 41,
+            "capital": "941.81",
+            "interes": "96.46",
+            "seguro": "2.36",
+            "cuota_total": "1040.63",
+            "saldo": "6924.30"
+          },
+          {
+            "numero": 42,
+            "capital": "953.36",
+            "interes": "84.91",
+            "seguro": "2.08",
+            "cuota_total": "1040.35",
+            "saldo": "5970.94"
+          },
+          {
+            "numero": 43,
+            "capital": "965.05",
+            "interes": "73.22",
+            "seguro": "1.79",
+            "cuota_total": "1040.06",
+            "saldo": "5005.89"
+          },
+          {
+            "numero": 44,
+            "capital": "976.88",
+            "interes": "61.39",
+            "seguro": "1.50",
+            "cuota_total": "1039.77",
+            "saldo": "4029.01"
+          },
+          {
+            "numero": 45,
+            "capital": "988.86",
+            "interes": "49.41",
+            "seguro": "1.21",
+            "cuota_total": "1039.48",
+            "saldo": "3040.15"
+          },
+          {
+            "numero": 46,
+            "capital": "1000.99",
+            "interes": "37.28",
+            "seguro": "0.91",
+            "cuota_total": "1039.18",
+            "saldo": "2039.16"
+          },
+          {
+            "numero": 47,
+            "capital": "1013.26",
+            "interes": "25.01",
+            "seguro": "0.61",
+            "cuota_total": "1038.88",
+            "saldo": "1025.90"
+          },
+          {
+            "numero": 48,
+            "capital": "1025.90",
+            "interes": "12.58",
+            "seguro": "0.31",
+            "cuota_total": "1038.79",
+            "saldo": "0.00"
+          }
+        ]
+      }
+    }
+  ]
+}

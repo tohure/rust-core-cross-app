@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Qué es este repositorio
 
-POC para un banco peruano (BCP): un núcleo de dominio financiero escrito en Rust,
+POC para un núcleo de dominio escrito en Rust,
 consumido sin reescribirse por cuatro frontends — Android nativo, iOS nativo,
 React Native y web Angular.
 
@@ -107,9 +107,13 @@ Reglas de cambio: agregar una función pública al core obliga a actualizar
 `casos.json` en el mismo cambio. Si un caso de negocio no está en `casos.json`,
 no lo implementes: pregunta primero. No se inventan reglas de dominio.
 
-> **Estado:** el directorio `contratos/` ya existe y está vacío. Escribir `casos.json`
-> es la Tarea 2 de la Fase 0 — se hace **a mano y antes** que el core, para que sea un
-> contrato y no un snapshot de la implementación.
+**Datos dummy.** Tasas, códigos de banco y montos son inventados: la POC demuestra que
+cuatro plataformas producen el mismo string, no exactitud financiera. Los algoritmos sí
+son internamente consistentes. Ver [contratos/README.md](contratos/README.md).
+
+**Caso canario:** `cred-002` tiene seguro `0.00`, así que su TCEA debe dar exactamente
+igual a su TEA (22.00%). Si ese caso no cuadra, el Newton-Raphson está mal por más que
+los otros dos pasen.
 
 ## Paridad entre apps
 
@@ -123,9 +127,9 @@ el mismo build.
 
 ## Estado actual y flujo de trabajo (SDD con superpowers)
 
-**El repo está vacío de código.** Existen los CONTEXT (especificaciones ya escritas y
-bastante completas), este CLAUDE.md y la spec + plan de la Fase 0. Ni una línea de Rust,
-Kotlin, Swift o TypeScript todavía: todo lo que sigue es construcción desde cero.
+**Fase 0 completada; no hay código de producción todavía.** Existen los CONTEXT, este
+CLAUDE.md, la spec + plan de la Fase 0 y el contrato `contratos/casos.json`. Ni una línea
+de Rust, Kotlin, Swift o TypeScript: lo que sigue (Fase 1) es el primer código real.
 
 Este proyecto se desarrolla con **Spec-Driven Development** usando el plugin
 `superpowers`. El flujo por fase es:
@@ -153,9 +157,9 @@ Documentos vigentes:
 
 El orden no es negociable: lo impone el grafo de dependencias de build de arriba.
 
-- **Fase 0 — Toolchain y contrato.** Instalar Rust (solo el toolchain host) y escribir
-  `contratos/casos.json` a mano. Sin ese archivo las demás fases no tienen criterio de
-  aceptación. Plan escrito, pendiente de ejecutar.
+- **Fase 0 — Toolchain y contrato.** ✅ **Completada.** Rust 1.98.1 (solo target host) y
+  `contratos/casos.json` v1.0.0 con 15 casos, derivados con una implementación de
+  referencia independiente en Python.
 - **Fase 1 — `rust-core`.** Workspace y los cuatro crates. Dominio y cálculo primero en
   Rust puro (unitarias + `proptest`), `ffi` al final. Es la única fase donde se decide
   lógica de negocio.
@@ -207,7 +211,7 @@ y cada instalación se verifica antes de seguir.
 
 | Fase | Se agrega | Verificación |
 |---|---|---|
-| 0 | `rustup` + stable + clippy + rustfmt | `cargo --version` |
+| 0 | `rustup` + stable + clippy + rustfmt — ✅ **hecho** (1.98.1) | `cargo --version` |
 | 1 | nada (crates puros, se testean en host) | `cargo test --workspace` |
 | 2 | `cargo install cargo-ndk` + 3 targets Android | `cargo ndk --version` |
 | 3 | 2 targets iOS (`aarch64-apple-ios`, `-sim`) | `rustup target list --installed` |
