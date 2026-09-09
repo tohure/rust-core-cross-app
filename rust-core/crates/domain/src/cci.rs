@@ -33,10 +33,13 @@ fn check_digit(digits: &[u32], weights: &[u32]) -> u32 {
 
 pub fn validate_cci(cci: &str) -> Result<ValidCci, DomainError> {
     let cci = cci.trim();
-    // Se cuentan dígitos, no caracteres: si contáramos caracteres, una entrada de 20
-    // caracteres con uno no numérico reportaría "llegaron 20", contradiciendo el
-    // "se esperaban 20 dígitos" del mismo mensaje.
-    let received = cci.chars().filter(|c| c.is_ascii_digit()).count() as u32;
+    // `received` cuenta caracteres, no dígitos: la unidad va explícita en el mensaje
+    // de `DomainError::Length` ("...llegaron {received} caracteres"), así que nunca se
+    // lee como comparable con los "{expected} dígitos". Eso es lo que permite que este
+    // mismo error cubra dos fallas distintas sin contradecirse: longitud equivocada
+    // (18 caracteres) o longitud correcta con algo que no es dígito (20 caracteres,
+    // uno de ellos una letra).
+    let received = cci.chars().count() as u32;
 
     // Un solo error para "no son 20 dígitos", tenga letras o no.
     let digits: Vec<u32> = match cci
@@ -138,18 +141,25 @@ mod tests {
     }
 
     #[test]
-    fn rejects_20_characters_with_a_non_digit() {
-        // Borde del fix de `received`: 20 caracteres pero uno no es dígito. Antes del
-        // fix, `received` contaba caracteres y el mensaje decía "llegaron 20" pese a
-        // fallar por longitud, contradiciendo "se esperaban 20 dígitos". El contrato
-        // compara por contract_name(), no por mensaje, así que esto sigue dando
-        // "Longitud" igual que antes; lo que cambia es que el mensaje deja de mentir.
-        assert_eq!(
-            validate_cci("0021910012345678904x")
-                .unwrap_err()
-                .contract_name(),
-            "Longitud"
-        );
+    fn rejects_non_digit_characters_regardless_of_count() {
+        // Dos bordes del mensaje de Length, que compara "{expected} dígitos" contra
+        // "{received} caracteres" con la unidad explícita para no contradecirse:
+        //
+        // - 20 caracteres, uno no es dígito ("...4x"): received da 20, igual que
+        //   expected, pero el mensaje dice "20 caracteres", no "20 dígitos" -> no
+        //   se contradice.
+        // - 21 caracteres, 20 de ellos dígitos (un CCI válido con una letra pegada
+        //   al final, "...047z"): received da 21. Con un fix anterior que contaba
+        //   solo dígitos ASCII, este caso volvía a decir "llegaron 20" (contando
+        //   dígitos) pese a que el string tiene 21 caracteres — la contradicción
+        //   solo cambiaba de lugar. Contar caracteres, con la unidad explícita en
+        //   el mensaje, cubre ambas clases sin ese problema.
+        //
+        // El contrato compara por contract_name(), no por el texto del mensaje, así
+        // que en ambos casos sigue dando "Longitud".
+        for input in ["0021910012345678904x", "00219100123456789047z"] {
+            assert_eq!(validate_cci(input).unwrap_err().contract_name(), "Longitud");
+        }
     }
 
     #[test]

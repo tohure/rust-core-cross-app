@@ -4,7 +4,7 @@ use thiserror::Error;
 /// lo expone a uniffi con un `From`, para que este crate no dependa de uniffi.
 #[derive(Debug, Clone, PartialEq, Eq, Error)]
 pub enum DomainError {
-    #[error("longitud inválida en {field}: se esperaban {expected} dígitos, llegaron {received}")]
+    #[error("longitud inválida en {field}: se esperaban {expected} dígitos, llegaron {received} caracteres")]
     Length {
         field: String,
         expected: u32,
