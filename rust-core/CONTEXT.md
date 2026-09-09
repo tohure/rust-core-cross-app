@@ -183,20 +183,24 @@ crashea al cargar en dispositivos con páginas de 16 KB.
 
 ## Perfil de release
 
-> ⚠️ **Dos puntos abiertos aquí** — ver hallazgos B1 y B2 de
-> [docs/superpowers/specs/2026-09-08-context-review.md](../docs/superpowers/specs/2026-09-08-context-review.md):
-> `panic = "abort"` desactiva el `catch_unwind` de uniffi (un pánico mata la app del banco
-> en vez de volverse un error), y `opt-level = "z"` optimiza tamaño a costa de la
-> velocidad que el benchmark quiere demostrar.
+**`panic = "unwind"` es obligatorio, no una preferencia.** uniffi envuelve cada llamada en
+`catch_unwind` para convertir un pánico de Rust en un error del FFI en vez de matar la app.
+Con `abort` esa red se desactiva y cualquier pánico es un crash duro de la app del banco —
+justo el caso que la regla 3 y el proptest de `validar_cci` intentan prevenir.
 
 ```toml
 [profile.release]
-opt-level = "z"
+opt-level = "z"     # ver nota del benchmark abajo
 lto = true
 codegen-units = 1
 strip = true
-panic = "abort"
+panic = "unwind"    # NO cambiar a abort: desactiva el catch_unwind de uniffi
 ```
+
+> **Nota para el benchmark:** `opt-level = "z"` optimiza tamaño a costa de velocidad. Si la
+> pantalla de benchmark va a presentarse como "lo rápido que es Rust", hay que medir con
+> `opt-level = 3` o reportar ambas métricas siendo explícito sobre el trade-off. Medir con
+> un build optimizado para tamaño y venderlo como velocidad es un resultado tramposo.
 
 ## Qué NO hacer
 
