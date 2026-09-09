@@ -180,8 +180,19 @@ El orden no es negociable: lo impone el grafo de dependencias de build de arriba
 - **Fase 4 — `apps/react-native`.** Turbo Module vía `ubrn`. Desbloquea la fase 5.
 - **Fase 5 — `apps/web-angular`.** Consume el WASM producido en la fase 4.
 
-Cada fase termina con su test golden verde contra `cases.json`. Una fase sin ese test
-pasando no está terminada, por más que la UI se vea bien.
+Cada fase termina con dos cosas, no una:
+
+1. **Su test golden en verde** contra `cases.json`.
+2. **Su `README.md` de demo** (`apps/<plataforma>/README.md`, a partir de la Fase 2) con
+   los comandos **efectivamente ejecutados** para construir el core, correr la app y
+   correr el golden. Se escribe al final de la fase copiando comandos que ya corrieron,
+   nunca deducidos del CONTEXT: un README con comandos sin ejecutar se descubre roto el
+   día de la demo, que es el único día que importa.
+
+Una fase sin las dos no está terminada, por más que la UI se vea bien.
+
+Cuando existan al menos dos apps se agrega `docs/demo-runbook.md`: el guion de poner las
+cuatro pantallas lado a lado. Hasta entonces no hay guion real que escribir.
 
 Fuera de alcance para esta POC (no lo agregues): Re.Pack / Module Federation, cliente
 HTTP, SQLite, runtime async, optimización de performance antes de que exista el benchmark.
