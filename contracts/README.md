@@ -88,8 +88,8 @@ afuera del cero.
 ### Aritmética
 
 ```
-sumar(a,b)  = redondear2(a + b)
-restar(a,b) = redondear2(a - b)
+add(a,b)      = redondear2(a + b)
+subtract(a,b) = redondear2(a - b)
 ```
 
 Entrada con escala libre (`"0.1"` es válido), salida **siempre** con 2 decimales.
@@ -114,19 +114,26 @@ saldo(origen)  -= total       # el origen paga monto + ITF
 saldo(destino) += monto       # el destino recibe el monto íntegro
 ```
 
-Dos salidas más, ambas **deterministas** — `ejecutar_transferencia` es pura, así que no
+Dos salidas más, ambas **deterministas** — `execute_transfer` es pura, así que no
 pueden depender de reloj ni de azar: si lo hicieran, las cuatro apps mostrarían valores
 distintos lado a lado, que es lo contrario de lo que la POC prueba.
 
     comprobante          = "TRF-" + ultimos4(origen) + "-" + ultimos4(destino) + "-" + centavos(monto)
     latencia_simulada_ms = 250 + min(parte_entera(monto), 500)
 
-`centavos(monto)` es el monto redondeado a 2 decimales por 100, sin decimales. La latencia
-crece con el monto y está topeada en 750 ms: montos grandes "tardan más", y lo decide el
-core, no la app.
+`centavos(monto)` es el monto **redondeado a 2 decimales y multiplicado por 100**,
+truncado a entero. Se renderiza como **entero decimal sin ceros a la izquierda**: `100.00`
+da `10000`, `3500.00` da `350000` y `0.50` da `50` — nunca `0050`, nunca con separadores.
+La latencia crece con el monto y está topeada en 750 ms: montos grandes "tardan más", y lo
+decide el core, no la app.
 
-`latencia_simulada_ms` lo devuelve el core y la app lo espera antes de pintar, para que la
-demo "parezca" una llamada HTTP. **No hay ningún cliente HTTP en ninguna parte.**
+`latencia_simulada_ms` es **entero sin signo, en milisegundos** (`u32`), y es **el único
+esperado del contrato que no es un string**: se compara como número, no como texto. Todo lo
+demás —montos, comprobantes, hex de cifrado, nombres de error— se compara por igualdad
+exacta de strings, según la regla de arriba.
+
+Lo devuelve el core y la app lo espera antes de pintar, para que la demo "parezca" una
+llamada HTTP. **No hay ningún cliente HTTP en ninguna parte.**
 
 Invariante que el test debe verificar: `Σ saldos_después == Σ saldos_antes - comision`.
 No se crea ni se destruye dinero.
@@ -147,7 +154,7 @@ salida no determinista, por lo tanto no comparable entre plataformas.
 
 Los vectores de `tarjeta` se derivaron con ChaCha20-Poly1305 de la stdlib de Node 22 —
 independiente de Rust, para que el contrato no sea un snapshot del core. El test verifica
-el hex exacto **y** el roundtrip `descifrar(cifrar(x)) == x`.
+el hex exacto **y** el roundtrip `decrypt(encrypt(x)) == x`.
 
 ## Contenido
 
@@ -156,8 +163,9 @@ el hex exacto **y** el roundtrip `descifrar(cifrar(x)) == x`.
 | `aritmetica` | 6 | los seis divergen bajo IEEE-754 |
 | `transferencia` | 6 | feliz, redondeo del ITF, saldo insuficiente, cuenta inexistente, misma cuenta, monto 0 |
 | `cci` | 4 | válido, otro banco, dígito de control malo, longitud mala |
-| `itf` | 4 | incluye el caso de redondeo al medio |
+| `itf` | 5 | incluye `itf-005`, el que distingue medio-hacia-afuera de banker's rounding |
 | `tarjeta` | 6 | Visa, Mastercard y Amex con su cifrado; dos Luhn inválidos; longitud mala |
+| **Total** | **27** | v2.2.0 |
 
 `cuentas_iniciales` trae el estado de partida de las transferencias: las mismas dos cuentas
 en las cuatro apps, para que la comparación lado a lado sea limpia.
@@ -166,8 +174,16 @@ en las cuatro apps, para que la comparación lado a lado sea limpia.
 
 1. Id nuevo y estable (`cci-005`). **Nunca recicles ni renumeres ids existentes**: los
    cinco proyectos reportan fallos por ese id.
-2. Subir `version` con semver: **minor** al agregar un caso; **major** al corregir un
-   esperado existente (invalida todo build anterior).
+2. Subir `version` con semver. El criterio es si un consumidor ya escrito sigue pasando:
+   - **minor** al agregar un caso nuevo, un grupo nuevo, o **un campo nuevo dentro de un
+     `esperado` existente**. En los tres, ningún valor previo cambia: un consumidor viejo
+     sigue en verde y solo deja de verificar lo nuevo. Es lo que hizo la v2.1.0 al sumar
+     `comprobante` y `latencia_simulada_ms` a los esperados de `transferencia`.
+   - **major** al corregir o eliminar un esperado existente, o al renombrar un campo, un
+     grupo o un id: invalida todo build anterior.
+
+   El campo nuevo es minor pero **no es gratis**: obliga a agregar su comparación en los
+   cinco proyectos, o queda un campo del contrato que nadie verifica.
 3. Corregir un esperado va **siempre en su propio commit**, con la justificación
    aritmética en el mensaje y sin mezclar cambios al core. Es la única forma de auditar
    después si el contrato se dobló para que pasara el código.
