@@ -1321,15 +1321,12 @@ mod tests {
         assert_eq!(e.contract_name(), "MontoInvalido");
     }
 
-    #[test]
-    fn does_not_mutate_the_input_accounts() {
-        let originales = accounts();
-        let _ = execute_transfer(
-            originales.clone(),
-            request("00219100123456789047", "01122000987654321065", "100.00"),
-        );
-        assert_eq!(originales[0].balance, "5000.00");
-    }
+    // NOTA DE EJECUCIÓN: este test se reemplazó durante la Task 8. El original asertaba
+    // sobre el vector de entrada, y como `execute_transfer` lo recibe POR VALOR, no podía
+    // fallar para ninguna implementación. El que quedó (`preserves_untouched_accounts_and_holders`)
+    // agrega una tercera cuenta ajena a la transferencia y aserta, sobre la SALIDA, que
+    // sale intacta, que las dos participantes conservan `id` y `holder` —que el contrato
+    // incluye en esperado.cuentas y ningún test cubría— y que se preserva el orden.
 }
 ```
 
