@@ -226,26 +226,79 @@ pub fn core_version() -> String {
 mod tests {
     use super::*;
 
+    /// No alcanza con que haya un `+`: `1.0.0+sin-git` también lo tiene, y ese es
+    /// justamente el string degradado que `build.rs` existe para evitar. Por eso se
+    /// verifica que el sufijo tenga **forma de SHA corto**.
+    ///
+    /// Si este test falla diciendo `sin-git`, no está roto: te está avisando que el build
+    /// corrió sin `git` disponible o fuera de un checkout, y que el binario resultante no
+    /// lleva identificación de build — inservible para poner cuatro apps lado a lado.
     #[test]
     fn the_version_has_semver_and_sha() {
         let v = core_version();
+        let (semver, sha) = match v.split_once('+') {
+            Some(parts) => parts,
+            None => panic!("core_version debe ser <semver>+<sha>, fue {v}"),
+        };
+        assert_eq!(semver, "1.0.0", "fue {v}");
         assert!(
-            v.contains('+'),
-            "core_version debe ser <semver>+<sha>, fue {v}"
+            sha.len() >= 7 && sha.chars().all(|c| c.is_ascii_hexdigit()),
+            "el sufijo debe tener forma de SHA corto (hexadecimal, 7+ caracteres), fue {v}"
         );
-        assert!(v.starts_with("1.0.0"), "fue {v}");
     }
 
+    /// Las nueve variantes, no una muestra. Este test es lo que hace vivible la
+    /// duplicación que la spec asume a conciencia (D2): como `domain` no declara uniffi,
+    /// el enum de error vive dos veces, y dos copias que se separan en silencio serían
+    /// peor que la dependencia que se evitó.
+    ///
+    /// El `match` exhaustivo del `From` ya obliga a cubrir toda variante nueva del
+    /// dominio —eso lo garantiza el compilador—, pero no protege contra cambiar un
+    /// *string*: renombrar `"Cifrado"` en `domain/src/error.rs` y olvidarlo acá compila y
+    /// pasa todo lo demás. Y tres de estos nombres (`BancoDesconocido`, `Cifrado`,
+    /// `FueraDeRango`) no aparecen en `contracts/cases.json`, así que el golden tampoco
+    /// los cubre: para esos tres, este test es la única guardia que existe.
     #[test]
     fn the_domain_error_translates_preserving_its_name() {
-        let e: DomainError = domain::DomainError::SameAccount.into();
-        assert_eq!(e.contract_name(), "MismaCuenta");
-        let e: DomainError = domain::DomainError::InsufficientFunds {
-            available: "1.00".into(),
-            required: "2.00".into(),
+        let variants = [
+            domain::DomainError::Length {
+                field: "cci".into(),
+                expected: 20,
+                received: 18,
+            },
+            domain::DomainError::CheckDigit,
+            domain::DomainError::UnknownBank { code: "999".into() },
+            domain::DomainError::InvalidAmount {
+                detail: "cero".into(),
+            },
+            domain::DomainError::AccountNotFound { id: "ACC-1".into() },
+            domain::DomainError::SameAccount,
+            domain::DomainError::InsufficientFunds {
+                available: "1.00".into(),
+                required: "2.00".into(),
+            },
+            domain::DomainError::Encryption {
+                detail: "nonce inválido".into(),
+            },
+            domain::DomainError::OutOfRange {
+                field: "monto".into(),
+            },
+        ];
+        assert_eq!(
+            variants.len(),
+            9,
+            "el dominio tiene nueve variantes: si acá hay menos, alguna quedó sin guardia"
+        );
+
+        for original in variants {
+            let expected = original.contract_name();
+            let translated: DomainError = original.clone().into();
+            assert_eq!(
+                translated.contract_name(),
+                expected,
+                "el nombre de contrato divergió entre domain y ffi para {original:?}"
+            );
         }
-        .into();
-        assert_eq!(e.contract_name(), "SaldoInsuficiente");
     }
 
     #[test]
