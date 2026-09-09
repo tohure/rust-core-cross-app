@@ -1680,7 +1680,13 @@ fn main() {
         .unwrap_or_else(|| "sin-git".to_string());
 
     println!("cargo:rustc-env=GIT_SHA={sha}");
+    // Dos archivos, no uno: `.git/HEAD` solo cambia al cambiar de rama, mientras que
+    // `.git/logs/HEAD` —el reflog— se appendea en cada commit, checkout, reset y merge.
+    // Con solo el primero, el SHA se queda pegado al commitear sobre la rama activa.
+    // Las rutas son relativas al directorio del paquete: si el crate se mueve de nivel,
+    // el fallback silencioso es "sin-git".
     println!("cargo:rerun-if-changed=../../../.git/HEAD");
+    println!("cargo:rerun-if-changed=../../../.git/logs/HEAD");
 }
 ```
 

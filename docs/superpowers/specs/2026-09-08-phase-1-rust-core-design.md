@@ -143,7 +143,9 @@ por `build.rs` vía `env!`. Con fallback `sin-git` cuando no hay repositorio.
 
 `build.rs` lee git en **tiempo de compilación**, lo que no viola la regla de funciones
 puras: esa regla es sobre el runtime de la API pública. El script emite
-`cargo:rerun-if-changed=.git/HEAD` para que el SHA no se quede pegado.
+`cargo:rerun-if-changed` sobre `.git/HEAD` **y** `.git/logs/HEAD` para que el SHA no se quede
+pegado. Con solo el primero no alcanza —verificado durante la ejecución—: `.git/HEAD` cambia al
+cambiar de rama, no al commitear sobre la rama activa, que actualiza `refs/heads/<rama>`.
 
 ### D7 — La fase cierra con un smoke del FFI
 
