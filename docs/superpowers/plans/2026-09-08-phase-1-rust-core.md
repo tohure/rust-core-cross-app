@@ -343,7 +343,7 @@ use thiserror::Error;
 /// lo expone a uniffi con un `From`, para que este crate no dependa de uniffi.
 #[derive(Debug, Clone, PartialEq, Eq, Error)]
 pub enum DomainError {
-    #[error("longitud inválida en {field}: se esperaban {expected} dígitos, llegaron {received}")]
+    #[error("longitud inválida en {field}: se esperaban {expected} dígitos, llegaron {received} caracteres")]
     Length { field: String, expected: u32, received: u32 },
 
     #[error("dígito de control inválido")]
@@ -806,10 +806,11 @@ fn check_digit(digits: &[u32], weights: &[u32]) -> u32 {
 
 pub fn validate_cci(cci: &str) -> Result<ValidCci, DomainError> {
     let cci = cci.trim();
-    // Se cuentan dígitos, no caracteres: si contáramos caracteres, una entrada de 20
-    // caracteres con uno no numérico reportaría "llegaron 20", contradiciendo el
-    // "se esperaban 20 dígitos" del mismo mensaje.
-    let received = cci.chars().filter(|c| c.is_ascii_digit()).count() as u32;
+    // `received` cuenta caracteres, y el mensaje dice "caracteres" explícitamente: así
+    // los dos números nunca se leen como comparables. `Length` cubre dos fallas —
+    // longitud equivocada y caracteres no numéricos— y con la unidad explícita
+    // ninguna de las dos se contradice.
+    let received = cci.chars().count() as u32;
 
     // Un solo error para "no son 20 dígitos", tenga letras o no.
     let digits: Vec<u32> = match cci.chars().map(|c| c.to_digit(10)).collect::<Option<Vec<_>>>() {
@@ -1699,7 +1700,7 @@ uniffi::setup_scaffolding!();
 
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error, uniffi::Error)]
 pub enum DomainError {
-    #[error("longitud inválida en {field}: se esperaban {expected} dígitos, llegaron {received}")]
+    #[error("longitud inválida en {field}: se esperaban {expected} dígitos, llegaron {received} caracteres")]
     Length { field: String, expected: u32, received: u32 },
     #[error("dígito de control inválido")]
     CheckDigit,
