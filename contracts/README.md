@@ -78,8 +78,12 @@ ALICUOTA = 0.00005            (0.005 %, constante nombrada, nunca literal suelto
 itf = redondear2(monto * ALICUOTA)
 ```
 
-`itf-002` (3500.00 → 0.175 → **0.18**) es el caso de redondeo al medio: si una plataforma
-usa banker's rounding devuelve `0.17` y el test lo caza.
+`itf-002` (3500.00 → 0.175 → **0.18**) da el mismo resultado bajo ambas estrategias de
+redondeo al medio: con banker's rounding el 8 ya es par, así que también da `0.18`. No
+alcanza para distinguir la estrategia. El caso que sí discrimina es `itf-005`
+(2500.00 → 0.125 → **0.13**): con banker's rounding el resultado sería `0.12`, porque
+el 2 es par. La regla normativa del contrato no cambia: 2 decimales, medio hacia
+afuera del cero.
 
 ### Aritmética
 
