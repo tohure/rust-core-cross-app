@@ -56,13 +56,20 @@ banco no está en la tabla → `BancoDesconocido`.
 
 Tabla de bancos (dummy): `002` Banco Demo Uno · `011` Banco Demo Dos · `009` Banco Demo Tres.
 
-### RUC — 11 dígitos
+### Tarjeta — Luhn
 
 ```
-PESOS = [5,4,3,2,7,6,5,4,3,2]
-resto = 11 - (Σ digito[i] * PESOS[i]) mod 11
-digito_verificador = 0 si resto == 10, 1 si resto == 11, si no resto
+suma = 0 ; alternar = falso
+para cada dígito de derecha a izquierda:
+    d = dígito
+    si alternar: d = d*2 ; si d > 9: d = d - 9
+    suma += d ; alternar = !alternar
+válida  <=>  suma mod 10 == 0
 ```
+
+Marca por prefijo: `4` Visa · `51-55` o `2221-2720` Mastercard · `34`/`37` Amex.
+Enmascarado: primeros 4 + `" **** **** "` + últimos 4.
+Longitud aceptada 13-19; fuera de rango → `Longitud`, Luhn falla → `DigitoControl`.
 
 ### ITF
 
@@ -71,50 +78,74 @@ ALICUOTA = 0.00005            (0.005 %, constante nombrada, nunca literal suelto
 itf = redondear2(monto * ALICUOTA)
 ```
 
-`itf-002` (3500.00 → 0.175 → **0.18**) es el caso de redondeo al medio: si una
-plataforma usa banker's rounding devuelve `0.17` y el test lo caza.
+`itf-002` (3500.00 → 0.175 → **0.18**) es el caso de redondeo al medio: si una plataforma
+usa banker's rounding devuelve `0.17` y el test lo caza.
 
-### Cronograma — método francés
+### Aritmética
 
 ```
-TEM       = (1 + TEA/100)^(1/12) - 1
-cuota_base = redondear2( monto * TEM / (1 - (1+TEM)^-n) )
-
-para k en 1..n:
-    interes[k] = redondear2( saldo * TEM )
-    seguro[k]  = redondear2( saldo * tasa_seguro/100 )
-    capital[k] = redondear2( cuota_base - interes[k] )
-    si k == n: capital[k] = saldo          # la última absorbe el ajuste
-    total[k]   = redondear2( capital[k] + interes[k] + seguro[k] )
-    saldo      = redondear2( saldo - capital[k] )
+sumar(a,b)  = redondear2(a + b)
+restar(a,b) = redondear2(a - b)
 ```
 
-Invariantes que el test debe verificar, no solo los totales:
-`Σ capital == monto exacto` · `saldo final == 0` · `todo saldo >= 0`.
+Entrada con escala libre (`"0.1"` es válido), salida **siempre** con 2 decimales.
 
-**TCEA:** TIR mensual por Newton-Raphson sobre el flujo real `[-monto, total[1..n]]`,
-tolerancia `1e-10`, máx 100 iteraciones, anualizada como `((1+tir)^12 - 1) * 100`.
-Si no converge → `FueraDeRango`.
+Los seis casos de `aritmetica` están elegidos para que **los seis diverjan** bajo IEEE-754.
+Verificado: `0.1 + 0.2 = 0.30000000000000004` · `82.35 - 12.34 = 70.00999999999999` ·
+`1000000.10 + 0.20 = 1000000.2999999999`. Si un caso deja de diverger, deja de servir para
+la demo y hay que reemplazarlo.
 
-> En Rust, `(1+x)^(1/12)` con `Decimal` requiere el feature `maths` de `rust_decimal`
-> (`MathematicalOps::powd`). No está en el crate por defecto.
+### Transferencia
 
-## Caso canario
+Función pura de estado: entran las cuentas, sale el estado nuevo.
 
-`cred-002` tiene `seguro: "0.00"`, así que su **TCEA debe dar exactamente igual a su TEA
-(22.00%)**: sin seguro ni comisiones la TIR del flujo es la propia tasa. Si ese caso no
-cuadra, el Newton-Raphson está mal, sin importar qué digan los otros dos.
+```
+si origen == destino                      -> MismaCuenta
+si origen o destino no existen            -> CuentaNoEncontrada
+si monto <= 0                             -> MontoInvalido
+comision = itf(monto)
+total    = redondear2(monto + comision)
+si saldo(origen) < total                  -> SaldoInsuficiente
+saldo(origen)  -= total       # el origen paga monto + ITF
+saldo(destino) += monto       # el destino recibe el monto íntegro
+```
+
+`latencia_simulada_ms` lo devuelve el core y la app lo espera antes de pintar, para que la
+demo "parezca" una llamada HTTP. **No hay ningún cliente HTTP en ninguna parte.**
+
+Invariante que el test debe verificar: `Σ saldos_después == Σ saldos_antes - comision`.
+No se crea ni se destruye dinero.
+
+### Cifrado — ChaCha20-Poly1305 (IETF)
+
+Clave 32 bytes · nonce 12 bytes · tag 16 bytes, todo en hex.
+Salida = hex de `ciphertext || tag`. Clave y nonce de demo están en `_clave_demo_hex` y
+`_nonce_demo_hex` del propio JSON.
+
+El **nonce es un parámetro**, no se genera dentro del core: generarlo requeriría entropía
+del sistema (una syscall), lo que rompería la regla de funciones puras — y además haría la
+salida no determinista, por lo tanto no comparable entre plataformas.
+
+> ⚠️ Reutilizar el par (clave, nonce) es **catastrófico en producción**: filtra el keystream
+> y permite falsificar el tag. Aquí el nonce es fijo a propósito, para que las cuatro
+> plataformas produzcan el mismo string. La gestión de claves está fuera de alcance.
+
+Los vectores de `tarjeta` se derivaron con ChaCha20-Poly1305 de la stdlib de Node 22 —
+independiente de Rust, para que el contrato no sea un snapshot del core. El test verifica
+el hex exacto **y** el roundtrip `descifrar(cifrar(x)) == x`.
 
 ## Contenido
 
 | Grupo | Casos | Cubre |
 |---|---|---|
+| `aritmetica` | 6 | los seis divergen bajo IEEE-754 |
+| `transferencia` | 6 | feliz, redondeo del ITF, saldo insuficiente, cuenta inexistente, misma cuenta, monto 0 |
 | `cci` | 4 | válido, otro banco, dígito de control malo, longitud mala |
-| `ruc` | 4 | dos válidos, dígito verificador malo, longitud mala |
 | `itf` | 4 | incluye el caso de redondeo al medio |
-| `cronograma` | 3 | base; **sin seguro** (`cred-002`); monto con centavos a 48 cuotas |
+| `tarjeta` | 6 | Visa, Mastercard y Amex con su cifrado; dos Luhn inválidos; longitud mala |
 
-Cada cronograma trae la tabla `cuotas` completa, no solo los totales.
+`cuentas_iniciales` trae el estado de partida de las transferencias: las mismas dos cuentas
+en las cuatro apps, para que la comparación lado a lado sea limpia.
 
 ## Cómo agregar un caso
 

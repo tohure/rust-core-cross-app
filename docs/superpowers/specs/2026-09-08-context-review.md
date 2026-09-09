@@ -55,7 +55,14 @@ script tampoco pasa `--and-generate`, que sí lleva la doc oficial.
 
 ---
 
-## B. Decisiones de API — resolver antes de la Fase 1
+## B. Decisiones de API — ✅ todas resueltas
+
+> **Estado al 2026-09-08:** B1 aprobado y aplicado (`panic = "unwind"`). B2 queda como
+> nota en el CONTEXT, no como cambio. B3-B6 quedaron resueltos por el
+> [recorte de alcance](2026-09-08-scope-simplification-design.md), que reescribió la API:
+> B3 → `SolicitudTransferencia` es un Record · B4 → `validar_ruc` se eliminó, no lo usa
+> ningún caso · B5 → el error lleva `campo` y `recibido` · B6 → `version_core()` devuelve
+> versión + SHA de git inyectados por `build.rs`.
 
 ### B1. `panic = "abort"` contradice el argumento de seguridad ⚠️
 

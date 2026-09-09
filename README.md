@@ -9,6 +9,11 @@ cuatro frontends — Android nativo, iOS nativo, React Native y web Angular.
 
 Una sola tesis: **la lógica de negocio se comparte, la UI varía por plataforma.**
 
+Tres casos de uso, con datos fake y sin red: **aritmética decimal** (el float rompe el
+dinero y el core no), **una transferencia** entre dos cuentas en memoria, y el **cifrado
+de un número de tarjeta** con ChaCha20-Poly1305 — el mismo hex en las cuatro plataformas,
+y lo que cifra una lo descifra cualquier otra.
+
 Un pago, una transferencia o la simulación de un crédito son la misma lógica en web que en
 mobile; lo que cambia es la presentación. Si eso es cierto, el dominio y la data pueden
 vivir en un solo lugar y cada plataforma poner su propia UI encima — sin duplicar reglas,
@@ -49,7 +54,7 @@ rust-core/crates/ffi        (único crate exportado; domain/calculation/validati
 | Fase | Entregable | Estado |
 |---|---|---|
 | 0 | Toolchain + `contracts/cases.json` | ✅ Completada |
-| 1 | `rust-core` — dominio, cálculo, validación, FFI | ⬜ Siguiente |
+| 1 | `rust-core` — dominio, cálculo, validación, cifrado, FFI | ⬜ Siguiente |
 | 2 | `apps/android` — Kotlin + Compose | ⬜ |
 | 3 | `apps/ios` — Swift + SwiftUI | ⬜ |
 | 4 | `apps/react-native` — Turbo Module | ⬜ |

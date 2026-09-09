@@ -13,6 +13,11 @@
 >   `validation`) por la política de idioma de `CLAUDE.md`.
 > - Se agregó una revisión de los cinco CONTEXT no prevista en el plan:
 >   [`../specs/2026-09-08-context-review.md`](../specs/2026-09-08-context-review.md).
+> - **El alcance se recortó después de escribir este plan.** Fuera el cronograma francés y
+>   la TCEA; dentro aritmética decimal, transferencia y cifrado de tarjeta. `cases.json`
+>   quedó en v2.0.0. Ver
+>   [`../specs/2026-09-08-scope-simplification-design.md`](../specs/2026-09-08-scope-simplification-design.md).
+>   Las tareas 2 y 3 de abajo describen el contrato v1.0.0, ya superado.
 
 ## Archivos que toca esta fase
 

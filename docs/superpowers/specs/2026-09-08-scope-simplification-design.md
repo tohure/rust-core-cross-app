@@ -1,6 +1,6 @@
 # Recorte de alcance — propuesta
 
-**Fecha:** 2026-09-08 · **Estado:** propuesto, pendiente de aprobación
+**Fecha:** 2026-09-08 · **Estado:** ✅ **aprobado** e implementado en los CONTEXT y en `cases.json` v2.0.0
 **Motivo:** el alcance de los CONTEXT es más pesado que lo que la POC necesita demostrar.
 
 ## El problema
@@ -77,7 +77,10 @@ romper la regla 1 (funciones puras). El `CONTEXT` ya anticipaba esto al menciona
 
 Valida: cuenta origen existe, destino existe y es distinta, saldo suficiente, monto > 0.
 
-### Caso 3 — Cifrado (opcional, el argumento de seguridad)
+### Caso 3 — Cifrado ✅ aprobado
+
+Caso de uso concreto: un número de tarjeta fake guardado cifrado, con el mismo algoritmo
+en las cuatro plataformas.
 
 ```rust
 #[uniffi::export] pub fn cifrar(texto: String, clave: String) -> Result<String, ErrorDominio>;
@@ -87,10 +90,10 @@ Valida: cuenta origen existe, destino existe y es distinta, saldo suficiente, mo
 ChaCha20-Poly1305. El mismo texto cifrado en Android se descifra en el web — cuatro
 plataformas, una implementación, sin depender de la cripto de cada SO.
 
-> **Ojo con el test golden:** un cifrado correcto usa nonce aleatorio, así que la salida
-> **no** es determinista y no puede compararse por string. El contrato prueba
-> *roundtrip* (`descifrar(cifrar(x)) == x`) más un vector de nonce fijo. Si esto se
-> considera demasiada sutileza para la POC, se corta el caso 3 sin perder el argumento.
+**Resuelto:** el nonce entra como **parámetro**, no se genera dentro del core. Así (a) no
+se necesita entropía del sistema, o sea no se rompe la regla de funciones puras, y (b) la
+salida es determinista y comparable carácter por carácter entre plataformas. El contrato
+verifica el hex exacto **y** el roundtrip.
 
 ### Se mantienen
 

@@ -14,8 +14,8 @@ producen strings idénticos carácter por carácter sobre el mismo set de casos.
 
 **Idioma.** Nombres de archivos, carpetas, crates y ramas: **inglés**. Contenido de la
 documentación, textos de UI y mensajes de commit: **español**. Los identificadores de
-dominio conservan la terminología bancaria peruana (`validar_cci`, `cronograma`, `tcea`,
-`itf`) — son lenguaje ubicuo, no traducible sin perder significado.
+dominio conservan la terminología bancaria peruana (`validar_cci`, `transferencia`,
+`itf`, `tarjeta`) — son lenguaje ubicuo, no traducible sin perder significado.
 Commits en Conventional Commits.
 
 ## Documentos de contexto por proyecto
@@ -114,14 +114,16 @@ no lo implementes: pregunta primero. No se inventan reglas de dominio.
 cuatro plataformas producen el mismo string, no exactitud financiera. Los algoritmos sí
 son internamente consistentes. Ver [contracts/README.md](contracts/README.md).
 
-**Caso canario:** `cred-002` tiene seguro `0.00`, así que su TCEA debe dar exactamente
-igual a su TEA (22.00%). Si ese caso no cuadra, el Newton-Raphson está mal por más que
-los otros dos pasen.
+**Los seis casos de `aritmetica` divergen bajo IEEE-754** — está verificado. Si alguno
+deja de diverger deja de servir para la demo y hay que reemplazarlo.
+
+**El cifrado usa nonce fijo a propósito**, para que las cuatro plataformas produzcan el
+mismo hex. En producción eso sería catastrófico; ver [contracts/README.md](contracts/README.md).
 
 ## Paridad entre apps
 
-Las cuatro apps tienen las **mismas cuatro pantallas, con los mismos labels y el mismo
-orden de campos**: Simulador de crédito, Validador de CCI, Benchmark, y `version_core()`
+Las cuatro apps tienen las **mismas cinco pantallas, con los mismos labels y el mismo
+orden de campos**: Aritmética, Transferencia, Tarjeta, Benchmark, y `version_core()`
 visible al pie. Esto no es cosmético: la demo consiste en poner las cuatro lado a lado
 y comparar. Cambiar un label en una app obliga a cambiarlo en las cuatro.
 
@@ -228,8 +230,8 @@ Los comandos exactos están en el plan de cada fase.
 ```bash
 # Desarrollo del core (desde rust-core/)
 cargo test --workspace              # todo
-cargo test -p calculo               # un solo crate
-cargo test -p calculo cronograma_suma_capitales   # un solo test por nombre
+cargo test -p calculation           # un solo crate
+cargo test -p calculation itf_redondeo_al_medio   # un solo test por nombre
 cargo test --test golden            # solo los vectores de cases.json
 cargo clippy --workspace --all-targets -- -D warnings
 cargo fmt --all

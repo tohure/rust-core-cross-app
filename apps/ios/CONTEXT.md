@@ -16,7 +16,7 @@ CoreFinancieroPOC/
 ├── Generated/                     Swift generado por uniffi, no editar
 ├── Adapter/CoreFinanciero.swift
 ├── Format/MoneyFormatter.swift
-└── UI/  SimuladorView.swift, ValidadorCciView.swift, BenchmarkView.swift
+└── UI/  AritmeticaView.swift, TransferenciaView.swift, TarjetaView.swift, BenchmarkView.swift
 
 El XCFramework **debe** construirse pasando `-headers` con el `.h` y el `module.modulemap`
 que genera uniffi; solo con los `.a` Swift no ve ningún símbolo. Es el fallo de
@@ -37,10 +37,14 @@ Silicon.
 
 ```swift
 enum CoreFinanciero {
-    static func cronograma(monto: String, tea: String,
-                           cuotas: UInt32, seguro: String) throws -> Cronograma {
-        try generarCronograma(monto: monto, teaPorcentaje: tea,
-                              numeroCuotas: cuotas, tasaSeguroMensual: seguro)
+    static func transferir(cuentas: [Cuenta],
+                           _ s: SolicitudTransferencia) throws -> ResultadoTransferencia {
+        try ejecutarTransferencia(cuentas: cuentas, solicitud: s)
+    }
+
+    static func cifrar(_ numero: String, claveHex: String,
+                       nonceHex: String) throws -> String {
+        try CoreFinancieroFFI.cifrar(texto: numero, claveHex: claveHex, nonceHex: nonceHex)
     }
 }
 ```
@@ -67,9 +71,25 @@ interprete correctamente. Es el error más común en este archivo.
 
 ## Pantallas
 
-Las mismas cuatro que Android: simulador, validador de CCI, benchmark y
-`version_core()` visible. Los textos, labels y orden de campos deben coincidir
-con Android para que la comparación lado a lado en la demo sea limpia.
+Las mismas cinco que Android, con los mismos labels y el mismo orden de campos, para que
+la comparación lado a lado en la demo sea limpia.
+
+1. **Aritmética.** Dos inputs y una operación. Muestra lado a lado el resultado con el
+   tipo de punto flotante nativo de la plataforma y el del core. Los seis casos del
+   contrato divergen: `0.1 + 0.2` da `0.30000000000000004` con double y `0.30` con el core.
+   Es la única pantalla donde se permite usar el tipo flotante nativo, y existe justamente
+   para exhibir el fallo.
+2. **Transferencia.** Dos cuentas fake en memoria. Monto, origen, destino. Muestra la
+   comisión ITF, el total debitado, el comprobante y los saldos nuevos. La app espera
+   `latencia_simulada_ms` antes de pintar, para que parezca una llamada HTTP: **no hay red**.
+   Las cuentas se reinician al cerrar la app; sin BD, sin cache.
+3. **Tarjeta.** Un número de tarjeta fake. Valida por Luhn, muestra marca y enmascarado, y
+   cifra con ChaCha20-Poly1305. El hex resultante debe ser idéntico al de las otras tres
+   plataformas — y lo que cifra una descifra cualquier otra.
+4. **Benchmark.** Ejecuta el core N veces y reporta p50/p95 contra una implementación
+   equivalente nativa que vive solo en el código de test.
+5. **Pie de pantalla:** `version_core()` visible en todas. En la demo se compara con las
+   otras tres apps: mismo string = mismo build.
 
 ## Pruebas
 

@@ -21,7 +21,7 @@ app/src/main/java/pe/banco/poc/
 │                  ojo: uniffi-bindgen emite en `uniffi/<crate>/`, no en esta ruta;
 │                  hace falta un paso de build que los mueva, o ajustar la doc
 ├── adapter/       CoreFinanciero.kt, la única clase que llama al core
-├── ui/            Compose: SimuladorScreen, ValidadorCciScreen
+├── ui/            Compose: AritmeticaScreen, TransferenciaScreen, TarjetaScreen
 └── format/        MoneyFormatter.kt
 
 `jniLibs/` contiene los `.so` por ABI. Ambos directorios son artefactos
@@ -41,9 +41,14 @@ implementation("net.java.dev.jna:jna:5.14.0@aar")
 
 ```kotlin
 object CoreFinanciero {
-    fun cronograma(monto: String, tea: String, cuotas: Int, seguro: String)
-        : Result<Cronograma> = runCatching {
-            uniffi.core_financiero.generarCronograma(monto, tea, cuotas.toUInt(), seguro)
+    fun transferir(cuentas: List<Cuenta>, s: SolicitudTransferencia)
+        : Result<ResultadoTransferencia> = runCatching {
+            uniffi.core_financiero.ejecutarTransferencia(cuentas, s)
+        }
+
+    fun cifrar(numero: String, claveHex: String, nonceHex: String)
+        : Result<String> = runCatching {
+            uniffi.core_financiero.cifrar(numero, claveHex, nonceHex)
         }
 }
 ```
@@ -70,15 +75,22 @@ Nunca redondea: el core ya entregó el valor con la escala correcta.
 
 ## Pantallas de la POC
 
-1. **Simulador de crédito.** Inputs: monto, TEA, número de cuotas. Muestra la
-   TCEA, el total de intereses y la tabla de cuotas.
-2. **Validador de CCI.** Input de 20 dígitos, muestra banco y oficina o el
-   error de validación.
-3. **Benchmark.** Ejecuta `generar_cronograma` N veces y reporta p50/p95.
-   Compara contra una implementación Kotlin equivalente que vive
-   exclusivamente en `androidTest` como línea base.
-4. **Pie de pantalla:** `version_core()` visible en todas las pantallas. En la
-   demo se compara con las otras tres apps.
+1. **Aritmética.** Dos inputs y una operación. Muestra lado a lado el resultado con el
+   tipo de punto flotante nativo de la plataforma y el del core. Los seis casos del
+   contrato divergen: `0.1 + 0.2` da `0.30000000000000004` con double y `0.30` con el core.
+   Es la única pantalla donde se permite usar el tipo flotante nativo, y existe justamente
+   para exhibir el fallo.
+2. **Transferencia.** Dos cuentas fake en memoria. Monto, origen, destino. Muestra la
+   comisión ITF, el total debitado, el comprobante y los saldos nuevos. La app espera
+   `latencia_simulada_ms` antes de pintar, para que parezca una llamada HTTP: **no hay red**.
+   Las cuentas se reinician al cerrar la app; sin BD, sin cache.
+3. **Tarjeta.** Un número de tarjeta fake. Valida por Luhn, muestra marca y enmascarado, y
+   cifra con ChaCha20-Poly1305. El hex resultante debe ser idéntico al de las otras tres
+   plataformas — y lo que cifra una descifra cualquier otra.
+4. **Benchmark.** Ejecuta el core N veces y reporta p50/p95 contra una implementación
+   equivalente nativa que vive solo en el código de test.
+5. **Pie de pantalla:** `version_core()` visible en todas. En la demo se compara con las
+   otras tres apps: mismo string = mismo build.
 
 ## Pruebas
 

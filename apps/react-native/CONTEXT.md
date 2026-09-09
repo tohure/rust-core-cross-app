@@ -52,18 +52,22 @@ Scripts en `package.json`:
 src/
 ├── generated/     bindings TS + JSI generados, NO EDITAR
 ├── adapter/       core.ts, único punto de contacto con el core
-├── screens/       Simulador, ValidadorCci, Benchmark
+├── screens/       Aritmetica, Transferencia, Tarjeta, Benchmark
 └── format/        money.ts
 
 ## Cómo consumir el core
 
 ```ts
-import { generarCronograma, validarCci, versionCore } from "../generated";
+import {
+  sumar, restar, ejecutarTransferencia, validarCci,
+  validarTarjeta, cifrar, descifrar, versionCore,
+} from "../generated";
 
 export const core = {
-  cronograma: (monto: string, tea: string, cuotas: number, seguro: string) =>
-    generarCronograma(monto, tea, cuotas, seguro),
-  validarCci,
+  sumar, restar,
+  transferir: (cuentas: Cuenta[], s: SolicitudTransferencia) =>
+    ejecutarTransferencia(cuentas, s),
+  validarCci, validarTarjeta, cifrar, descifrar,
   version: versionCore,
 };
 ```
@@ -80,14 +84,27 @@ separadores por posición. Nunca conviertas a número para formatear.
 
 ## Pantallas
 
-Las mismas cuatro que Android e iOS, con los mismos labels y el mismo orden.
-La comparación lado a lado en la demo depende de esto.
+Las mismas cinco que Android e iOS, con los mismos labels y el mismo orden.
 
-En la pantalla de benchmark, compara el core contra una implementación
-TypeScript equivalente que vive en `__benchmarks__/baseline.ts`. Esa es la
-única parte del repo donde se permite escribir lógica de negocio en TS, y
-existe únicamente para demostrar la divergencia de centavos. Márcala con un
-comentario que lo diga.
+1. **Aritmética.** Dos inputs y una operación. Muestra lado a lado el resultado con el
+   tipo de punto flotante nativo de la plataforma y el del core. Los seis casos del
+   contrato divergen: `0.1 + 0.2` da `0.30000000000000004` con double y `0.30` con el core.
+   Es la única pantalla donde se permite usar el tipo flotante nativo, y existe justamente
+   para exhibir el fallo.
+2. **Transferencia.** Dos cuentas fake en memoria. Monto, origen, destino. Muestra la
+   comisión ITF, el total debitado, el comprobante y los saldos nuevos. La app espera
+   `latencia_simulada_ms` antes de pintar, para que parezca una llamada HTTP: **no hay red**.
+   Las cuentas se reinician al cerrar la app; sin BD, sin cache.
+3. **Tarjeta.** Un número de tarjeta fake. Valida por Luhn, muestra marca y enmascarado, y
+   cifra con ChaCha20-Poly1305. El hex resultante debe ser idéntico al de las otras tres
+   plataformas — y lo que cifra una descifra cualquier otra.
+4. **Benchmark.** Ejecuta el core N veces y reporta p50/p95 contra una implementación
+   equivalente nativa que vive solo en el código de test.
+5. **Pie de pantalla:** `version_core()` visible en todas. En la demo se compara con las
+   otras tres apps: mismo string = mismo build.
+
+En la pantalla de aritmética, el lado "double" se calcula con `Number` a propósito. Es la
+única parte del repo donde se permite, y debe llevar un comentario que lo diga.
 
 ## Pruebas
 
