@@ -18,6 +18,17 @@ CoreFinancieroPOC/
 ├── Format/MoneyFormatter.swift
 └── UI/  SimuladorView.swift, ValidadorCciView.swift, BenchmarkView.swift
 
+El XCFramework **debe** construirse pasando `-headers` con el `.h` y el `module.modulemap`
+que genera uniffi; solo con los `.a` Swift no ve ningún símbolo. Es el fallo de
+integración más común en iOS + uniffi:
+
+```bash
+xcodebuild -create-xcframework \
+  -library target/aarch64-apple-ios/release/libcore_financiero.a     -headers Generated/include \
+  -library target/aarch64-apple-ios-sim/release/libcore_financiero.a -headers Generated/include \
+  -output ../apps/ios/CoreFinanciero.xcframework
+```
+
 Enlaza el XCFramework en Build Phases. Verifica que incluya los slices
 arm64 device y arm64 simulator; sin el segundo no corre en Macs con Apple
 Silicon.
@@ -62,7 +73,7 @@ con Android para que la comparación lado a lado en la demo sea limpia.
 
 ## Pruebas
 
-`XCTest` que lee `contratos/casos.json` desde el bundle de test y compara
+`XCTest` que lee `contracts/cases.json` desde el bundle de test y compara
 strings exactos con `XCTAssertEqual`. Mismo archivo, mismos casos, mismos
 resultados que Android, RN y web.
 

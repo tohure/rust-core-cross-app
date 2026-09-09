@@ -12,7 +12,7 @@ código. Antes de escribir la primera línea de Rust faltan dos cosas, y solo do
 1. **No hay toolchain de Rust en la máquina.** `cargo`, `rustc` y `rustup` no están
    instalados. Node 22, pnpm, Java 21, Xcode y NDK 29/30 sí (el NDK cumple el
    requisito de r27+ que exige `rust-core/CONTEXT.md`).
-2. **No existe `contratos/casos.json`.** Es el criterio de aceptación de las seis
+2. **No existe `contracts/cases.json`.** Es el criterio de aceptación de las seis
    fases: sin él, ninguna fase tiene forma de declararse terminada.
 
 ## Decisión de diseño: toolchain incremental, no big-bang
@@ -35,13 +35,13 @@ verificada con un comando que imprime versión antes de continuar.
 
 Ya disponible y sin acción: Node 22.16, pnpm 11.1, Java 21 LTS, Xcode, NDK 29/30.
 
-## Decisión de diseño: `casos.json` se escribe a mano y antes que el código
+## Decisión de diseño: `cases.json` se escribe a mano y antes que el código
 
 Es tentador generar los valores esperados corriendo el core. Eso invierte la relación:
 el archivo dejaría de ser un contrato para volverse un snapshot de la implementación, y
 un bug en el cálculo quedaría consagrado como "lo esperado".
 
-`casos.json` se escribe a mano, con valores derivados de las reglas de negocio del
+`cases.json` se escribe a mano, con valores derivados de las reglas de negocio del
 dominio, **antes** de que exista el cálculo. El core se escribe hasta que pase.
 Esto es TDD literal a nivel de proyecto, no solo de función.
 
@@ -66,9 +66,9 @@ un entorno que compila y un contrato que todavía nadie satisface.
 ## Criterio de aceptación
 
 1. `cargo --version` imprime una versión stable.
-2. `contratos/casos.json` existe, es JSON válido, tiene `version: "1.0.0"` y cubre los
+2. `contracts/cases.json` existe, es JSON válido, tiene `version: "1.0.0"` y cubre los
    cuatro grupos de casos de arriba.
-3. `CLAUDE.md` ya no marca `contratos/` como pendiente.
+3. `CLAUDE.md` ya no marca `contracts/` como pendiente.
 4. Todo commiteado en `feat/fase-0-toolchain-y-contrato`.
 
 ## Riesgos
@@ -77,7 +77,7 @@ un entorno que compila y un contrato que todavía nadie satisface.
   lleva un comentario con la fórmula y los pasos intermedios. Si en Fase 1 un caso no
   cuadra, se revisa la aritmética del caso antes de tocar el core — pero la corrección
   del caso se hace y se commitea aparte, con su justificación.
-- **TCEA por Newton-Raphson a mano es costoso.** Mitigación: en `casos.json` v1.0.0 la
+- **TCEA por Newton-Raphson a mano es costoso.** Mitigación: en `cases.json` v1.0.0 la
   TCEA se marca con `"tcea": null` en los casos donde no se calculó a mano; el test la
   omite mientras sea `null`. Se completa en Fase 1 con verificación cruzada contra una
   hoja de cálculo, y ese llenado es un commit propio y revisable.

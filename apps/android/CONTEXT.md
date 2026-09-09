@@ -18,6 +18,8 @@ Lo único que esta app hace con los montos es **formatearlos para mostrar**.
 
 app/src/main/java/pe/banco/poc/
 ├── core/          bindings Kotlin generados (NO EDITAR, se regeneran)
+│                  ojo: uniffi-bindgen emite en `uniffi/<crate>/`, no en esta ruta;
+│                  hace falta un paso de build que los mueva, o ajustar la doc
 ├── adapter/       CoreFinanciero.kt, la única clase que llama al core
 ├── ui/            Compose: SimuladorScreen, ValidadorCciScreen
 └── format/        MoneyFormatter.kt
@@ -25,6 +27,15 @@ app/src/main/java/pe/banco/poc/
 `jniLibs/` contiene los `.so` por ABI. Ambos directorios son artefactos
 generados: nunca los edites a mano, regenéralos con los comandos de
 `rust-core/CONTEXT.md`.
+
+## Dependencia obligatoria: JNA
+
+Los bindings Kotlin de uniffi corren sobre **JNA, no JNI**. Sin esto la app compila y
+revienta en runtime al primer llamado al core:
+
+```kotlin
+implementation("net.java.dev.jna:jna:5.14.0@aar")
+```
 
 ## Cómo consumir el core
 
@@ -71,7 +82,7 @@ Nunca redondea: el core ya entregó el valor con la escala correcta.
 
 ## Pruebas
 
-`androidTest/` debe incluir un test que lea `contratos/casos.json` y verifique
+`androidTest/` debe incluir un test que lea `contracts/cases.json` y verifique
 que cada caso produce el string esperado **exactamente**, con `assertEquals`
 sobre strings, no comparación numérica con tolerancia. Ese test es la
 evidencia central de la POC: si pasa en las cuatro plataformas, el argumento

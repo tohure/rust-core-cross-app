@@ -24,9 +24,9 @@ bancaria. Se consume desde Android nativo, iOS nativo, React Native y web.
 rust-core/
 ├── Cargo.toml               workspace
 ├── crates/
-│   ├── dominio/             tipos, máquina de estados de transferencia
-│   ├── calculo/             cronogramas, TEA/TCEA, ITF, comisiones
-│   ├── validacion/          CCI, RUC, DNI, celular
+│   ├── domain/              tipos, máquina de estados de transferencia
+│   ├── calculation/         cronogramas, TEA/TCEA, ITF, comisiones
+│   ├── validation/          CCI, RUC, DNI, celular
 │   └── ffi/                 fachada con uniffi::export, el único crate exportado
 └── tests/
 
@@ -36,7 +36,7 @@ mantiene el dominio testeable en Rust puro y rápido.
 ## Contrato de API pública
 
 Esta es la superficie completa de la POC. No agregues funciones sin
-actualizar también `contratos/casos.json`.
+actualizar también `contracts/cases.json`.
 
 ```rust
 #[derive(uniffi::Record)]
@@ -116,6 +116,9 @@ apps corren exactamente el mismo build.
   `RoundingStrategy::MidpointAwayFromZero`. La diferencia por redondeo se
   ajusta en la última cuota para que la suma de capitales sea exactamente el
   monto del préstamo.
+- **Dependencia**: `(1+TEA)^(1/12)` necesita `MathematicalOps::powd`, que vive tras el
+  feature `maths`: `rust_decimal = { version = "1", features = ["maths"] }`. Sin ese
+  feature el core no compila.
 - **TCEA**: se resuelve por Newton-Raphson sobre el flujo de caja real
   (incluyendo seguro y comisiones), con tolerancia 1e-10 y máximo 100
   iteraciones. Si no converge, devuelve `FueraDeRango`.
@@ -129,11 +132,11 @@ Tres niveles, los tres obligatorios:
    - la suma de capitales del cronograma == monto exacto, siempre
    - todo saldo es >= 0 y el saldo final es exactamente 0
    - `validar_cci` nunca entra en pánico con ninguna entrada de texto
-3. **Vectores golden** desde `../contratos/casos.json`. Este archivo es el
+3. **Vectores golden** desde `../contracts/cases.json`. Este archivo es el
    contrato compartido con las cuatro apps: cada plataforma corre los mismos
    casos y debe producir strings idénticos carácter por carácter.
 
-Formato de `casos.json`:
+Formato de `cases.json`:
 
 ```json
 {
@@ -180,6 +183,12 @@ crashea al cargar en dispositivos con páginas de 16 KB.
 
 ## Perfil de release
 
+> ⚠️ **Dos puntos abiertos aquí** — ver hallazgos B1 y B2 de
+> [docs/superpowers/specs/2026-09-08-context-review.md](../docs/superpowers/specs/2026-09-08-context-review.md):
+> `panic = "abort"` desactiva el `catch_unwind` de uniffi (un pánico mata la app del banco
+> en vez de volverse un error), y `opt-level = "z"` optimiza tamaño a costa de la
+> velocidad que el benchmark quiere demostrar.
+
 ```toml
 [profile.release]
 opt-level = "z"
@@ -194,6 +203,6 @@ panic = "abort"
 - No agregues cliente HTTP, SQLite ni ningún runtime async. Se sale del alcance
   y hace que la POC no termine.
 - No expongas tipos de `rust_decimal` a través del FFI.
-- No inventes reglas de negocio. Si un caso no está en `casos.json`, pregunta
+- No inventes reglas de negocio. Si un caso no está en `cases.json`, pregunta
   antes de implementar.
 - No optimices por performance antes de que el benchmark exista.

@@ -29,14 +29,19 @@ bindings:
   ts: src/generated
 android:
   targets: [arm64-v8a, armeabi-v7a, x86_64]
+web:
+  wasmCrateName: core_financiero    # requerido por `ubrn build web`
 ```
+
+`ubrn build web` delega en `wasm-bindgen`/`wasm-pack` — es el mismo pipeline que muestra
+el diagrama de arquitectura, no uno alterno.
 
 Scripts en `package.json`:
 
 ```json
 "ubrn:android": "ubrn build android --and-generate",
 "ubrn:ios": "ubrn build ios --and-generate && (cd ios && pod install)",
-"ubrn:web": "ubrn build web",
+"ubrn:web": "ubrn build web --and-generate",
 "ubrn:clean": "rm -rf cpp/ src/generated/ android/src/main/java"
 ```
 
@@ -86,9 +91,9 @@ comentario que lo diga.
 
 ## Pruebas
 
-Jest que lee `contratos/casos.json` y compara con `toBe` sobre strings. Añade
+Jest que lee `contracts/cases.json` y compara con `toBe` sobre strings. Añade
 un test explícito que documente el problema: la baseline en TS falla al menos
-un caso de `casos.json`. Ese test rojo intencional es material de la
+un caso de `cases.json`. Ese test rojo intencional es material de la
 presentación.
 
 ## Sobre Re.Pack

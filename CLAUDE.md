@@ -12,8 +12,11 @@ La tesis que la POC debe probar es una sola: **la lógica de negocio (dominio + 
 se comparte, la UI varía por plataforma.** La evidencia es que las cuatro apps
 producen strings idénticos carácter por carácter sobre el mismo set de casos.
 
-Idioma: documentación, identificadores de dominio y commits en español
-(`validar_cci`, `generar_cronograma`, `ErrorDominio`). Commits en Conventional Commits.
+**Idioma.** Nombres de archivos, carpetas, crates y ramas: **inglés**. Contenido de la
+documentación, textos de UI y mensajes de commit: **español**. Los identificadores de
+dominio conservan la terminología bancaria peruana (`validar_cci`, `cronograma`, `tcea`,
+`itf`) — son lenguaje ubicuo, no traducible sin perder significado.
+Commits en Conventional Commits.
 
 ## Documentos de contexto por proyecto
 
@@ -31,14 +34,14 @@ Este CLAUDE.md solo cubre lo transversal; el detalle vive en esos archivos.
 
 Si un CONTEXT contradice a este archivo, gana el CONTEXT del subproyecto.
 Si el contrato de API cambia, gana `rust-core/CONTEXT.md` y hay que propagarlo
-a los cuatro consumidores más `contratos/casos.json` en el mismo cambio.
+a los cuatro consumidores más `contracts/cases.json` en el mismo cambio.
 
 ## Arquitectura: el grafo de dependencias de build
 
 No es una estrella. Angular **no** consume el core directamente:
 
 ```
-rust-core/crates/ffi  (único crate exportado; dominio/calculo/validacion no conocen uniffi)
+rust-core/crates/ffi  (único crate exportado; domain/calculation/validation no conocen uniffi)
    │
    ├── cargo ndk + uniffi-bindgen kotlin ──> apps/android  (jniLibs/*.so + core/)
    ├── xcodebuild -create-xcframework    ──> apps/ios      (CoreFinanciero.xcframework + Generated/)
@@ -52,7 +55,7 @@ Consecuencias que hay que tener presentes:
 - **`apps/web-angular` depende del build de `apps/react-native`**, no del de `rust-core`.
   El `.wasm` se consume como paquete local del workspace (`@banco/core-financiero`);
   nunca se copia a mano dentro de `assets/`.
-- Los crates internos (`dominio`, `calculo`, `validacion`) son Rust puro y no
+- Los crates internos (`domain`, `calculation`, `validation`) son Rust puro y no
   dependen de uniffi. Eso los mantiene testeables rápido, sin FFI de por medio.
   Solo `crates/ffi` lleva las macros `#[uniffi::export]`.
 - Cada app tiene un directorio de **artefactos generados que nunca se editan a mano**
@@ -92,7 +95,7 @@ Reglas derivadas, válidas en los cinco proyectos:
    `Result` con `ErrorDominio`. El mapeo a mensaje de usuario ocurre en la capa de
    UI, no en el adapter — el adapter propaga tal cual.
 
-## `contratos/casos.json` — el contrato compartido
+## `contracts/cases.json` — el contrato compartido
 
 Es el artefacto central de la POC, no un detalle de testing. Un solo archivo de
 vectores golden que las cinco bases de código leen: Rust (`tests/`), Android
@@ -104,12 +107,12 @@ Las comparaciones son **igualdad exacta de strings** (`assertEquals` / `XCTAsser
 plataformas *es* la demostración.
 
 Reglas de cambio: agregar una función pública al core obliga a actualizar
-`casos.json` en el mismo cambio. Si un caso de negocio no está en `casos.json`,
+`cases.json` en el mismo cambio. Si un caso de negocio no está en `cases.json`,
 no lo implementes: pregunta primero. No se inventan reglas de dominio.
 
 **Datos dummy.** Tasas, códigos de banco y montos son inventados: la POC demuestra que
 cuatro plataformas producen el mismo string, no exactitud financiera. Los algoritmos sí
-son internamente consistentes. Ver [contratos/README.md](contratos/README.md).
+son internamente consistentes. Ver [contracts/README.md](contracts/README.md).
 
 **Caso canario:** `cred-002` tiene seguro `0.00`, así que su TCEA debe dar exactamente
 igual a su TEA (22.00%). Si ese caso no cuadra, el Newton-Raphson está mal por más que
@@ -128,7 +131,7 @@ el mismo build.
 ## Estado actual y flujo de trabajo (SDD con superpowers)
 
 **Fase 0 completada; no hay código de producción todavía.** Existen los CONTEXT, este
-CLAUDE.md, la spec + plan de la Fase 0 y el contrato `contratos/casos.json`. Ni una línea
+CLAUDE.md, la spec + plan de la Fase 0 y el contrato `contracts/cases.json`. Ni una línea
 de Rust, Kotlin, Swift o TypeScript: lo que sigue (Fase 1) es el primer código real.
 
 Este proyecto se desarrolla con **Spec-Driven Development** usando el plugin
@@ -138,7 +141,7 @@ Este proyecto se desarrolla con **Spec-Driven Development** usando el plugin
 2. `superpowers:writing-plans` → plan en `docs/superpowers/plans/YYYY-MM-DD-<fase>.md`
 3. `superpowers:subagent-driven-development` (o `executing-plans` sin subagentes) → ejecución
 4. `superpowers:test-driven-development` durante la implementación —
-   aquí es literal: el test golden de `casos.json` se escribe **antes** que el cálculo
+   aquí es literal: el test golden de `cases.json` se escribe **antes** que el cálculo
 5. `superpowers:verification-before-completion` antes de declarar una fase terminada
 6. `superpowers:requesting-code-review` + `finishing-a-development-branch` para cerrar
 
@@ -150,15 +153,17 @@ brainstorming de cada fase parte de ellos, no de cero.
 lista, reinicia Claude Code.
 
 Documentos vigentes:
-- Spec Fase 0: [docs/superpowers/specs/2026-09-08-toolchain-y-contrato-design.md](docs/superpowers/specs/2026-09-08-toolchain-y-contrato-design.md)
-- Plan Fase 0: [docs/superpowers/plans/2026-09-08-fase-0-toolchain-y-contrato.md](docs/superpowers/plans/2026-09-08-fase-0-toolchain-y-contrato.md)
+- **Revisión de los CONTEXT:** [docs/superpowers/specs/2026-09-08-context-review.md](docs/superpowers/specs/2026-09-08-context-review.md) — hallazgos B1-B6 pendientes de decisión antes de la Fase 1
+- **Skills y gates por fase:** [docs/superpowers/skills-by-phase.md](docs/superpowers/skills-by-phase.md) — qué instalar en cada fase, y los gates de TDD / `/simplify` / seguridad
+- Spec Fase 0: [docs/superpowers/specs/2026-09-08-toolchain-and-contract-design.md](docs/superpowers/specs/2026-09-08-toolchain-and-contract-design.md)
+- Plan Fase 0: [docs/superpowers/plans/2026-09-08-phase-0-toolchain-and-contract.md](docs/superpowers/plans/2026-09-08-phase-0-toolchain-and-contract.md)
 
 ## Fases de desarrollo
 
 El orden no es negociable: lo impone el grafo de dependencias de build de arriba.
 
 - **Fase 0 — Toolchain y contrato.** ✅ **Completada.** Rust 1.98.1 (solo target host) y
-  `contratos/casos.json` v1.0.0 con 15 casos, derivados con una implementación de
+  `contracts/cases.json` v1.0.0 con 15 casos, derivados con una implementación de
   referencia independiente en Python.
 - **Fase 1 — `rust-core`.** Workspace y los cuatro crates. Dominio y cálculo primero en
   Rust puro (unitarias + `proptest`), `ffi` al final. Es la única fase donde se decide
@@ -169,7 +174,7 @@ El orden no es negociable: lo impone el grafo de dependencias de build de arriba
 - **Fase 4 — `apps/react-native`.** Turbo Module vía `ubrn`. Desbloquea la fase 5.
 - **Fase 5 — `apps/web-angular`.** Consume el WASM producido en la fase 4.
 
-Cada fase termina con su test golden verde contra `casos.json`. Una fase sin ese test
+Cada fase termina con su test golden verde contra `cases.json`. Una fase sin ese test
 pasando no está terminada, por más que la UI se vea bien.
 
 Fuera de alcance para esta POC (no lo agregues): Re.Pack / Module Federation, cliente
@@ -189,12 +194,12 @@ Una rama por fase, mergeada a `main` recién cuando su test golden pasa:
 | 5 | `feat/fase-5-app-web-angular` |
 
 Commits en **Conventional Commits, en español**, con scope = subproyecto:
-`feat(rust-core):`, `feat(android):`, `test(ios):`, `docs(contratos):`, `chore(ffi):`.
+`feat(rust-core):`, `feat(android):`, `test(ios):`, `docs(contracts):`, `chore(ffi):`.
 
 Commits frecuentes y pequeños: uno por tarea del plan, no uno por fase. Cierre de rama
 con `superpowers:finishing-a-development-branch`.
 
-Corregir un valor esperado en `casos.json` **siempre va en su propio commit**, con la
+Corregir un valor esperado en `cases.json` **siempre va en su propio commit**, con la
 justificación aritmética en el mensaje. Nunca mezclado con cambios al core: es la única
 forma de auditar después si el contrato se dobló para que pasara el código.
 
@@ -225,7 +230,7 @@ Los comandos exactos están en el plan de cada fase.
 cargo test --workspace              # todo
 cargo test -p calculo               # un solo crate
 cargo test -p calculo cronograma_suma_capitales   # un solo test por nombre
-cargo test --test golden            # solo los vectores de casos.json
+cargo test --test golden            # solo los vectores de cases.json
 cargo clippy --workspace --all-targets -- -D warnings
 cargo fmt --all
 ```

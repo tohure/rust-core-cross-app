@@ -79,7 +79,7 @@ React Native.
 
 ## Pruebas
 
-Spec que lee `contratos/casos.json` y compara strings exactos. Debe pasar con
+Spec que lee `contracts/cases.json` y compara strings exactos. Debe pasar con
 los mismos resultados que Android, iOS y RN.
 
 ## Prohibiciones

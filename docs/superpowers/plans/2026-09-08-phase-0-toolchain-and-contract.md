@@ -1,16 +1,26 @@
 # Plan — Fase 0: Toolchain y contrato
 
-**Spec:** [`../specs/2026-09-08-toolchain-y-contrato-design.md`](../specs/2026-09-08-toolchain-y-contrato-design.md)
+**Spec:** [`../specs/2026-09-08-toolchain-and-contract-design.md`](../specs/2026-09-08-toolchain-and-contract-design.md)
 **Rama:** `feat/fase-0-toolchain-y-contrato`
-**Entregable:** entorno Rust funcionando + `contratos/casos.json` v1.0.0
+**Entregable:** entorno Rust funcionando + `contracts/cases.json` v1.0.0
+**Estado:** ✅ **completada** el 2026-09-08 (Rust 1.98.1 · 15 casos · CONTEXT revisados)
+
+> Cambios sobre el plan original durante la ejecución:
+> - El generador Python se **descartó**: los valores quedan estáticos en el JSON y los
+>   algoritmos pasaron a ser especificación en `contracts/README.md`, que es donde
+>   `rust-core` los necesita.
+> - Se renombró todo a inglés (`contracts/`, `cases.json`, crates `domain`/`calculation`/
+>   `validation`) por la política de idioma de `CLAUDE.md`.
+> - Se agregó una revisión de los cinco CONTEXT no prevista en el plan:
+>   [`../specs/2026-09-08-context-review.md`](../specs/2026-09-08-context-review.md).
 
 ## Archivos que toca esta fase
 
 | Archivo | Responsabilidad |
 |---|---|
-| `contratos/casos.json` | **Nuevo.** Vectores golden. Contrato compartido por los 5 proyectos. |
-| `contratos/README.md` | **Nuevo.** Cómo se lee el archivo desde cada plataforma y cómo se agrega un caso. |
-| `CLAUDE.md` | Quitar la nota de "pendiente conocido" de `contratos/`. |
+| `contracts/cases.json` | **Nuevo.** Vectores golden. Contrato compartido por los 5 proyectos. |
+| `contracts/README.md` | **Nuevo.** Cómo se lee el archivo desde cada plataforma y cómo se agrega un caso. |
+| `CLAUDE.md` | Quitar la nota de "pendiente conocido" de `contracts/`. |
 | `README.md` | **Vacío hoy.** Portada: qué es la POC, el diagrama de dependencias, cómo arrancar. |
 | `CONTEXT.md` (raíz) | **Vacío hoy.** Decidir: llenarlo o borrarlo (ver Tarea 5). |
 
@@ -42,7 +52,7 @@ mensaje del commit de la Tarea 2.
 
 ---
 
-## Tarea 2 — Escribir `contratos/casos.json` v1.0.0
+## Tarea 2 — Escribir `contracts/cases.json` v1.0.0
 
 Estructura base, extendida respecto del ejemplo en `rust-core/CONTEXT.md` para cubrir
 también RUC e ITF:
@@ -76,9 +86,9 @@ dinero en el JSON, ni siquiera aquí.
 
 **Verificación:**
 ```bash
-python3 -m json.tool contratos/casos.json > /dev/null && echo "JSON válido"
+python3 -m json.tool contracts/cases.json > /dev/null && echo "JSON válido"
 python3 -c "
-import json; d=json.load(open('contratos/casos.json'))
+import json; d=json.load(open('contracts/cases.json'))
 assert d['version']=='1.0.0'
 for k in ('cronograma','cci','ruc','itf'):
     assert d[k], f'{k} vacío'
@@ -88,11 +98,11 @@ print({k:len(d[k]) for k in ('cronograma','cci','ruc','itf')})
 "
 ```
 
-**Commit:** `feat(contratos): agregar casos.json v1.0.0 como contrato compartido`
+**Commit:** `feat(contracts): agregar cases.json v1.0.0 como contrato compartido`
 
 ---
 
-## Tarea 3 — `contratos/README.md`
+## Tarea 3 — `contracts/README.md`
 
 Corto y operativo. Debe responder tres cosas:
 - Cómo lo carga cada plataforma (Rust `tests/`, `androidTest/`, bundle de XCTest, Jest,
@@ -102,7 +112,7 @@ Corto y operativo. Debe responder tres cosas:
   y actualizar `version` con semver (caso nuevo = minor; corregir un esperado = major,
   porque invalida builds previos).
 
-**Commit:** `docs(contratos): documentar el formato y las reglas de casos.json`
+**Commit:** `docs(contracts): documentar el formato y las reglas de cases.json`
 
 ---
 
@@ -122,7 +132,7 @@ Está vacío (0 bytes). Hay dos opciones y **hay que elegir una**, porque un arc
 vacío con ese nombre invita a que alguien escriba ahí reglas que contradigan a
 `CLAUDE.md`:
 
-- **(a) Borrarlo.** `CLAUDE.md` ya cumple ese rol para la raíz. Recomendada.
+- **(a) Borrarlo.** `CLAUDE.md` ya cumple ese rol para la raíz. ✅ **Elegida.**
 - **(b) Llenarlo** con el contexto de negocio (el encargo del banco, por qué Rust, qué
   se evalúa) y que `CLAUDE.md` lo enlace como lectura de fondo.
 
@@ -134,13 +144,13 @@ Decidir con el humano antes de ejecutar.
 
 ## Tarea 6 — Actualizar `CLAUDE.md` y cerrar la fase
 
-Quitar el bloque "Pendiente conocido" de la sección de `contratos/`, ya resuelto.
+Quitar el bloque "Pendiente conocido" de la sección de `contracts/`, ya resuelto.
 Marcar Fase 0 como completada en la lista de fases.
 
 **Verificación final de la fase:**
 ```bash
 cargo --version                                    # toolchain listo
-python3 -m json.tool contratos/casos.json >/dev/null # contrato válido
+python3 -m json.tool contracts/cases.json >/dev/null # contrato válido
 git log --oneline feat/fase-0-toolchain-y-contrato   # historia limpia
 ```
 
@@ -154,7 +164,7 @@ Luego: `superpowers:finishing-a-development-branch` para cerrar la rama.
 
 Esta fase es casi toda configuración y datos, no código, así que
 `test-driven-development` no aplica en su forma estricta. Sí aplica su espíritu y es el
-punto entero de la fase: **el criterio de aceptación (`casos.json`) se escribe antes que
+punto entero de la fase: **el criterio de aceptación (`cases.json`) se escribe antes que
 la implementación que debe satisfacerlo.**
 
 A partir de la Fase 1 sí aplica la Ley de Hierro: ningún cálculo sin un test que falle primero.
