@@ -806,7 +806,10 @@ fn check_digit(digits: &[u32], weights: &[u32]) -> u32 {
 
 pub fn validate_cci(cci: &str) -> Result<ValidCci, DomainError> {
     let cci = cci.trim();
-    let received = cci.chars().count() as u32;
+    // Se cuentan dígitos, no caracteres: si contáramos caracteres, una entrada de 20
+    // caracteres con uno no numérico reportaría "llegaron 20", contradiciendo el
+    // "se esperaban 20 dígitos" del mismo mensaje.
+    let received = cci.chars().filter(|c| c.is_ascii_digit()).count() as u32;
 
     // Un solo error para "no son 20 dígitos", tenga letras o no.
     let digits: Vec<u32> = match cci.chars().map(|c| c.to_digit(10)).collect::<Option<Vec<_>>>() {
