@@ -198,6 +198,12 @@ Cada fase termina con tres cosas, no una:
 
 Una fase sin las tres no está terminada, por más que la UI se vea bien.
 
+Y la regla vale para todo el proyecto, no solo para el cierre de fase: **cualquier
+decisión que requiera ejecutar o aplicar algo se documenta en el README del subproyecto
+que toca** — el comando exacto, qué hace, y qué se debe ver cuando funciona. Una
+recomendación que vive solo en una conversación no existe: quien la ejecute dentro de seis
+meses es otra persona, o vos sin el contexto de hoy.
+
 Cuando existan al menos dos apps se agrega `docs/demo-runbook.md`: el guion de poner las
 cuatro pantallas lado a lado. Hasta entonces no hay guion real que escribir.
 
