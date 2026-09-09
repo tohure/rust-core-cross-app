@@ -92,7 +92,7 @@ salida, enfocado en lo que aplica a un core sin I/O:
   `panic = "abort"` desactiva el `catch_unwind` de uniffi.
 - **Overflow aritmético** — `Decimal` no satura sola; hay que decidir qué pasa con montos
   absurdos y probarlo con `proptest`.
-- **Entradas no confiables** — `validar_cci` y `validar_ruc` reciben texto arbitrario del
+- **Entradas no confiables** — `validar_cci` y `validar_tarjeta` reciben texto arbitrario del
   usuario. El proptest de "nunca entra en pánico con ninguna entrada" es un test de
   seguridad, no solo de robustez.
 - **`unsafe`** — el core no debe tener ni un bloque. Se verifica con

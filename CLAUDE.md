@@ -155,7 +155,8 @@ brainstorming de cada fase parte de ellos, no de cero.
 lista, reinicia Claude Code.
 
 Documentos vigentes:
-- **Revisión de los CONTEXT:** [docs/superpowers/specs/2026-09-08-context-review.md](docs/superpowers/specs/2026-09-08-context-review.md) — hallazgos B1-B6 pendientes de decisión antes de la Fase 1
+- **Recorte de alcance:** [docs/superpowers/specs/2026-09-08-scope-simplification-design.md](docs/superpowers/specs/2026-09-08-scope-simplification-design.md) — aprobado y aplicado; define la API pública vigente
+- **Revisión de los CONTEXT:** [docs/superpowers/specs/2026-09-08-context-review.md](docs/superpowers/specs/2026-09-08-context-review.md) — hallazgos A1-A5 y B1-B6, todos resueltos y aplicados
 - **Skills y gates por fase:** [docs/superpowers/skills-by-phase.md](docs/superpowers/skills-by-phase.md) — qué instalar en cada fase, y los gates de TDD / `/simplify` / seguridad
 - Spec Fase 0: [docs/superpowers/specs/2026-09-08-toolchain-and-contract-design.md](docs/superpowers/specs/2026-09-08-toolchain-and-contract-design.md)
 - Plan Fase 0: [docs/superpowers/plans/2026-09-08-phase-0-toolchain-and-contract.md](docs/superpowers/plans/2026-09-08-phase-0-toolchain-and-contract.md)
@@ -165,8 +166,11 @@ Documentos vigentes:
 El orden no es negociable: lo impone el grafo de dependencias de build de arriba.
 
 - **Fase 0 — Toolchain y contrato.** ✅ **Completada.** Rust 1.98.1 (solo target host) y
-  `contracts/cases.json` v1.0.0 con 15 casos, derivados con una implementación de
-  referencia independiente en Python.
+  `contracts/cases.json` v2.0.0 con 26 casos, escritos a mano; los vectores de cifrado se
+  derivaron con ChaCha20-Poly1305 de Node 22, independiente de Rust. El alcance se recortó
+  antes de la Fase 1: fuera el cronograma francés, la TCEA y `validar_ruc`; dentro
+  aritmética decimal, transferencia y cifrado de tarjeta (ver
+  [recorte de alcance](docs/superpowers/specs/2026-09-08-scope-simplification-design.md)).
 - **Fase 1 — `rust-core`.** Workspace y los cuatro crates. Dominio y cálculo primero en
   Rust puro (unitarias + `proptest`), `ffi` al final. Es la única fase donde se decide
   lógica de negocio.
@@ -188,12 +192,12 @@ Una rama por fase, mergeada a `main` recién cuando su test golden pasa:
 
 | Fase | Rama |
 |---|---|
-| 0 | `feat/fase-0-toolchain-y-contrato` |
-| 1 | `feat/fase-1-rust-core` |
-| 2 | `feat/fase-2-app-android` |
-| 3 | `feat/fase-3-app-ios` |
-| 4 | `feat/fase-4-app-react-native` |
-| 5 | `feat/fase-5-app-web-angular` |
+| 0 | `feat/phase-0-toolchain-and-contract` |
+| 1 | `feat/phase-1-rust-core` |
+| 2 | `feat/phase-2-app-android` |
+| 3 | `feat/phase-3-app-ios` |
+| 4 | `feat/phase-4-app-react-native` |
+| 5 | `feat/phase-5-app-web-angular` |
 
 Commits en **Conventional Commits, en español**, con scope = subproyecto:
 `feat(rust-core):`, `feat(android):`, `test(ios):`, `docs(contracts):`, `chore(ffi):`.
@@ -242,7 +246,13 @@ Los comandos de exportación por plataforma (cargo-ndk, uniffi-bindgen,
 [rust-core/CONTEXT.md](rust-core/CONTEXT.md); no los dupliques aquí, se desincronizan.
 
 Perfil de release del core (tamaño del binario es criterio de la demo):
-`opt-level = "z"`, `lto = true`, `codegen-units = 1`, `strip = true`, `panic = "abort"`.
+`opt-level = "z"`, `lto = true`, `codegen-units = 1`, `strip = true`, `panic = "unwind"`.
+
+**`panic = "abort"` está prohibido.** uniffi envuelve cada llamada en `catch_unwind` para
+convertir un pánico de Rust en un error del FFI; con `abort` esa red se desactiva y
+cualquier pánico mata el proceso de la app. Ver hallazgo B1 del
+[review de CONTEXT](docs/superpowers/specs/2026-09-08-context-review.md) y el perfil
+completo en [rust-core/CONTEXT.md](rust-core/CONTEXT.md).
 
 ## Si el build de Angular pelea con el WASM
 
