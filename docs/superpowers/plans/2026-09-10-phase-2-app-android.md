@@ -20,7 +20,7 @@ Copiadas de la spec y de `CLAUDE.md`. **Valen para todas las tareas.**
 - **Sin red, sin persistencia, sin async, sin I/O.** `simulatedLatencyMs` se espera con `delay`, no con una llamada.
 - **Identificadores en inglés; texto de UI, comentarios y mensajes de commit en español.** `ArithmeticScreen`, no `AritmeticaScreen`. Las siglas peruanas (`cci`, `itf`) no se traducen: `calculateItf`, `validateCci`.
 - **Commits en Conventional Commits, en español, scope `android`:** `feat(android):`, `test(android):`, `docs(android):`.
-- **Los assets generados no se commitean.** `app/src/main/assets/*.json` y `app/src/androidTest/assets/*.json` van al `.gitignore` — los produce la tarea Gradle de la Task 2.
+- **Los assets generados no se commitean.** Se copian a `app/build/generated/contracts/`, que la regla `build/` ya ignora — no hace falta agregar nada al `.gitignore`.
 - **Comparaciones del golden: `assertEquals` sobre `String`**, nunca numérica con tolerancia.
 - **Todo `when` sobre `DomainException` va exhaustivo, como expresión y sin rama `else`**, para que una décima variante rompa la compilación.
 - **Emulador:** `Pixel_9_Pro` (arm64, android-36.1) ya corriendo como `emulator-5554`. Los tests instrumentados corren ahí.
@@ -274,19 +274,34 @@ val copyContractsForTest by tasks.registering(Copy::class) {
 
 tasks.named("preBuild") { dependsOn(copyContractsForApp, copyContractsForTest) }
 
+// `srcDir` del SourceSet API de AGP 9 NO acepta un `Provider<Directory>` —falla con
+// "You cannot add Provider instances to the Android SourceSet API"—, así que se resuelve
+// con `.get().asFile`. El `into(...)` del `Copy` sí toma el Provider crudo, y `contractsDir`
+// sigue saliendo de `rootProject.layout`, que es lo que mantiene compatible la
+// configuration cache. Verificado en la Task 2.
 android.sourceSets {
-    getByName("main").assets.srcDir(layout.buildDirectory.dir("generated/contracts/main"))
-    getByName("androidTest").assets.srcDir(layout.buildDirectory.dir("generated/contracts/androidTest"))
+    getByName("main").assets.srcDir(
+        layout.buildDirectory.dir("generated/contracts/main").get().asFile,
+    )
+    getByName("androidTest").assets.srcDir(
+        layout.buildDirectory.dir("generated/contracts/androidTest").get().asFile,
+    )
 }
 ```
 
-- [ ] **Step 4: Ignorar los assets generados**
+- [ ] **Step 4: Confirmar que los assets generados no se commitean**
 
-En el `.gitignore` de la **raíz del repo**, junto a los otros artefactos de uniffi:
+**No hay nada que agregar al `.gitignore`.** Los assets se copian a
+`app/build/generated/contracts/`, que la regla `build/` del `.gitignore` de `apps/android` ya
+cubre. Reglas apuntando a `src/main/assets/` serían letra muerta y, peor, harían creer que los
+assets viven ahí.
 
-```
-/apps/android/app/src/main/assets/
-/apps/android/app/src/androidTest/assets/
+Verificarlo en vez de asumirlo:
+
+```bash
+./gradlew :app:assembleDebug
+git status --short          # debe quedar limpio salvo los archivos de esta tarea
+find app/build/generated/contracts -name '*.json'   # los cuatro existen en disco
 ```
 
 - [ ] **Step 5: Correr y verificar que pasa**
