@@ -15,13 +15,17 @@ import java.math.BigDecimal
 object MoneyFormatter {
     fun format(amount: String): String {
         val value = runCatching { BigDecimal(amount) }.getOrNull() ?: return amount
-        val parts = value.toPlainString().split(".")
+        // El signo se separa ANTES de agrupar: si entra al `chunked(3)` se comporta como un
+        // dígito más y, cuando la parte entera tiene un múltiplo de 3 dígitos, queda aislado
+        // en su propio grupo — "-123456.78" salía como "S/ -,123,456.78".
+        val sign = if (value.signum() < 0) "-" else ""
+        val parts = value.abs().toPlainString().split(".")
         val grouped = parts[0]
             .reversed()
             .chunked(3)
             .joinToString(",")
             .reversed()
         val decimals = parts.getOrNull(1)
-        return if (decimals != null) "S/ $grouped.$decimals" else "S/ $grouped"
+        return if (decimals != null) "S/ $sign$grouped.$decimals" else "S/ $sign$grouped"
     }
 }

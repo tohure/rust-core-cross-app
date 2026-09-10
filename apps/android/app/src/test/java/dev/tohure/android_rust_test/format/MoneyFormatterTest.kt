@@ -18,4 +18,15 @@ class MoneyFormatterTest {
         // crudo en vez de romperse. Nunca inventa un número.
         assertEquals("--", MoneyFormatter.format("--"))
     }
+
+    @Test
+    fun groupsThousandsCorrectlyAtEveryBoundary() {
+        // El caso que rompía: parte entera con múltiplo de 3 dígitos Y signo negativo.
+        assertEquals("S/ -123,456.78", MoneyFormatter.format("-123456.78"))
+        assertEquals("S/ 123,456.78", MoneyFormatter.format("123456.78"))
+        assertEquals("S/ -1,500.08", MoneyFormatter.format("-1500.08"))
+        assertEquals("S/ 999.99", MoneyFormatter.format("999.99"))
+        assertEquals("S/ 1,234,567.89", MoneyFormatter.format("1234567.89"))
+        assertEquals("S/ 1,000", MoneyFormatter.format("1000"))
+    }
 }

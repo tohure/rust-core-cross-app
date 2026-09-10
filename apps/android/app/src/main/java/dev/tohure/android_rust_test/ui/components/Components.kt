@@ -22,10 +22,10 @@ import androidx.compose.ui.unit.dp
 /**
  * Los cinco componentes de `docs/ui-spec.md`, compartidos por las cuatro pantallas.
  *
- * Convención de firma: **`modifier` va último y el caller decide el posicionamiento.**
- * El componente aporta tipografía y espaciado internos; el padding posicional lo pone
- * quien lo usa. Así el mismo componente sirve dentro de una lista y dentro de una tarjeta
- * sin inventar variantes.
+ * Convención de firma: **`modifier: Modifier = Modifier` es el primer parámetro opcional**,
+ * y el caller decide el posicionamiento. El componente aporta tipografía y espaciado
+ * internos; el padding posicional lo pone quien lo usa. Así el mismo componente sirve
+ * dentro de una lista y dentro de una tarjeta sin inventar variantes.
  */
 @Composable
 fun ScreenHeader(title: String, subtitle: String, modifier: Modifier = Modifier) {
