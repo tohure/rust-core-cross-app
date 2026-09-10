@@ -1000,6 +1000,44 @@ class GoldenTest {
 }
 ```
 
+- [ ] **Step 1b: Agregar la guardia del asset de mensajes**
+
+`golden.rs` tiene tres tests sobre `messages.es.json`; en Kotlin hace falta **uno solo**, y es el
+que cubre algo que Rust **no puede** cubrir. Rust lee el archivo fuente con `include_str!`; esta
+app lee el **asset que copió Gradle**. Un asset viejo o truncado dejaría a Rust en verde y a las
+cuatro pantallas de error mostrando cosas distintas. Las otras dos guardias son redundantes: una
+décima variante ya rompe la compilación del `when` de `contractName()`.
+
+```kotlin
+    @Test
+    fun theMessagesAssetCoversTheNineErrorVariants() {
+        val assets = InstrumentationRegistry.getInstrumentation().context.assets
+        val node = JSONObject(assets.open("messages.es.json").bufferedReader().use { it.readText() })
+            .getJSONObject("mensajes")
+
+        // Los nueve nombres NO se tipean acá: salen de `contractName()` sobre las nueve
+        // variantes construidas de verdad, así que renombrar una en el core mueve esta lista sola.
+        val variants = listOf(
+            DomainException.Length("cci", 20u, 18u),
+            DomainException.CheckDigit(),
+            DomainException.UnknownBank("999"),
+            DomainException.InvalidAmount("cero"),
+            DomainException.AccountNotFound("ACC-1"),
+            DomainException.SameAccount(),
+            DomainException.InsufficientFunds("1.00", "2.00"),
+            DomainException.Encryption("nonce inválido"),
+            DomainException.OutOfRange("monto"),
+        )
+        assertEquals("el core tiene nueve variantes de error", 9, variants.size)
+
+        for (variant in variants) {
+            val name = variant.contractName()
+            assertTrue("messages.es.json no tiene el mensaje de `$name`", node.has(name))
+            assertTrue("el mensaje de `$name` está vacío", node.getString(name).isNotBlank())
+        }
+    }
+```
+
 - [ ] **Step 2: Correr el golden**
 
 ```bash
@@ -1007,7 +1045,7 @@ class GoldenTest {
   -Pandroid.testInstrumentationRunnerArguments.class=dev.tohure.android_rust_test.GoldenTest
 ```
 
-Esperado: **8 tests, 0 failures.** Los cinco `golden*` más las tres guardias.
+Esperado: **9 tests, 0 failures.** Los cinco `golden*`, las tres guardias del contrato y la del asset de mensajes.
 
 **Si un caso falla:** el valor esperado de `cases.json` **no se toca**. El contrato es la fuente de verdad y pasó 28/28 en Rust; una diferencia acá significa que el adapter Kotlin está mal, no el contrato. Corregir el Kotlin.
 
