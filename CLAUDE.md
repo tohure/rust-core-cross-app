@@ -50,7 +50,7 @@ a los cuatro consumidores más `contracts/cases.json` en el mismo cambio.
 No es una estrella. Angular **no** consume el core directamente:
 
 ```
-rust-core/crates/ffi  (único crate exportado; domain/calculation/validation no conocen uniffi)
+rust-core/crates/ffi  (único crate exportado; crates/domain es Rust puro y no conoce uniffi)
    │
    ├── cargo ndk + uniffi-bindgen kotlin ──> apps/android  (jniLibs/*.so + core/)
    ├── xcodebuild -create-xcframework    ──> apps/ios      (CoreFinanciero.xcframework + Generated/)
@@ -64,9 +64,9 @@ Consecuencias que hay que tener presentes:
 - **`apps/web-angular` depende del build de `apps/react-native`**, no del de `rust-core`.
   El `.wasm` se consume como paquete local del workspace (`@banco/core-financiero`);
   nunca se copia a mano dentro de `assets/`.
-- Los crates internos (`domain`, `calculation`, `validation`) son Rust puro y no
-  dependen de uniffi. Eso los mantiene testeables rápido, sin FFI de por medio.
-  Solo `crates/ffi` lleva las macros `#[uniffi::export]`.
+- `crates/domain` es Rust puro y no declara uniffi en su `Cargo.toml`. Eso lo mantiene
+  testeable rápido, sin FFI de por medio, y hace que un `#[uniffi::export]` ahí adentro
+  **no compile**: la frontera la sostiene el compilador. Solo `crates/ffi` lleva las macros.
 - Cada app tiene un directorio de **artefactos generados que nunca se editan a mano**
   (ver el CONTEXT de cada una). Si algo generado está mal, se corrige en `rust-core`
   y se regenera.
@@ -175,15 +175,19 @@ Documentos vigentes:
 El orden no es negociable: lo impone el grafo de dependencias de build de arriba.
 
 - **Fase 0 — Toolchain y contrato.** ✅ **Completada.** Rust 1.98.1 (solo target host) y
-  `contracts/cases.json` v2.0.0 con 26 casos, escritos a mano; los vectores de cifrado se
+  `contracts/cases.json`, escrito a mano. La fase lo entregó como **v2.0.0 con 26 casos**;
+  la Fase 1 lo llevó a **v2.2.0 con 27**: la v2.1.0 agregó `comprobante` y
+  `latencia_simulada_ms` a los esperados de `transferencia`, y la v2.2.0 sumó `itf-005`.
+  Ningún valor esperado anterior se corrigió. Los vectores de cifrado se
   derivaron con ChaCha20-Poly1305 de Node 22, independiente de Rust. El alcance se recortó
   antes de la Fase 1: fuera el cronograma francés, la TCEA y `validar_ruc`; dentro
   aritmética decimal, transferencia y cifrado de tarjeta (ver
   [recorte de alcance](docs/superpowers/specs/2026-09-08-scope-simplification-design.md)).
-- **Fase 1 — `rust-core`.** Workspace y los cinco crates (`domain`, `calculation`,
-  `validation`, `crypto`, `ffi`). Dominio y cálculo primero en
-  Rust puro (unitarias + `proptest`), `ffi` al final. Es la única fase donde se decide
-  lógica de negocio.
+- **Fase 1 — `rust-core`.** Workspace y los dos crates: `domain` (Rust puro, con los
+  módulos `arithmetic`, `card`, `cci`, `crypto`, `error`, `itf`, `transfer`) y `ffi`
+  (paquete `core_financiero`, la fachada uniffi). Dominio y cálculo primero en Rust puro
+  (unitarias + `proptest`), `ffi` al final. Es la única fase donde se decide lógica de
+  negocio.
 - **Fase 2 — `apps/android`.** Primer consumidor: valida el pipeline uniffi + el test
   golden en una plataforma real.
 - **Fase 3 — `apps/ios`.** Espejo funcional de Android.
@@ -200,10 +204,10 @@ Cada fase termina con tres cosas, no una:
    CONTEXT: un README con comandos sin ejecutar se descubre roto el día de la demo, que
    es el único día que importa.
 3. **Un diagrama de arquitectura en Mermaid dentro de ese README**, que muestre cómo está
-   organizado ese subproyecto: los cinco crates y sus dependencias en `rust-core`; en
-   cada app, el camino desde el artefacto que produce el core hasta la pantalla. Si la
-   estructura no se ve en un diagrama, no está justificada — cinco crates que nadie puede
-   ver de un vistazo son ceremonia, no arquitectura.
+   organizado ese subproyecto: los crates y sus dependencias en `rust-core`; en cada app,
+   el camino desde el artefacto que produce el core hasta la pantalla. Si la estructura no
+   se ve en un diagrama, no está justificada — crates que nadie puede ver de un vistazo son
+   ceremonia, no arquitectura.
 
 Una fase sin las tres no está terminada, por más que la UI se vea bien.
 
@@ -266,10 +270,10 @@ Los comandos exactos están en el plan de cada fase.
 
 ```bash
 # Desarrollo del core (desde rust-core/)
-cargo test --workspace              # todo
-cargo test -p calculation           # un solo crate
-cargo test -p calculation itf_redondeo_al_medio   # un solo test por nombre
-cargo test --test golden            # solo los vectores de cases.json
+cargo test --workspace              # todo: 51 tests
+cargo test -p domain                # un solo crate, sin compilar uniffi
+cargo test -p domain rounds_half_away_from_zero_not_to_even   # un solo test por nombre
+cargo test -p core_financiero --test golden       # solo los vectores de cases.json
 cargo clippy --workspace --all-targets -- -D warnings
 cargo fmt --all
 ```

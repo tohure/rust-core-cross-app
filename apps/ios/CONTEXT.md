@@ -29,6 +29,22 @@ xcodebuild -create-xcframework \
   -output ../apps/ios/CoreFinanciero.xcframework
 ```
 
+> ⚠️ **El modulemap que genera uniffi NO se llama `module.modulemap`.** Verificado en la
+> Fase 1 con uniffi 0.32: `uniffi-bindgen ... --language swift` emite tres archivos —
+> `core_financiero.swift`, `core_financieroFFI.h` y **`core_financieroFFI.modulemap`**—,
+> nombrando el tercero según el crate. Pero `xcodebuild -create-xcframework -headers <dir>`
+> exige que el directorio de headers contenga un archivo llamado exactamente
+> `module.modulemap`. Con el nombre generado tal cual, el XCFramework **se construye sin
+> error** y después `import core_financieroFFI` no resuelve: el síntoma es "el XCFramework
+> no exporta nada", y se descubre tarde. Antes de correr `-create-xcframework`, dentro del
+> directorio de headers:
+>
+> ```bash
+> cp core_financieroFFI.modulemap module.modulemap
+> ```
+>
+> Qué se debe ver: el directorio queda con los cuatro archivos, `module.modulemap` incluido.
+
 Enlaza el XCFramework en Build Phases. Verifica que incluya los slices
 arm64 device y arm64 simulator; sin el segundo no corre en Macs con Apple
 Silicon.

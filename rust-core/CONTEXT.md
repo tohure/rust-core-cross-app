@@ -21,18 +21,44 @@ bancaria. Se consume desde Android nativo, iOS nativo, React Native y web.
 
 ## Estructura
 
-rust-core/
-├── Cargo.toml               workspace
-├── crates/
-│   ├── domain/              Cuenta, Tarjeta, máquina de estados de transferencia
-│   ├── calculation/         aritmética decimal, ITF
-│   ├── validation/          CCI, Luhn de tarjeta
-│   ├── crypto/              ChaCha20-Poly1305
-│   └── ffi/                 fachada con uniffi::export, el único crate exportado
-└── tests/
+Son **dos crates**, no cinco. La estructura de cinco (`domain`, `calculation`,
+`validation`, `crypto`, `ffi`) que este documento describía antes de la Fase 1 se descartó
+al implementarla: la POC argumenta **una** frontera —la lógica de negocio no conoce el
+FFI—, y esa frontera la defiende un solo límite de crate. Cinco `Cargo.toml` para ~1000
+líneas de Rust puro habrían sido ceremonia sin nada que el compilador estuviera
+defendiendo. Lo que eran crates hoy son módulos de `domain`.
 
-Los crates internos NO conocen uniffi. Solo `ffi` depende de uniffi. Esto
-mantiene el dominio testeable en Rust puro y rápido.
+```
+rust-core/
+├── Cargo.toml                    workspace virtual (sin paquete raíz)
+├── README.md                     comandos ejecutados + diagrama de la Fase 1
+├── crates/
+│   ├── domain/                   Rust puro. NO declara uniffi
+│   │   ├── src/error.rs          DomainError, definido una sola vez
+│   │   ├── src/arithmetic.rs     add · subtract
+│   │   ├── src/itf.rs            calculate_itf · ITF_RATE
+│   │   ├── src/transfer.rs       execute_transfer · Account · TransferRequest · TransferResult
+│   │   ├── src/cci.rs            validate_cci
+│   │   ├── src/card.rs           validate_card (Luhn)
+│   │   ├── src/crypto.rs         encrypt · decrypt (ChaCha20-Poly1305)
+│   │   └── tests/properties.rs   proptest
+│   └── ffi/                      paquete `core_financiero`, el único crate exportado
+│       ├── src/lib.rs            uniffi::export, los Record y DomainError con piel de uniffi
+│       ├── build.rs              inyecta el SHA de git para core_version()
+│       ├── uniffi-bindgen.rs     el [[bin]] que genera los bindings
+│       └── tests/golden.rs       los 27 casos de ../contracts/cases.json
+```
+
+`domain` NO conoce uniffi. Solo `ffi` depende de uniffi, y eso **no es una convención**:
+`crates/domain/Cargo.toml` no declara `uniffi`, así que un `#[uniffi::export]` ahí adentro
+no compila. Lo sostiene el compilador. Además mantiene el dominio testeable en Rust puro y
+rápido, sin FFI de por medio.
+
+**El crate puro se llama `domain`, no `core`.** Un paquete llamado `core` hace que el
+`--extern core` que cargo pasa al compilar `ffi` tape al `core` de la stdlib, y
+`#[derive(thiserror::Error)]` deja de compilar con `cannot find 'fmt' in 'core'`. Se
+verificó con un workspace de prueba antes de elegir el nombre; no es una preferencia
+estética y no se puede volver atrás.
 
 ## Contrato de API pública
 
@@ -45,83 +71,91 @@ cifrado de una tarjeta es idéntico en las cuatro plataformas.
 
 ```rust
 // ---------- Caso 1: aritmética decimal
-#[uniffi::export] pub fn sumar(a: String, b: String)  -> Result<String, ErrorDominio>;
-#[uniffi::export] pub fn restar(a: String, b: String) -> Result<String, ErrorDominio>;
+#[uniffi::export] pub fn add(a: String, b: String)      -> Result<String, DomainError>;
+#[uniffi::export] pub fn subtract(a: String, b: String) -> Result<String, DomainError>;
 
 // ---------- Caso 2: transferencia entre cuentas
 #[derive(uniffi::Record)]
-pub struct Cuenta { pub id: String, pub titular: String, pub saldo: String }
+pub struct Account { pub id: String, pub holder: String, pub balance: String }
 
 #[derive(uniffi::Record)]
-pub struct SolicitudTransferencia {
-    pub origen: String, pub destino: String, pub monto: String,
+pub struct TransferRequest {
+    pub origin: String, pub destination: String, pub amount: String,
 }
 
 #[derive(uniffi::Record)]
-pub struct ResultadoTransferencia {
-    pub cuentas: Vec<Cuenta>,       // el estado NUEVO, ya aplicado
-    pub comision_itf: String,
-    pub total_debitado: String,
-    pub comprobante: String,
-    pub latencia_simulada_ms: u32,  // "simula" la llamada HTTP; no hay red
+pub struct TransferResult {
+    pub accounts: Vec<Account>,        // el estado NUEVO, ya aplicado
+    pub itf_fee: String,
+    pub total_debited: String,
+    pub receipt: String,
+    pub simulated_latency_ms: u32,     // "simula" la llamada HTTP; no hay red
 }
 
-#[uniffi::export] pub fn ejecutar_transferencia(
-    cuentas: Vec<Cuenta>,
-    solicitud: SolicitudTransferencia,
-) -> Result<ResultadoTransferencia, ErrorDominio>;
+#[uniffi::export] pub fn execute_transfer(
+    accounts: Vec<Account>,
+    request: TransferRequest,
+) -> Result<TransferResult, DomainError>;
 
 #[derive(uniffi::Record)]
-pub struct CciValido {
-    pub codigo_banco: String, pub nombre_banco: String,
-    pub oficina: String, pub cuenta: String,
+pub struct ValidCci {
+    pub bank_code: String, pub bank_name: String,
+    pub branch: String, pub account: String,
 }
-#[uniffi::export] pub fn validar_cci(cci: String) -> Result<CciValido, ErrorDominio>;
-#[uniffi::export] pub fn calcular_itf(monto: String) -> Result<String, ErrorDominio>;
+#[uniffi::export] pub fn validate_cci(cci: String) -> Result<ValidCci, DomainError>;
+#[uniffi::export] pub fn calculate_itf(amount: String) -> Result<String, DomainError>;
 
 // ---------- Caso 3: tarjeta y cifrado
 #[derive(uniffi::Record)]
-pub struct TarjetaValida {
-    pub marca: String,        // Visa | Mastercard | Amex
-    pub enmascarado: String,  // "4111 **** **** 1111"
+pub struct ValidCard {
+    pub brand: String,   // Visa | Mastercard | Amex
+    pub masked: String,  // "4111 **** **** 1111"
 }
-#[uniffi::export] pub fn validar_tarjeta(numero: String) -> Result<TarjetaValida, ErrorDominio>;
+#[uniffi::export] pub fn validate_card(number: String) -> Result<ValidCard, DomainError>;
 
-#[uniffi::export] pub fn cifrar(
-    texto: String, clave_hex: String, nonce_hex: String,
-) -> Result<String, ErrorDominio>;        // devuelve hex de (ciphertext || tag)
+#[uniffi::export] pub fn encrypt(
+    text: String, key_hex: String, nonce_hex: String,
+) -> Result<String, DomainError>;        // devuelve hex de (ciphertext || tag)
 
-#[uniffi::export] pub fn descifrar(
-    cifrado_hex: String, clave_hex: String, nonce_hex: String,
-) -> Result<String, ErrorDominio>;
+#[uniffi::export] pub fn decrypt(
+    ciphertext_hex: String, key_hex: String, nonce_hex: String,
+) -> Result<String, DomainError>;
 
 // ---------- meta
-#[uniffi::export] pub fn version_core() -> String;
+#[uniffi::export] pub fn core_version() -> String;
 
 #[derive(uniffi::Error, Debug, thiserror::Error)]
-pub enum ErrorDominio {
-    #[error("longitud inválida en {campo}: se esperaban {esperado} dígitos, llegaron {recibido}")]
-    Longitud { campo: String, esperado: u32, recibido: u32 },
+pub enum DomainError {
+    #[error("longitud inválida en {field}: se esperaban {expected} dígitos, llegaron {received} caracteres")]
+    Length { field: String, expected: u32, received: u32 },
     #[error("dígito de control inválido")]
-    DigitoControl,
-    #[error("banco no reconocido: {codigo}")]
-    BancoDesconocido { codigo: String },
-    #[error("monto inválido: {detalle}")]
-    MontoInvalido { detalle: String },
+    CheckDigit,
+    #[error("banco no reconocido: {code}")]
+    UnknownBank { code: String },
+    #[error("monto inválido: {detail}")]
+    InvalidAmount { detail: String },
     #[error("cuenta no encontrada: {id}")]
-    CuentaNoEncontrada { id: String },
+    AccountNotFound { id: String },
     #[error("origen y destino son la misma cuenta")]
-    MismaCuenta,
-    #[error("saldo insuficiente: disponible {disponible}, requerido {requerido}")]
-    SaldoInsuficiente { disponible: String, requerido: String },
-    #[error("error de cifrado: {detalle}")]
-    Cifrado { detalle: String },
-    #[error("parámetro fuera de rango: {campo}")]
-    FueraDeRango { campo: String },
+    SameAccount,
+    #[error("saldo insuficiente: disponible {available}, requerido {required}")]
+    InsufficientFunds { available: String, required: String },
+    #[error("error de cifrado: {detail}")]
+    Encryption { detail: String },
+    #[error("parámetro fuera de rango: {field}")]
+    OutOfRange { field: String },
 }
 ```
 
-`version_core()` devuelve versión del crate + SHA corto de git, inyectados en
+**Los identificadores están en inglés y los nombres del contrato en español.** El enum vive
+dos veces —`domain::DomainError`, sin uniffi, y este, con la piel de uniffi— y el puente
+hacia `contracts/cases.json` es `DomainError::contract_name()`, que devuelve `"MismaCuenta"`
+para `SameAccount` y así con las nueve. **Ese método es Rust y no cruza el FFI:** en Kotlin
+y Swift el enum generado trae solo los nombres en inglés, así que cada app necesita escribir
+ese mapeo de nueve líneas **en su test golden**, no en producción. Si diverge, el golden de
+esa app falla contra el contrato. Ver `rust-core/README.md`.
+
+`core_version()` devuelve versión del crate + SHA corto de git, inyectados en
 compilación por `build.rs` vía `env!`. Un semver escrito a mano no probaría nada: las
 cuatro apps podrían mostrar `1.0.0` viniendo de builds distintos. Con la huella de
 compilación, cuatro strings idénticos **sí** son evidencia de que corren el mismo build.
@@ -129,7 +163,7 @@ compilación, cuatro strings idénticos **sí** son evidencia de que corren el m
 ## La transferencia es una función pura
 
 Entra el estado, sale el estado nuevo — como un reducer. La app guarda las cuentas en
-memoria y las tira al cerrar: **sin BD, sin cache, sin red**. `latencia_simulada_ms` es
+memoria y las tira al cerrar: **sin BD, sin cache, sin red**. `simulated_latency_ms` es
 un número que el core devuelve y que la app espera antes de pintar, para que la demo
 "parezca" una llamada HTTP. No hay ningún cliente HTTP en ninguna parte.
 
@@ -182,13 +216,20 @@ Tres niveles, los tres obligatorios:
    - una transferencia válida **conserva la suma total de saldos** (más el ITF debitado):
      no se crea ni se destruye dinero
    - ningún saldo queda negativo tras una transferencia aceptada
-   - `descifrar(cifrar(x)) == x` para todo `x`
-   - `validar_cci`, `validar_tarjeta` y `descifrar` **nunca entran en pánico** con
+   - `decrypt(encrypt(x)) == x` para todo `x`
+   - `validate_cci`, `validate_card` y `decrypt` **nunca entran en pánico** con
      ninguna entrada de texto. Es un test de seguridad, no solo de robustez:
      estas funciones reciben input arbitrario del usuario.
 3. **Vectores golden** desde `../contracts/cases.json`. Este archivo es el
    contrato compartido con las cuatro apps: cada plataforma corre los mismos
    casos y debe producir strings idénticos carácter por carácter.
+
+El golden vive en **`crates/ffi/tests/golden.rs`**, dentro del paquete `ffi`, y no en
+`rust-core/tests/` como decía antes este documento. La razón es mecánica y se descubrió al
+implementarlo: `rust-core/` es un **workspace virtual**, sin paquete raíz, y un directorio
+`tests/` en la raíz de un workspace así **nunca se compila ni se ejecuta**. Puesto ahí, el
+test más importante de la POC habría figurado como "pasado" sin haber corrido una sola vez.
+Dentro de `crates/ffi/`, `cargo test --workspace` sí lo alcanza — verificado.
 
 El formato de `cases.json` y la especificación normativa de cada algoritmo están en
 [`../contracts/README.md`](../contracts/README.md). No los dupliques aquí: se desincronizan.
@@ -225,7 +266,7 @@ crashea al cargar en dispositivos con páginas de 16 KB.
 **`panic = "unwind"` es obligatorio, no una preferencia.** uniffi envuelve cada llamada en
 `catch_unwind` para convertir un pánico de Rust en un error del FFI en vez de matar la app.
 Con `abort` esa red se desactiva y cualquier pánico es un crash duro de la app del banco —
-justo el caso que la regla 3 y el proptest de `validar_cci` intentan prevenir.
+justo el caso que la regla 3 y el proptest de `validate_cci` intentan prevenir.
 
 ```toml
 [profile.release]
