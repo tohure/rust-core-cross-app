@@ -11,6 +11,7 @@ composeBom = "2026.09.00"
 # JNA: los bindings Kotlin de uniffi corren sobre JNA, no JNI. Sin esto la app
 # compila y revienta en runtime al primer llamado al core.
 jna = "5.14.0"
+coroutinesTest = "1.10.2"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -28,6 +29,9 @@ androidx-compose-ui-test-manifest = { group = "androidx.compose.ui", name = "ui-
 androidx-compose-ui-test-junit4 = { group = "androidx.compose.ui", name = "ui-test-junit4" }
 androidx-compose-material3 = { group = "androidx.compose.material3", name = "material3" }
 jna = { group = "net.java.dev.jna", name = "jna", version.ref = "jna" }
+# collectAsStateWithLifecycle: no lo trae lifecycle-runtime-ktx, es un artefacto aparte.
+androidx-lifecycle-runtime-compose = { group = "androidx.lifecycle", name = "lifecycle-runtime-compose", version.ref = "lifecycleRuntimeKtx" }
+kotlinx-coroutines-test = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-test", version.ref = "coroutinesTest" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

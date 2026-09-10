@@ -14,6 +14,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import dev.tohure.android_rust_test.AppContainer
+import dev.tohure.android_rust_test.ui.arithmetic.ArithmeticScreen
+import dev.tohure.android_rust_test.ui.arithmetic.ArithmeticViewModel
 import dev.tohure.android_rust_test.ui.components.CoreVersionFooter
 
 /**
@@ -63,7 +65,9 @@ fun BancoApp(container: AppContainer) {
     ) { padding ->
         Column(Modifier.padding(padding)) {
             when (current) {
-                Tab.Arithmetic -> Text("Aritmética")   // Task 9
+                Tab.Arithmetic -> ArithmeticScreen(
+                    remember { ArithmeticViewModel(container.core, container.messages) },
+                )
                 Tab.Transfer -> Text("Transferencia")  // Task 10
                 Tab.Card -> Text("Tarjeta")            // Task 11
                 Tab.Benchmark -> Text("Benchmark")     // Task 12
