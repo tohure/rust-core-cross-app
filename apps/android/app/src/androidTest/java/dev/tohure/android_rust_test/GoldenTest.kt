@@ -80,6 +80,51 @@ class GoldenTest {
         )
     }
 
+    /**
+     * Ata el asset REAL de `messages.es.json` a las nueve variantes del core.
+     *
+     * Es la única guardia de mensajes que Android necesita y que Rust no puede dar: el golden
+     * de Rust lee el archivo fuente con `include_str!`, mientras que esta app lee el asset que
+     * copió Gradle. Un asset viejo o truncado dejaría a Rust en verde y a las cuatro pantallas
+     * de error mostrando cosas distintas.
+     *
+     * Los nueve nombres no se tipean acá: salen de `contractName()` sobre las nueve variantes
+     * construidas de verdad, así que renombrar una en el core mueve esta lista sola.
+     */
+    @Test
+    fun theMessagesAssetCoversTheNineErrorVariants() {
+        val assets = InstrumentationRegistry.getInstrumentation().context.assets
+        val node = JSONObject(assets.open("messages.es.json").bufferedReader().use { it.readText() })
+            .getJSONObject("mensajes")
+
+        val variants = listOf(
+            DomainException.Length("cci", 20u, 18u),
+            DomainException.CheckDigit(),
+            DomainException.UnknownBank("999"),
+            DomainException.InvalidAmount("cero"),
+            DomainException.AccountNotFound("ACC-1"),
+            DomainException.SameAccount(),
+            DomainException.InsufficientFunds("1.00", "2.00"),
+            DomainException.Encryption("nonce inválido"),
+            DomainException.OutOfRange("monto"),
+        )
+        assertEquals("el core tiene nueve variantes de error", 9, variants.size)
+
+        for (variant in variants) {
+            val name = variant.contractName()
+            assertTrue(
+                "contracts/messages.es.json no tiene el mensaje de `$name`: esa pantalla de " +
+                    "error quedaría distinta en cada una de las cuatro apps",
+                node.has(name),
+            )
+            assertTrue(
+                "el mensaje de `$name` está vacío: en pantalla eso es un cuadro de error en " +
+                    "blanco, que es exactamente el fallo que este archivo existe para evitar",
+                node.getString(name).isNotBlank(),
+            )
+        }
+    }
+
     // ── Los cinco grupos ──────────────────────────────────────────────────────
 
     @Test
