@@ -5,12 +5,14 @@
 //! justo el fallo que la POC existe para hacer visible.
 //!
 //! Este archivo lo van a espejar Kotlin, Swift y TypeScript, así que las guardias valen
-//! por cuatro. Son tres, en orden de cercanía al caso:
+//! por cuatro. Son cuatro, en orden de cercanía al caso:
 //!
 //! - cada `golden_*` cuenta los casos que ejercitó y lo aserta al cerrar, así que un
 //!   grupo vaciado hace fallar al test que lo lee y no solo a una tabla lejana;
 //! - `the_contract_has_the_expected_number_of_cases` fija el tamaño de cada grupo;
-//! - `the_contract_has_no_unknown_top_level_keys` fija qué grupos existen.
+//! - `the_contract_has_no_unknown_top_level_keys` fija qué grupos existen;
+//! - los tres tests `*_messages_*` atan `contracts/messages.es.json` a las nueve variantes
+//!   del core y a los nombres de error que usa `cases.json`.
 //!
 //! Todas responden al mismo fallo: un `for` sobre cero elementos no aserta nada, y un
 //! test que no compara ningún string igual reporta éxito.
@@ -23,8 +25,92 @@ use std::collections::BTreeSet;
 // recompilar, y no hay I/O en tiempo de ejecución.
 const CASES: &str = include_str!("../../../../contracts/cases.json");
 
+// El segundo archivo del contrato: los mensajes de usuario. Vive aparte de `cases.json`
+// porque los mensajes NO cruzan el FFI y los redacta la capa de UI de cada app, no el core.
+const MESSAGES: &str = include_str!("../../../../contracts/messages.es.json");
+
 fn contract() -> Value {
     serde_json::from_str(CASES).expect("cases.json debe ser JSON válido")
+}
+
+fn messages() -> Value {
+    serde_json::from_str(MESSAGES).expect("messages.es.json debe ser JSON válido")
+}
+
+/// Las claves del objeto `mensajes` de `contracts/messages.es.json`.
+fn message_keys(m: &Value) -> BTreeSet<String> {
+    m["mensajes"]
+        .as_object()
+        .unwrap_or_else(|| panic!("falta el objeto `mensajes` en messages.es.json: {m}"))
+        .keys()
+        .cloned()
+        .collect()
+}
+
+/// No calcula nada: existe para que el **compilador** cuente las variantes.
+///
+/// El `match` es exhaustivo y **sin rama por defecto**, así que agregar una décima variante
+/// al core rompe la compilación de este archivo. Ese es justamente el punto: sin él, la
+/// lista de `contract_error_names` quedaría corta en silencio, las nueve entradas de
+/// `messages.es.json` seguirían cuadrando, y la variante nueva llegaría a las cuatro apps
+/// sin mensaje de usuario — que es el agujero que este archivo existe para tapar. Es la
+/// misma técnica que `rust-core/README.md` le exige al mapeo de las cuatro apps.
+fn every_variant_is_listed(e: &DomainError) {
+    match e {
+        DomainError::Length { .. }
+        | DomainError::CheckDigit
+        | DomainError::UnknownBank { .. }
+        | DomainError::InvalidAmount { .. }
+        | DomainError::AccountNotFound { .. }
+        | DomainError::SameAccount
+        | DomainError::InsufficientFunds { .. }
+        | DomainError::Encryption { .. }
+        | DomainError::OutOfRange { .. } => {}
+    }
+}
+
+/// Los nueve nombres del contrato, **derivados de `contract_name()`** sobre las nueve
+/// variantes reales y no tipeados a mano: renombrar `"Cifrado"` en el core mueve esta
+/// lista sola, y la guardia de abajo lo reporta como "falta Cifrado" en vez de pasar en
+/// verde. Es la misma técnica que `the_domain_error_translates_preserving_its_name`.
+fn contract_error_names() -> BTreeSet<String> {
+    let variants = [
+        DomainError::Length {
+            field: "cci".into(),
+            expected: 20,
+            received: 18,
+        },
+        DomainError::CheckDigit,
+        DomainError::UnknownBank { code: "999".into() },
+        DomainError::InvalidAmount {
+            detail: "cero".into(),
+        },
+        DomainError::AccountNotFound { id: "ACC-1".into() },
+        DomainError::SameAccount,
+        DomainError::InsufficientFunds {
+            available: "1.00".into(),
+            required: "2.00".into(),
+        },
+        DomainError::Encryption {
+            detail: "nonce inválido".into(),
+        },
+        DomainError::OutOfRange {
+            field: "monto".into(),
+        },
+    ];
+    variants.iter().for_each(every_variant_is_listed);
+    let names: BTreeSet<String> = variants
+        .iter()
+        .map(|v| v.contract_name().to_string())
+        .collect();
+    assert_eq!(
+        names.len(),
+        9,
+        "el core tiene nueve variantes de error: si acá salen {}, alguna quedó sin \
+         construir o dos comparten `contract_name()`",
+        names.len()
+    );
+    names
 }
 
 fn field(v: &Value, k: &str) -> String {
@@ -156,6 +242,136 @@ fn the_contract_has_no_unknown_top_level_keys() {
         "las claves de primer nivel de cases.json no son las conocidas — sobran: {extra:?}, \
          faltan: {missing:?}. Si es un grupo de casos nuevo, no alcanza con agregarlo al \
          contrato: necesita su propia función `golden_*` acá y en las otras tres plataformas"
+    );
+}
+
+/// Guardia de forma del **segundo** archivo del contrato, `contracts/messages.es.json`.
+///
+/// Mismo criterio que `the_contract_has_no_unknown_top_level_keys` para `cases.json`: una
+/// clave nueva que ninguna plataforma lea es una parte del contrato que nadie verifica, y
+/// una renombrada se lee de un vistazo si se reportan juntas las que sobran y las que
+/// faltan.
+#[test]
+fn the_messages_file_has_the_expected_shape() {
+    // Cinco claves de primer nivel: cuatro de metadatos y el objeto `mensajes`.
+    const KNOWN: [&str; 5] = ["version", "idioma", "_nota", "_placeholders", "_fuente"];
+
+    let m = messages();
+    assert_eq!(field(&m, "version"), "1.0.0");
+    assert_eq!(field(&m, "idioma"), "es");
+
+    let actual: BTreeSet<&str> = m
+        .as_object()
+        .expect("messages.es.json debe ser un objeto JSON")
+        .keys()
+        .map(String::as_str)
+        .collect();
+    let known: BTreeSet<&str> = KNOWN.into_iter().chain(["mensajes"]).collect();
+    let extra: Vec<&str> = actual.difference(&known).copied().collect();
+    let missing: Vec<&str> = known.difference(&actual).copied().collect();
+    assert!(
+        extra.is_empty() && missing.is_empty(),
+        "las claves de primer nivel de messages.es.json no son las conocidas — sobran: \
+         {extra:?}, faltan: {missing:?}"
+    );
+}
+
+/// La guardia que hace que `contracts/messages.es.json` valga más que una convención
+/// escrita: sus claves son **exactamente** los nueve nombres del contrato, ni una más ni
+/// una menos.
+///
+/// Los nueve no están tipeados acá: salen de `contract_name()` sobre las nueve variantes
+/// reales (ver `contract_error_names`). Así, agregar una décima variante al core deja el
+/// archivo corto y este test lo dice nombrándola, en vez de que se descubra el día de la
+/// demo con un cuadro de error en blanco — que es justo lo que pasa hoy si una app muestra
+/// `e.message`: uniffi devuelve el string vacío para las variantes sin campos.
+///
+/// El chequeo de "no vacío" no es decorativo por lo mismo: una entrada presente pero con
+/// `""` pasaría la igualdad de conjuntos y volvería a producir la pantalla en blanco.
+#[test]
+fn the_messages_file_covers_the_nine_error_variants() {
+    let m = messages();
+    let present = message_keys(&m);
+    let expected = contract_error_names();
+
+    let extra: Vec<&String> = present.difference(&expected).collect();
+    let missing: Vec<&String> = expected.difference(&present).collect();
+    assert!(
+        extra.is_empty() && missing.is_empty(),
+        "contracts/messages.es.json no cubre las nueve variantes del core — sobran: \
+         {extra:?}, faltan: {missing:?}. Agregar una variante de error al core obliga a \
+         agregarle su mensaje de usuario acá, en el mismo cambio"
+    );
+
+    for name in &expected {
+        let text = m["mensajes"][name]
+            .as_str()
+            .unwrap_or_else(|| panic!("el mensaje de `{name}` no es un string"));
+        assert!(
+            !text.trim().is_empty(),
+            "el mensaje de `{name}` está vacío: en pantalla eso es un cuadro de error en \
+             blanco, que es exactamente el fallo que este archivo existe para evitar"
+        );
+    }
+}
+
+/// El otro sentido de la misma guardia, y el que ata los dos archivos del contrato: todo
+/// nombre de error que `cases.json` espera tiene su mensaje de usuario en
+/// `messages.es.json`.
+///
+/// La igualdad de conjuntos de arriba ya lo implica hoy, porque los nombres de `cases.json`
+/// son un subconjunto de los nueve. Este test existe igual porque **no compara contra los
+/// nueve sino contra lo que el contrato usa de verdad**, y ese es el recorrido que Kotlin,
+/// Swift y TypeScript pueden espejar sin tener acceso a `contract_name()`. Lleva contador,
+/// como los `golden_*`: sin él, un `cases.json` sin casos de error pasaría en verde.
+#[test]
+fn every_error_name_in_the_contract_has_a_user_message() {
+    // Los diez casos con `error` del contrato v2.3.0, sobre seis nombres distintos:
+    // 3 DigitoControl, 2 Longitud, 2 MontoInvalido, y uno de CuentaNoEncontrada,
+    // MismaCuenta y SaldoInsuficiente. Los otros tres nombres —BancoDesconocido, Cifrado
+    // y FueraDeRango— no tienen caso en el contrato, y para ellos la guardia es la de
+    // arriba.
+    const EXPECTED_ERROR_CASES: usize = 10;
+    const EXPECTED_DISTINCT_NAMES: usize = 6;
+
+    let available = message_keys(&messages());
+    let d = contract();
+    let mut checked = 0;
+    let mut seen: BTreeSet<String> = BTreeSet::new();
+
+    // Se recorren TODOS los grupos, no una lista fija: un grupo nuevo con casos de error
+    // entra solo en el chequeo.
+    for (group, value) in d.as_object().expect("cases.json debe ser un objeto JSON") {
+        let Some(cases) = value.as_array() else {
+            continue;
+        };
+        for case in cases {
+            let Some(name) = case["error"].as_str() else {
+                continue;
+            };
+            let id = field(case, "id");
+            assert!(
+                available.contains(name),
+                "el caso `{id}` del grupo `{group}` espera el error `{name}` y \
+                 contracts/messages.es.json no tiene su mensaje de usuario: esa pantalla \
+                 de error quedaría distinta en cada una de las cuatro apps"
+            );
+            seen.insert(name.to_string());
+            checked += 1;
+        }
+    }
+
+    assert_eq!(
+        checked, EXPECTED_ERROR_CASES,
+        "se recorrieron {checked} casos con `error` y el contrato declara \
+         {EXPECTED_ERROR_CASES}"
+    );
+    assert_eq!(
+        seen.len(),
+        EXPECTED_DISTINCT_NAMES,
+        "los casos con `error` usan {} nombres distintos y se esperaban \
+         {EXPECTED_DISTINCT_NAMES}: {seen:?}",
+        seen.len()
     );
 }
 
