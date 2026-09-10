@@ -146,7 +146,7 @@ construyó, así que hay que regenerar los cuatro desde el mismo HEAD antes de l
 
 **Fases 0 y 1 completadas. El núcleo existe y funciona; no hay todavía ninguna app.**
 `rust-core/` tiene dos crates —`domain` (Rust puro, siete módulos) y `ffi` (paquete
-`core_financiero`, la fachada uniffi)— con ~1930 líneas de Rust, **59 tests en verde** y el
+`core_financiero`, la fachada uniffi)— con ~1930 líneas de Rust, **67 tests en verde** y el
 **test golden pasando 28/28** contra `contracts/cases.json` **v2.3.0**. Los bindings Kotlin
 y Swift se generaron y se verificó que las nueve funciones cruzan la frontera.
 
@@ -200,8 +200,8 @@ El orden no es negociable: lo impone el grafo de dependencias de build de arriba
   [recorte de alcance](docs/superpowers/specs/2026-09-08-scope-simplification-design.md)).
 - **Fase 1 — `rust-core`.** ✅ **Completada.** Workspace y los dos crates: `domain` (Rust
   puro, con los módulos `arithmetic`, `card`, `cci`, `crypto`, `error`, `itf`, `transfer`) y
-  `ffi` (paquete `core_financiero`, la fachada uniffi). Entregó **59 tests en verde** —42
-  unitarios de `domain`, 6 de `proptest`, 3 del lib de `ffi` y 8 del golden— y el **golden
+  `ffi` (paquete `core_financiero`, la fachada uniffi). Entregó **67 tests en verde** —47
+  unitarios de `domain`, 6 de `proptest`, 3 del lib de `ffi` y 11 del golden— y el **golden
   28/28** contra `cases.json` v2.3.0, sin haber corregido un solo valor esperado para que
   pasara. El contrato subió de v2.1.0 a v2.3.0 durante la fase: la v2.2.0 agregó `itf-005`,
   el único caso que distingue `MidpointAwayFromZero` de banker's rounding (los cuatro casos
@@ -284,7 +284,7 @@ y cada instalación se verifica antes de seguir.
 | Fase | Se agrega | Verificación |
 |---|---|---|
 | 0 | `rustup` + stable + clippy + rustfmt — ✅ **hecho** (1.98.1) | `cargo --version` |
-| 1 | nada — ✅ **hecho** (crates puros, se testean en el host) | `cargo test --workspace` → 54 passed |
+| 1 | nada — ✅ **hecho** (crates puros, se testean en el host) | `cargo test --workspace` → 67 passed |
 | 2 | `cargo install cargo-ndk` + 3 targets Android | `cargo ndk --version` |
 | 3 | 2 targets iOS (`aarch64-apple-ios`, `-sim`) | `rustup target list --installed` |
 | 4 | `uniffi-bindgen-react-native` en `apps/react-native` | `npx ubrn --version` |
@@ -294,10 +294,10 @@ Los comandos exactos están en el plan de cada fase.
 
 ```bash
 # Desarrollo del core (desde rust-core/)
-cargo test --workspace              # todo: 59 tests
+cargo test --workspace              # todo: 67 tests
 cargo test -p domain                # un solo crate, sin compilar uniffi
 cargo test -p domain rounds_half_away_from_zero_not_to_even   # un solo test por nombre
-cargo test -p core_financiero --test golden       # solo los vectores de cases.json
+cargo test -p core_financiero --test golden       # los vectores y las guardias del contrato
 cargo clippy --workspace --all-targets -- -D warnings
 cargo fmt --all
 ```
