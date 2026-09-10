@@ -75,6 +75,13 @@ export const core = {
 Los errores llegan como excepciones tipadas. Captúralas en la pantalla y
 mapea a mensaje de usuario ahí, no en el adapter.
 
+**El `message` del binding es diagnóstico, nunca texto de usuario**: uniffi no
+usa los `#[error("...")]` en español del core, arma el mensaje con los campos de
+la variante y lo deja vacío para las que no tienen campos (`CheckDigit`,
+`SameAccount`). Los nueve textos de usuario, iguales en las cuatro apps, están
+en la tabla de [rust-core/README.md](../../rust-core/README.md) — "Los mensajes
+de error en español NO cruzan el FFI".
+
 ## Formateo
 
 `Intl.NumberFormat("es-PE", { style: "currency", currency: "PEN" })` recibe el

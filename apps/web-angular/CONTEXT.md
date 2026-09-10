@@ -45,6 +45,17 @@ export class CoreFinancieroService {
 Usa un `APP_INITIALIZER` para precargar el módulo al arranque, de modo que las
 pantallas no tengan que esperar en la primera interacción.
 
+## Errores
+
+Los errores del core llegan como excepciones tipadas; se mapean a mensaje de
+usuario en el componente, no en el servicio. **El `message` del binding es
+diagnóstico, nunca texto de usuario**: uniffi no usa los `#[error("...")]` en
+español del core, arma el mensaje con los campos de la variante y lo deja vacío
+para las que no tienen campos (`CheckDigit`, `SameAccount`). Los nueve textos de
+usuario, iguales en las cuatro apps, están en la tabla de
+[rust-core/README.md](../../rust-core/README.md) — "Los mensajes de error en
+español NO cruzan el FFI".
+
 ## Configuración del build
 
 El `.wasm` debe servirse con MIME `application/wasm`. Con el builder de

@@ -78,6 +78,13 @@ Reglas:
 2. Para comparar u ordenar en la UI, usa `Decimal` de Foundation.
 3. Los `DomainError` llegan como `Error` de Swift; captúralos con `do/catch`
    en la vista y traduce ahí el mensaje de usuario.
+   **`localizedDescription` es diagnóstico, nunca texto de usuario**: el binding
+   lo define como `String(reflecting: self)`, o sea el volcado de debug del enum
+   (`DomainError.CheckDigit`), y no coincide ni con los `#[error("...")]` en
+   español del core ni con lo que produce Kotlin. Los nueve textos de usuario,
+   iguales en las cuatro apps, están en la tabla de
+   [rust-core/README.md](../../rust-core/README.md) — "Los mensajes de error en
+   español NO cruzan el FFI".
 4. Llamadas síncronas. No las envuelvas en `Task` salvo en el benchmark.
 
 ## Formateo

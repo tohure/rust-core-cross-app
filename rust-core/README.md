@@ -308,6 +308,120 @@ código de producción.** No es duplicación silenciosa: si divergen, el golden 
 falla contra el contrato. Esa es exactamente la garantía que el contrato compartido existe
 para dar.
 
+**Ese mapeo va exhaustivo y sin rama por defecto.** El `when` de Kotlin sobre la
+`sealed class DomainException` y el `switch` de Swift sobre el `enum DomainError` cubren las
+nueve variantes **una por una, sin `else` y sin `default`** — y en Kotlin el `when` tiene que
+ser una *expresión* (asignada o devuelta), porque solo así el compilador exige exhaustividad.
+La razón es lo que pasa cuando el core crece: agregar una décima variante tiene que **romper
+la compilación de los cuatro goldens**, que es un fallo ruidoso y ubicado, en vez de caer en
+un `"Desconocido"` que compila, pasa en verde y solo se descubre el día de la demo, cuando
+una app muestra un error que las otras tres no. En TypeScript no hay exhaustividad del
+compilador de por sí: se consigue con un `default` que asigne a `never`
+(`const _exhaustive: never = variante`), que es la forma de que `tsc` falle igual.
+
+## Los mensajes de error en español NO cruzan el FFI
+
+Es el segundo agujero de la misma familia que el anterior, y es peor porque no se ve. Los
+nueve `#[error("...")]` de `crates/ffi/src/lib.rs` están en español y **no llegan a ninguna
+app**: uniffi no usa el `Display` de `thiserror`, arma el mensaje él mismo a partir de los
+campos de la variante. Verificado sobre los bindings generados:
+
+```bash
+for m in "longitud inválida" "dígito de control inválido" "banco no reconocido" \
+         "monto inválido" "cuenta no encontrada" "origen y destino" \
+         "saldo insuficiente" "error de cifrado" "parámetro fuera de rango"; do
+  printf "%-32s %s\n" "$m" \
+    "$(grep -c "$m" target/bindings-smoke/kotlin/uniffi/core_financiero/core_financiero.kt)"
+done
+```
+
+Qué se debe ver — **`0` en las nueve líneas**. Lo que el binding Kotlin genera en su lugar
+se lee con
+`sed -n '/sealed class DomainException/,/^}/p' target/bindings-smoke/kotlin/uniffi/core_financiero/core_financiero.kt`,
+y es esto (mismo texto, con los saltos de línea de uniffi colapsados):
+
+```kotlin
+class Length(val `field`: kotlin.String, val `expected`: kotlin.UInt, val `received`: kotlin.UInt) : DomainException() {
+    override val message get() = "field=${ `field` }, expected=${ `expected` }, received=${ `received` }"
+}
+class CheckDigit() : DomainException() {
+    override val message get() = ""
+}
+```
+
+O sea: `e.message` es un volcado de campos en inglés, y para las dos variantes **sin campos**
+—`CheckDigit` y `SameAccount`— es **el string vacío**. `CheckDigit` es el error más frecuente
+de las pantallas de validación de CCI y de tarjeta: una app que muestre `e.message` va a
+mostrar un cuadro de error en blanco.
+
+Y no es que Swift arregle nada: ahí el binding define
+`errorDescription = String(reflecting: self)`, o sea la representación de **debug** del enum,
+que además es distinta de la de Kotlin. Se comprueba recortando el enum generado y
+ejecutándolo tal cual, sin Xcode ni FFI de por medio:
+
+```bash
+{ echo 'import Foundation'
+  sed -n '/^enum DomainError/,/^}$/p' target/bindings-smoke/swift/core_financiero.swift
+  echo 'print("CheckDigit ->", (DomainError.CheckDigit as Error).localizedDescription)'
+  echo 'print("Length     ->", (DomainError.Length(field: "cci", expected: 20, received: 18) as Error).localizedDescription)'
+} > /tmp/DomainErrorProbe.swift
+swift /tmp/DomainErrorProbe.swift
+```
+
+Qué se debe ver — el nombre del tipo, no una frase; el prefijo es el nombre del módulo
+Swift, que en la app va a ser el suyo:
+
+```
+CheckDigit -> DomainErrorProbe.DomainError.CheckDigit
+Length     -> DomainErrorProbe.DomainError.Length(field: "cci", expected: 20, received: 18)
+```
+
+Nótese que Kotlin y Swift no coinciden **ni siquiera en el diagnóstico**: para `Length`,
+Kotlin da `field=cci, expected=20, received=18` y Swift da el volcado del enum. Dos apps que
+muestren `message` van a mostrar dos cosas distintas.
+
+**Regla, entonces: `e.message` / `errorDescription` es diagnóstico —para el log y el
+stacktrace—, nunca texto de usuario.** Si cada app redacta su propio texto, las cuatro
+pantallas de error no van a coincidir puestas lado a lado, y las pantallas de error son la
+única parte del sistema donde la paridad no la garantiza `cases.json`: el contrato comparte
+los **nombres** de las variantes, no sus **mensajes**.
+
+### La tabla que las cuatro apps copian
+
+Estos nueve strings son normativos igual que los labels de las pantallas: si se cambia uno,
+se cambia en las cuatro apps. Están derivados de los `#[error(...)]` del core, pero
+reescritos como texto de usuario — el `#[error]` es un diagnóstico para quien lee un log.
+
+| Variante | Mensaje de usuario |
+|---|---|
+| `Length` | `El número ingresado no tiene la cantidad de dígitos correcta.` |
+| `CheckDigit` | `El número ingresado no es válido: no pasa el dígito de control.` |
+| `UnknownBank` | `No reconocemos el banco del código {code}.` |
+| `InvalidAmount` | `El monto ingresado no es válido.` |
+| `AccountNotFound` | `No encontramos la cuenta {id}.` |
+| `SameAccount` | `La cuenta de origen y la de destino son la misma.` |
+| `InsufficientFunds` | `Saldo insuficiente: tenés {available} y se necesitan {required}.` |
+| `Encryption` | `No se pudo cifrar los datos de la tarjeta.` |
+| `OutOfRange` | `El valor de {field} está fuera del rango permitido.` |
+
+Cuatro detalles que hacen la diferencia entre que esto funcione y que no:
+
+1. **Los cuatro placeholders se interpolan crudos, tal como los devuelve el core.** Los
+   montos de `InsufficientFunds` **no** pasan por `NumberFormat` / `Intl.NumberFormat` acá:
+   los formateadores de moneda de Android, iOS y el navegador no coinciden entre sí (`S/`,
+   `S/.`, `PEN`, separador de miles), y una diferencia ahí rompe la comparación carácter por
+   carácter que es toda la tesis. El formateo de moneda se queda en las pantallas de montos,
+   no en los mensajes de error.
+2. **`Length` no nombra un número a propósito.** El campo `expected` vale
+   `TYPICAL_LENGTH = 16` para `tarjeta`, pero el rango real que el core acepta es 13-19 (una
+   Amex válida tiene 15). Decir "se esperaban 16 dígitos" sería mentir en el caso de Amex, así
+   que el mensaje de usuario no promete ninguna cantidad. `expected` y `received` siguen
+   estando en el objeto de error, para el log.
+3. **`Encryption` y `OutOfRange` no tienen caso en `cases.json`**, así que ningún golden los
+   compara: para estos dos, esta tabla es la única fuente de verdad que existe.
+4. **`{field}` de `OutOfRange` llega en español desde el core** (`"marca"`, `"monto"`), igual
+   que `{code}` e `{id}`. No hay que traducirlo.
+
 ## `core_version()` congela el SHA del build
 
 `core_version()` devuelve `<semver>+<sha corto de git>`, con el SHA inyectado por `build.rs`

@@ -61,6 +61,13 @@ Reglas de la capa adapter:
 3. Los `DomainException` del core (así lo nombra el binding Kotlin) se mapean a
    mensajes de usuario en la capa de
    UI, no en el adapter. El adapter propaga el error tal cual.
+   **`e.message` es diagnóstico, nunca texto de usuario**: uniffi no usa los
+   `#[error("...")]` en español del core, arma el mensaje con los campos de la
+   variante (`"field=cci, expected=20, received=18"`) y devuelve **string
+   vacío** para `CheckDigit` y `SameAccount`, que no tienen campos. Los nueve
+   textos de usuario, iguales en las cuatro apps, están en la tabla de
+   [rust-core/README.md](../../rust-core/README.md) — "Los mensajes de error en
+   español NO cruzan el FFI".
 4. Las llamadas al core son síncronas y rápidas (microsegundos). No las metas
    en corrutinas ni en `Dispatchers.IO`, excepto en la pantalla de benchmark.
 
