@@ -897,6 +897,11 @@ class GoldenTest {
             val id = c.getString("id")
             if (c.getBoolean("valido")) {
                 val expected = c.getJSONObject("esperado")
+                assertExactFields(
+                    expected,
+                    setOf("codigo_banco", "nombre_banco", "oficina", "cuenta"),
+                    "caso $id",
+                )
                 val actual = validateCci(c.getString("entrada"))
                 assertEquals("caso $id codigo_banco", expected.getString("codigo_banco"), actual.bankCode)
                 assertEquals("caso $id nombre_banco", expected.getString("nombre_banco"), actual.bankName)
@@ -920,6 +925,7 @@ class GoldenTest {
             val id = c.getString("id")
             if (c.getBoolean("valido")) {
                 val expected = c.getJSONObject("esperado")
+                assertExactFields(expected, setOf("marca", "enmascarado", "cifrado_hex"), "caso $id")
                 val card = validateCard(c.getString("entrada"))
                 assertEquals("caso $id marca", expected.getString("marca"), card.brand)
                 assertEquals("caso $id enmascarado", expected.getString("enmascarado"), card.masked)
@@ -953,6 +959,11 @@ class GoldenTest {
             )
             if (c.getBoolean("valido")) {
                 val expected = c.getJSONObject("esperado")
+                assertExactFields(
+                    expected,
+                    setOf("cuentas", "comision_itf", "total_debitado", "comprobante", "latencia_simulada_ms"),
+                    "caso $id",
+                )
                 val r = executeTransfer(initial, request)
                 assertEquals("caso $id comision_itf", expected.getString("comision_itf"), r.itfFee)
                 assertEquals("caso $id total_debitado", expected.getString("total_debitado"), r.totalDebited)
@@ -966,6 +977,7 @@ class GoldenTest {
                 assertEquals("caso $id cantidad de cuentas", expectedAccounts.length(), r.accounts.size)
                 for (j in 0 until expectedAccounts.length()) {
                     val e = expectedAccounts.getJSONObject(j)
+                    assertExactFields(e, setOf("id", "titular", "saldo"), "caso $id cuenta $j")
                     assertEquals("caso $id cuenta $j id", e.getString("id"), r.accounts[j].id)
                     assertEquals("caso $id cuenta $j titular", e.getString("titular"), r.accounts[j].holder)
                     assertEquals("caso $id cuenta $j saldo", e.getString("saldo"), r.accounts[j].balance)
@@ -987,6 +999,24 @@ class GoldenTest {
             val o = array.getJSONObject(i)
             Account(o.getString("id"), o.getString("titular"), o.getString("saldo"))
         }
+    }
+
+    /**
+     * Espejo de `assert_exact_fields` de `golden.rs:128`. Verifica que un `esperado` traiga
+     * EXACTAMENTE los campos declarados.
+     *
+     * Sin esta guardia, un campo nuevo en el contrato queda sin comparar **en silencio**: los
+     * `getString(...)` de arriba solo leen los campos que ya conocen. El propio mensaje de error
+     * de la versión Rust instruye a espejarla en las otras tres plataformas.
+     */
+    private fun assertExactFields(o: JSONObject, expected: Set<String>, what: String) {
+        val actual = o.keys().asSequence().toSet()
+        assertEquals(
+            "$what: los campos no son los esperados. Un campo nuevo en el contrato necesita " +
+                "su assertEquals acá y en las otras tres plataformas, o queda sin comparar",
+            expected,
+            actual,
+        )
     }
 
     private fun assertThrowsDomain(label: String, block: () -> Unit): DomainException {
@@ -1028,7 +1058,11 @@ décima variante ya rompe la compilación del `when` de `contractName()`.
             DomainException.Encryption("nonce inválido"),
             DomainException.OutOfRange("monto"),
         )
-        assertEquals("el core tiene nueve variantes de error", 9, variants.size)
+        // Derivado, NO tipeado: si dos variantes colisionaran en el mismo nombre de contrato
+        // —un copy-paste en el `when` de contractName()— el set se reduce y esto falla. Con
+        // `variants.size` no fallaría nunca, porque la lista literal siempre tiene nueve.
+        val names = variants.map { it.contractName() }.toSet()
+        assertEquals("las nueve variantes deben dar nueve nombres distintos", 9, names.size)
 
         for (variant in variants) {
             val name = variant.contractName()
