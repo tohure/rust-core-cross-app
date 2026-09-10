@@ -244,6 +244,60 @@ mod tests {
         assert_eq!(e.contract_name(), "MontoInvalido");
     }
 
+    /// El contracara de `tr-007`, y el falso positivo que el chequeo original tenía:
+    /// `"1.000"` vale exactamente 1 y se representa exacto con 2 decimales, así que la
+    /// transferencia **debe** salir bien. Con `Decimal::scale()` literal daba
+    /// `MontoInvalido` por tres ceros a la derecha que no cambian nada.
+    ///
+    /// Los esperados salen de la fórmula normativa de contracts/README.md:
+    ///   comision = redondear2(1.000 * 0.00005) = redondear2(0.00005) = 0.00
+    ///   total    = redondear2(1.000 + 0.00)    = 1.00
+    ///   receipt  = "TRF-9047-1065-" + centavos(1.000) = "TRF-9047-1065-100"
+    ///   latencia = 250 + min(1, 500) = 251
+    #[test]
+    fn an_amount_with_harmless_trailing_zeros_is_accepted() {
+        let r = execute_transfer(
+            accounts(),
+            request("00219100123456789047", "01122000987654321065", "1.000"),
+        )
+        .unwrap();
+
+        // Toda salida sale con exactamente 2 decimales, sin rastro de la escala de entrada.
+        assert_eq!(r.accounts[0].balance, "4999.00");
+        assert_eq!(r.accounts[1].balance, "1201.50");
+        assert_eq!(r.itf_fee, "0.00");
+        assert_eq!(r.total_debited, "1.00");
+        assert_eq!(r.receipt, "TRF-9047-1065-100");
+        assert_eq!(r.simulated_latency_ms, 251);
+    }
+
+    /// Y lo mismo del lado de los saldos: un saldo escrito `"5000.000"` es el mismo saldo.
+    #[test]
+    fn a_balance_with_harmless_trailing_zeros_is_accepted() {
+        let padded = vec![
+            Account {
+                id: "00219100123456789047".into(),
+                holder: "Ana Quispe".into(),
+                balance: "5000.000".into(),
+            },
+            Account {
+                id: "01122000987654321065".into(),
+                holder: "Luis Ramos".into(),
+                balance: "1200.5000".into(),
+            },
+        ];
+        let r = execute_transfer(
+            padded,
+            request("00219100123456789047", "01122000987654321065", "100.00"),
+        )
+        .unwrap();
+
+        // Idénticos a tr-001: los ceros a la derecha no mueven un centavo.
+        assert_eq!(r.accounts[0].balance, "4899.99");
+        assert_eq!(r.accounts[1].balance, "1300.50");
+        assert_eq!(r.total_debited, "100.01");
+    }
+
     /// El otro lado de la misma guardia, este sin caso en el contrato porque los saldos
     /// del contrato son fixture y siempre llegan bien escalados: con `5000.005` y
     /// `0.005` de saldos, la transferencia de `0.001` devolvía `Ok` con saldos
