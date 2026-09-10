@@ -1883,11 +1883,15 @@ En `gradle/libs.versions.toml`:
 ```toml
 coroutinesTest = "1.10.2"
 kotlinx-coroutines-test = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-test", version.ref = "coroutinesTest" }
+# `collectAsStateWithLifecycle()` NO viene en lifecycle-runtime-ktx: vive en este artefacto
+# aparte. Sin él, ninguna pantalla de las Tasks 9-12 compila.
+androidx-lifecycle-runtime-compose = { group = "androidx.lifecycle", name = "lifecycle-runtime-compose", version.ref = "lifecycleRuntimeKtx" }
 ```
 
 En `app/build.gradle.kts`, dentro de `dependencies`:
 
 ```kotlin
+implementation(libs.androidx.lifecycle.runtime.compose)
 testImplementation(libs.kotlinx.coroutines.test)
 ```
 
