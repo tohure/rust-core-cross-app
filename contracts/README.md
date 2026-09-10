@@ -1,11 +1,19 @@
 # contracts/
 
-`cases.json` es el contrato compartido de la POC: un archivo de vectores golden que leen
-las cinco bases de código. Que los mismos casos produzcan los mismos strings en Rust,
-Android, iOS, React Native y Angular **es** la demostración del proyecto.
+El contrato compartido de la POC son **dos archivos**, y los leen las cinco bases de código:
 
-Es un archivo **estático**. No se genera, no se deriva en build time, no tiene script
-detrás. Se edita a mano y se versiona. Esa es toda su mecánica.
+| Archivo | Qué fija | Lo compara |
+|---|---|---|
+| `cases.json` | los vectores golden: entradas y strings esperados | el test golden de cada plataforma |
+| `messages.es.json` | el mensaje de usuario de cada nombre de error | la pantalla de error de cada app |
+
+Que los mismos casos produzcan los mismos strings en Rust, Android, iOS, React Native y
+Angular **es** la demostración del proyecto. `messages.es.json` cubre el único pedazo que
+`cases.json` no puede cubrir: los nombres de error se comparten, los **mensajes** no cruzan
+el FFI (ver abajo).
+
+Los dos son archivos **estáticos**. No se generan, no se derivan en build time, no tienen
+script detrás. Se editan a mano y se versionan. Esa es toda su mecánica.
 
 ## Datos dummy
 
@@ -34,6 +42,10 @@ centavos — que es exactamente el fallo que la POC existe para hacer visible.
 | `apps/ios` | agregar al bundle del test target | `XCTest` |
 | `apps/react-native` | `../../contracts/cases.json` | Jest |
 | `apps/web-angular` | `../../contracts/cases.json` | spec de Angular |
+
+`messages.es.json` viaja por el mismo camino, con una diferencia: en las apps **no es solo
+un archivo de test**, porque de él sale el texto que se pinta en la pantalla de error. En
+`rust-core` sí es solo de test — el core no devuelve mensajes de usuario.
 
 ## Especificación de los algoritmos
 
@@ -194,6 +206,97 @@ el hex exacto **y** el roundtrip `decrypt(encrypt(x)) == x`.
 `cuentas_iniciales` trae el estado de partida de las transferencias: las mismas dos cuentas
 en las cuatro apps, para que la comparación lado a lado sea limpia.
 
+## `messages.es.json` — los mensajes de error
+
+### Qué es y por qué existe aparte
+
+`cases.json` comparte los **nombres** de las variantes de error (`"MismaCuenta"`,
+`"DigitoControl"`), y el golden de cada plataforma los compara por igualdad exacta. Los
+**mensajes**, en cambio, no cruzan el FFI: uniffi no usa el `Display` de `thiserror`, arma
+el `message` a partir de los campos de la variante (en Kotlin, `Length` sale como
+`field=cci, expected=20, received=18`) y devuelve **el string vacío** para las variantes sin
+campos, como `CheckDigit`. En Swift el texto es `String(reflecting: self)`, o sea el volcado
+de debug del enum, distinto del de Kotlin. Verificado sobre los bindings generados; el
+detalle y los comandos están en [rust-core/README.md](../rust-core/README.md).
+
+Consecuencia: sin este archivo, la POC probaría que las cuatro apps producen los mismos
+montos y los mismos nombres de error, pero **las cuatro pantallas de error mostrarían textos
+distintos** — y una de ellas, un cuadro en blanco. Es el único lugar del sistema donde la
+paridad no la garantizaba nada.
+
+Los mensajes **no los devuelve Rust** a propósito: `CLAUDE.md` pone el mapeo a mensaje de
+usuario en la capa de UI, el core solo propaga `DomainError`. El beneficio práctico es que
+un segundo idioma es otro archivo (`messages.en.json`) y no un cambio al core ni una
+recompilación de los cuatro artefactos.
+
+### Forma del archivo
+
+```
+version         semver propio, independiente del de cases.json
+idioma          "es"
+_nota           qué es y por qué los mensajes no salen del core
+_placeholders   la regla de interpolación (abajo)
+_fuente         de dónde salió el texto
+mensajes        objeto: nombre del contrato -> mensaje de usuario
+```
+
+`mensajes` trae **exactamente las nueve variantes** de `DomainError`, ni una más ni una
+menos: `Longitud`, `DigitoControl`, `BancoDesconocido`, `MontoInvalido`,
+`CuentaNoEncontrada`, `MismaCuenta`, `SaldoInsuficiente`, `Cifrado` y `FueraDeRango`. Son
+las mismas claves que devuelve `DomainError::contract_name()` y las mismas que aparecen en
+el campo `error` de `cases.json`.
+
+Es texto de **usuario**, no diagnóstico: se lee en una pantalla de banco. El `message` de
+Kotlin y el `errorDescription` de Swift son para el log y el stacktrace, nunca para pintar.
+
+A diferencia de `cases.json`, este archivo **lleva acentos** — es español de UI. Se lee como
+UTF-8 en las cinco bases de código; leerlo como Latin-1 rompe la comparación carácter por
+carácter.
+
+### La regla de interpolación
+
+Cuatro de los nueve mensajes traen marcadores entre llaves: `{code}`, `{id}`, `{available}`,
+`{required}` y `{field}`. Se interpolan **crudos, tal como los devuelve el core**.
+
+Nada de `NumberFormat` ni de `Intl.NumberFormat` sobre los montos de `SaldoInsuficiente`:
+los formateadores de moneda de Android, iOS y el navegador no coinciden entre sí (`S/`,
+`S/.`, `PEN`, separador de miles) y una diferencia ahí rompe la comparación carácter por
+carácter que es toda la tesis. El formateo de moneda vive en las pantallas de montos.
+
+`{field}` y `{code}` llegan en español desde el core (`"marca"`, `"monto"`, `"002"`): no hay
+que traducirlos.
+
+### La guardia que lo sostiene
+
+`rust-core/crates/ffi/tests/golden.rs` lo ata en tres tests, y las otras tres plataformas
+los espejan:
+
+- `the_messages_file_has_the_expected_shape` — las claves de primer nivel son las conocidas;
+- `the_messages_file_covers_the_nine_error_variants` — las claves de `mensajes` son
+  exactamente los nueve `contract_name()`, ninguna vacía. Los nueve no están tipeados en el
+  test: salen de las nueve variantes reales, y un `match` exhaustivo sin rama por defecto
+  hace que agregar una décima **rompa la compilación** del golden;
+- `every_error_name_in_the_contract_has_a_user_message` — todo nombre que `cases.json` espera
+  tiene su mensaje, reportando el id del caso que se quedaría sin texto.
+
+Verificado por mutación: sacar `Cifrado` falla con `faltan: ["Cifrado"]`, agregar una clave
+de más falla con `sobran: [...]`, y vaciar un mensaje falla nombrando la variante.
+
+### Cómo agregar una variante de error
+
+Agregar una variante a `DomainError` obliga, **en el mismo cambio**, a:
+
+1. su brazo en `contract_name()` (el compilador lo exige en `domain` y en `ffi`);
+2. su entrada en `messages.es.json`, con el mensaje de usuario;
+3. su patrón en `every_variant_is_listed` del golden — hasta que esté, el golden no compila;
+4. subir el `version` de `messages.es.json` con el mismo criterio semver de abajo: **minor**
+   al agregar una entrada, **major** al cambiar o borrar el texto de una existente, porque
+   ese texto es normativo para las cuatro pantallas.
+
+Y un caso en `cases.json` que la ejercite, si el error es alcanzable desde la API pública.
+Hoy tres nombres —`BancoDesconocido`, `Cifrado` y `FueraDeRango`— no tienen caso en el
+contrato, así que para ellos este archivo y el test de arriba son la única fuente de verdad.
+
 ## Cómo agregar un caso
 
 1. Id nuevo y estable (`cci-005`). **Nunca recicles ni renumeres ids existentes**: los
@@ -211,3 +314,6 @@ en las cuatro apps, para que la comparación lado a lado sea limpia.
 3. Corregir un esperado va **siempre en su propio commit**, con la justificación
    aritmética en el mensaje y sin mezclar cambios al core. Es la única forma de auditar
    después si el contrato se dobló para que pasara el código.
+4. Si el caso nuevo espera un `error` cuyo nombre todavía no está en `messages.es.json`,
+   ese mensaje se agrega en el mismo cambio. El golden lo exige: sin la entrada, el test
+   falla nombrando el id del caso que quedaría con la pantalla de error en blanco.

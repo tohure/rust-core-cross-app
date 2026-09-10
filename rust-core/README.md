@@ -402,6 +402,13 @@ Estos nueve strings son normativos igual que los labels de las pantallas: si se 
 se cambia en las cuatro apps. Están derivados de los `#[error(...)]` del core, pero
 reescritos como texto de usuario — el `#[error]` es un diagnóstico para quien lee un log.
 
+**Y ya no se copian a mano: viven en [`contracts/messages.es.json`](../contracts/messages.es.json)**,
+que las cuatro apps leen igual que `cases.json`, indexados por el nombre del contrato
+(`Longitud`, `DigitoControl`, …) en vez de por el de la variante. Los dos textos son el
+mismo y no pueden divergir: si se cambia uno, se cambia el otro. La guardia está en el
+golden —`the_messages_file_covers_the_nine_error_variants`— y el porqué del archivo, en
+[contracts/README.md](../contracts/README.md).
+
 | Variante | Mensaje de usuario |
 |---|---|
 | `Length` | `El número ingresado no tiene la cantidad de dígitos correcta.` |
