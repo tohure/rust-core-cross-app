@@ -348,17 +348,22 @@ done
 Qué se debe ver — `kotlin:0 swift:0` en las nueve líneas.
 
 Consecuencia práctica, y es lo primero que va a chocar en la Fase 2: **cada app va a
-escribir esas nueve líneas de mapeo variante → nombre del contrato en su test golden, no en
-código de producción.** No es duplicación silenciosa: si divergen, el golden de esa app
-falla contra el contrato. Esa es exactamente la garantía que el contrato compartido existe
-para dar.
+escribir esas nueve líneas de mapeo variante → nombre del contrato.** Y van en código de
+producción, no solo en el test: `contracts/messages.es.json` indexa los mensajes de usuario
+por el nombre del contrato, así que la pantalla de error necesita ese mapeo tanto como el
+golden.
+
+Se escribe **una vez** y el golden reusa ese mismo, en vez de tener el suyo. Compartirlo es
+más fuerte que duplicarlo: así el golden verifica contra `cases.json` el mapeo que la UI usa
+de verdad, y no una copia que puede divergir de ella en silencio. Esa es exactamente la
+garantía que el contrato compartido existe para dar.
 
 **Ese mapeo va exhaustivo y sin rama por defecto.** El `when` de Kotlin sobre la
 `sealed class DomainException` y el `switch` de Swift sobre el `enum DomainError` cubren las
 nueve variantes **una por una, sin `else` y sin `default`** — y en Kotlin el `when` tiene que
 ser una *expresión* (asignada o devuelta), porque solo así el compilador exige exhaustividad.
 La razón es lo que pasa cuando el core crece: agregar una décima variante tiene que **romper
-la compilación de los cuatro goldens**, que es un fallo ruidoso y ubicado, en vez de caer en
+la compilación de las cuatro apps**, que es un fallo ruidoso y ubicado, en vez de caer en
 un `"Desconocido"` que compila, pasa en verde y solo se descubre el día de la demo, cuando
 una app muestra un error que las otras tres no. En TypeScript no hay exhaustividad del
 compilador de por sí: se consigue con un `default` que asigne a `never`
