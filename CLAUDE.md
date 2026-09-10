@@ -144,9 +144,16 @@ construyó, así que hay que regenerar los cuatro desde el mismo HEAD antes de l
 
 ## Estado actual y flujo de trabajo (SDD con superpowers)
 
-**Fase 0 completada; no hay código de producción todavía.** Existen los CONTEXT, este
-CLAUDE.md, la spec + plan de la Fase 0 y el contrato `contracts/cases.json`. Ni una línea
-de Rust, Kotlin, Swift o TypeScript: lo que sigue (Fase 1) es el primer código real.
+**Fases 0 y 1 completadas. El núcleo existe y funciona; no hay todavía ninguna app.**
+`rust-core/` tiene dos crates —`domain` (Rust puro, siete módulos) y `ffi` (paquete
+`core_financiero`, la fachada uniffi)— con ~1930 líneas de Rust, **54 tests en verde** y el
+**test golden pasando 27/27** contra `contracts/cases.json` **v2.2.0**. Los bindings Kotlin
+y Swift se generaron y se verificó que las nueve funciones cruzan la frontera.
+
+Lo que **no** existe todavía: ni una línea de Kotlin, Swift o TypeScript. Lo que sigue
+—Fase 2, `apps/android`— es el primer consumidor real, y el primero que va a ejercitar el
+borde FFI de verdad: el golden de Rust llama a las funciones como funciones Rust ordinarias,
+así que nada cruzó JNI ni el ABI de C todavía.
 
 Este proyecto se desarrolla con **Spec-Driven Development** usando el plugin
 `superpowers`. El flujo por fase es:
@@ -172,6 +179,10 @@ Documentos vigentes:
 - **Skills y gates por fase:** [docs/superpowers/skills-by-phase.md](docs/superpowers/skills-by-phase.md) — qué instalar en cada fase, y los gates de TDD / `/simplify` / seguridad
 - Spec Fase 0: [docs/superpowers/specs/2026-09-08-toolchain-and-contract-design.md](docs/superpowers/specs/2026-09-08-toolchain-and-contract-design.md)
 - Plan Fase 0: [docs/superpowers/plans/2026-09-08-phase-0-toolchain-and-contract.md](docs/superpowers/plans/2026-09-08-phase-0-toolchain-and-contract.md)
+- Spec Fase 1: [docs/superpowers/specs/2026-09-08-phase-1-rust-core-design.md](docs/superpowers/specs/2026-09-08-phase-1-rust-core-design.md) — decisiones D1-D6 del núcleo
+- Plan Fase 1: [docs/superpowers/plans/2026-09-08-phase-1-rust-core.md](docs/superpowers/plans/2026-09-08-phase-1-rust-core.md) — trece tareas, todas completas; su "Estado de ejecución" lista las seis desviaciones respecto del plan original
+- **Cierre de la Fase 1:** [rust-core/README.md](rust-core/README.md) — los comandos efectivamente ejecutados, el diagrama, qué prueba y qué no prueba el golden, y las dos cosas que **no** cruzan el FFI (el mapeo variante → nombre del contrato y los mensajes de error en español)
+- Ledger de ejecución de la Fase 1: `.superpowers/sdd/2026-09-08-phase-1-rust-core/progress.md` — las rulings tarea por tarea y la evidencia de cada review
 
 ## Fases de desarrollo
 
@@ -186,11 +197,16 @@ El orden no es negociable: lo impone el grafo de dependencias de build de arriba
   antes de la Fase 1: fuera el cronograma francés, la TCEA y `validar_ruc`; dentro
   aritmética decimal, transferencia y cifrado de tarjeta (ver
   [recorte de alcance](docs/superpowers/specs/2026-09-08-scope-simplification-design.md)).
-- **Fase 1 — `rust-core`.** Workspace y los dos crates: `domain` (Rust puro, con los
-  módulos `arithmetic`, `card`, `cci`, `crypto`, `error`, `itf`, `transfer`) y `ffi`
-  (paquete `core_financiero`, la fachada uniffi). Dominio y cálculo primero en Rust puro
-  (unitarias + `proptest`), `ffi` al final. Es la única fase donde se decide lógica de
-  negocio.
+- **Fase 1 — `rust-core`.** ✅ **Completada.** Workspace y los dos crates: `domain` (Rust
+  puro, con los módulos `arithmetic`, `card`, `cci`, `crypto`, `error`, `itf`, `transfer`) y
+  `ffi` (paquete `core_financiero`, la fachada uniffi). Entregó **54 tests en verde** —37
+  unitarios de `domain`, 6 de `proptest`, 3 del lib de `ffi` y 8 del golden— y el **golden
+  27/27** contra `cases.json` v2.2.0, sin haber corregido un solo valor esperado para que
+  pasara. El contrato subió de v2.1.0 a v2.2.0 durante la fase: se agregó `itf-005`, el
+  único caso que distingue `MidpointAwayFromZero` de banker's rounding (los cuatro casos de
+  `itf` anteriores **no** lo distinguían, contra lo que afirmaba el comentario del test).
+  Fue la única fase donde se decidió lógica de negocio. Ver
+  [rust-core/README.md](rust-core/README.md).
 - **Fase 2 — `apps/android`.** Primer consumidor: valida el pipeline uniffi + el test
   golden en una plataforma real.
 - **Fase 3 — `apps/ios`.** Espejo funcional de Android.
@@ -263,7 +279,7 @@ y cada instalación se verifica antes de seguir.
 | Fase | Se agrega | Verificación |
 |---|---|---|
 | 0 | `rustup` + stable + clippy + rustfmt — ✅ **hecho** (1.98.1) | `cargo --version` |
-| 1 | nada (crates puros, se testean en host) | `cargo test --workspace` |
+| 1 | nada — ✅ **hecho** (crates puros, se testean en el host) | `cargo test --workspace` → 54 passed |
 | 2 | `cargo install cargo-ndk` + 3 targets Android | `cargo ndk --version` |
 | 3 | 2 targets iOS (`aarch64-apple-ios`, `-sim`) | `rustup target list --installed` |
 | 4 | `uniffi-bindgen-react-native` en `apps/react-native` | `npx ubrn --version` |

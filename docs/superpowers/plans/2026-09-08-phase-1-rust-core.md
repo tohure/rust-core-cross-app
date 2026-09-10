@@ -50,35 +50,104 @@ cambió y por qué.
 
 ## Estado de ejecución
 
-**Última actualización: 2026-09-08.** Plan aprobado. **Ejecución no empezada** — ninguna
-tarea completada, ninguna línea de Rust en el repo. Rama: `feat/phase-1-rust-core`.
+**Última actualización: 2026-09-10.** **Las trece tareas están completas** y los 66 steps
+marcados. Rama: `feat/phase-1-rust-core`, 40 commits sobre `598cbf2`. Lo que quedó en el
+repo: dos crates y ~1930 líneas de Rust, **54 tests en verde**, y el golden pasando **27/27**
+contra `contracts/cases.json` **v2.2.0** sin haber tocado un solo valor esperado para que
+pasara.
 
-**Para retomar:** invocar `superpowers:subagent-driven-development` y arrancar por la
-**Task 1**. Un subagente fresco por tarea, revisión desde la sesión principal entre cada
-una, con este reparto de modelos:
-
-| Tarea | Modelo | Por qué |
+| Tarea | Estado | Commits |
 |---|---|---|
-| 1 · Contrato v2.1.0 | **Opus** | Toca valores esperados. El atajo peligroso es doblar el contrato para que pase el código, y en review es casi invisible. |
-| 2 · Workspace y error | Sonnet | Código literal en el plan, verificado con `cargo build`. |
-| 3 · `arithmetic` | Sonnet | Código literal + los 6 casos del contrato como oráculo. |
-| 4 · `itf` | Sonnet | Ídem, 4 casos. |
-| 5 · `cci` | Sonnet | Ídem, 4 casos. |
-| 6 · `card` | Sonnet | Ídem, 6 casos. |
-| 7 · `crypto` | Sonnet | Ídem, 3 vectores ya reproducidos en Rust. |
-| 8 · `transfer` | Sonnet | Ídem, 6 casos. |
-| 9 · `proptest` | Sonnet | Tests escritos en el plan. |
-| 10 · `ffi` / uniffi | **Opus** | Errores de macro crípticos y uniffi 0.32 es reciente: es donde el código del plan tiene más chances de no compilar tal cual. |
-| 11 · Golden | **Opus** | Es *la* evidencia de la POC. Incluye romperlo a propósito para probar que corre. |
-| 12 · Smoke de bindings | **Opus** | Diagnóstico de FFI, no transcripción. |
-| 13 · Docs y CONTEXT | **Opus** | Criterio: redactar el porqué de un cambio de arquitectura. |
+| 1 · Contrato v2.1.0 | ✅ | `b5bd5bd..9733dae` |
+| 2 · Workspace y `DomainError` | ✅ | `9733dae..5b2ca9b` |
+| 3 · `arithmetic` | ✅ | `5b2ca9b..38abfcd` |
+| 4 · `itf` | ✅ tras 1 ronda de fix | `38abfcd..091ec16` |
+| 5 · `cci` | ✅ tras 2 rondas de fix | `091ec16..2780884` |
+| 6 · `card` | ✅ | `c61eab9..ddd0824` |
+| 7 · `crypto` | ✅ | `ddd0824..373447a` |
+| 8 · `transfer` | ✅ tras 1 ronda de fix | `373447a..2f5897f` |
+| 9 · `proptest` | ✅ | `8e6694e..51c4fcf` |
+| 10 · `ffi` / uniffi | ✅ tras 1 ronda de fix | `51c4fcf..a88cc3d` |
+| 11 · Golden | ✅ tras 2 rondas de fix | `a88cc3d..5b05db9` |
+| 12 · Smoke de bindings | ✅ sin commits (no produce nada commiteable; `target/` está en `.gitignore`) | — |
+| 13 · Docs y CONTEXT | ✅ tras 2 rondas de fix | `5b05db9..4631249` |
+
+El ledger completo, con las rulings de cada tarea y la evidencia de cada review, está en
+`.superpowers/sdd/2026-09-08-phase-1-rust-core/progress.md`.
+
+### Lo que se decidió durante la ejecución y no estaba en el plan
+
+Seis desviaciones, todas con su ruling en el ledger. Se listan acá porque cambian lo que
+este plan decía:
+
+1. **El crate puro se llama `domain`, no `core`.** Un paquete llamado `core` hace que el
+   `--extern core` de cargo tape al `core` de la stdlib dentro de `ffi` y
+   `#[derive(thiserror::Error)]` deja de compilar. Verificado con un workspace de prueba;
+   el plan afirmaba lo contrario.
+2. **Los identificadores van en inglés** (cambio de regla pedido por el humano durante la
+   Task 2), y **`contracts/cases.json` queda intacto en español**. El puente vive en un solo
+   lugar: `DomainError::contract_name()`.
+3. **El contrato subió a v2.2.0, no a v2.1.0.** La Task 4 encontró que el comentario del
+   test y `contracts/README.md` afirmaban en falso que itf-002 (0.175) distingue
+   `MidpointAwayFromZero` de banker's rounding — no lo distingue, porque entre 0.17 y 0.18
+   el dígito par es el 8 y ambas estrategias dan 0.18. Se agregó `itf-005`
+   (2500.00 → 0.125 → "0.13", banker's daría 0.12), que sí discrimina, en su propio commit
+   con la justificación aritmética. Sin ese caso el golden no cazaba el error de redondeo
+   que dice cazar.
+4. **`build.rs` vigila `.git/logs/HEAD` además de `.git/HEAD`.** El plan y la spec (D6)
+   estaban equivocados: `rerun-if-changed=.git/HEAD` no dispara al commitear sobre la rama
+   activa —eso actualiza `refs/heads/<rama>`— y el SHA de `core_version()` se quedaba
+   pegado. Detectado empíricamente por el implementador, no en review.
+5. **`crate-type` incluye `staticlib`.** `rust-core/CONTEXT.md` documentaba el pipeline de
+   iOS sobre un `libcore_financiero.a` que el `Cargo.toml` nunca producía. Se arregló
+   haciendo verdadera la documentación.
+6. **El golden lleva tres guardias que el plan no pedía** (versión del contrato, conteo por
+   grupo, claves de primer nivel) más un contador por cada `golden_*`. Sin ellas, vaciar un
+   grupo a `[]` dejaba el test en verde sin comparar un solo string — verificado por
+   mutación. Queda **un hueco conocido y aceptado**: borrar una función `golden_*` entera no
+   lo caza nada; está documentado en `rust-core/README.md`.
+
+### Reparto de modelos: lo que se planificó y lo que se usó
+
+La tabla se cumplió tal como estaba escrita. Se deja para las fases 2 a 5, que van a repetir
+el mismo esquema —un subagente fresco por tarea, revisión desde la sesión principal entre
+cada una— con el mismo criterio: Opus donde hay que decidir, Sonnet donde hay que transcribir.
+
+| Tarea | Modelo | Por qué | ¿Se usó? |
+|---|---|---|---|
+| 1 · Contrato v2.1.0 | **Opus** | Toca valores esperados. El atajo peligroso es doblar el contrato para que pase el código, y en review es casi invisible. | ✅ |
+| 2 · Workspace y error | Sonnet | Código literal en el plan, verificado con `cargo build`. | ✅ |
+| 3 · `arithmetic` | Sonnet | Código literal + los 6 casos del contrato como oráculo. | ✅ |
+| 4 · `itf` | Sonnet | Ídem, 4 casos. | ✅ |
+| 5 · `cci` | Sonnet | Ídem, 4 casos. | ✅ |
+| 6 · `card` | Sonnet | Ídem, 6 casos. | ✅ |
+| 7 · `crypto` | Sonnet | Ídem, 3 vectores ya reproducidos en Rust. | ✅ |
+| 8 · `transfer` | Sonnet | Ídem, 6 casos. | ✅ |
+| 9 · `proptest` | Sonnet | Tests escritos en el plan. | ✅ |
+| 10 · `ffi` / uniffi | **Opus** | Errores de macro crípticos y uniffi 0.32 es reciente: es donde el código del plan tiene más chances de no compilar tal cual. | ✅ |
+| 11 · Golden | **Opus** | Es *la* evidencia de la POC. Incluye romperlo a propósito para probar que corre. | ✅ |
+| 12 · Smoke de bindings | **Opus** | Diagnóstico de FFI, no transcripción. | ✅ |
+| 13 · Docs y CONTEXT | **Opus** | Criterio: redactar el porqué de un cambio de arquitectura. | ✅ |
 
 Si una tarea se traba **dos veces en el mismo error de compilación**, subirla a Opus en vez
-de dejar al subagente insistir.
+de dejar al subagente insistir. **No hizo falta en ninguna** de las trece: las siete rondas
+de fix que hubo salieron de hallazgos de review, no de un implementador trabado.
+
+Dato para calibrar las fases siguientes: **cinco de las trece tareas necesitaron ronda de
+fix** —4, 5, 8, 10 y 11: tres de Sonnet y dos de Opus— y **ninguna por un problema de
+compilación**. Los hallazgos fueron afirmaciones falsas en comentarios (banker's rounding en
+la 4, el `rerun-if-changed` en la 10), mensajes de error contradictorios (la 5), un test que
+no podía fallar (la 8) y guardias que dejaban pasar un golden vacío (la 11). O sea: el
+riesgo real no estuvo en escribir el código sino en lo que el código *decía* de sí mismo, y
+ahí el modelo grande no dio inmunidad. Vale para el diseño de los reviews de las fases 2 a 5
+más que para el reparto de modelos.
 
 **Pendiente que no bloquea:** instalar `rust-analyzer-lsp` y `security-guidance`
-(`/plugin install …@claude-plugins-official`, los corre el humano). La rama se mergea a
-`main` recién cuando el golden pase.
+(`/plugin install …@claude-plugins-official`, los corre el humano).
+
+**Estado de la rama:** el golden pasa, así que la condición para mergear a `main` está
+cumplida. El merge se hace con `superpowers:finishing-a-development-branch` una vez cerrada
+la ola de fixes del review final de rama.
 
 ---
 
@@ -117,7 +186,7 @@ Va **primero y en su propio commit**: el criterio de aceptación se escribe ante
 **Interfaces:**
 - Produces: los esperados `comprobante` y `latencia_simulada_ms` que consumen la Task 8 y la Task 11.
 
-- [ ] **Step 1: Agregar los dos campos a los casos válidos de `transferencia`**
+- [x] **Step 1: Agregar los dos campos a los casos válidos de `transferencia`**
 
 En `tr-001`, dentro de `esperado`, junto a `total_debitado`:
 
@@ -139,7 +208,7 @@ Y subir la versión del archivo:
   "version": "2.1.0",
 ```
 
-- [ ] **Step 2: Documentar las derivaciones en `contracts/README.md`**
+- [x] **Step 2: Documentar las derivaciones en `contracts/README.md`**
 
 Dentro de la sección `### Transferencia`, después del pseudocódigo:
 
@@ -156,7 +225,7 @@ crece con el monto y está topeada en 750 ms: montos grandes "tardan más", y lo
 core, no la app.
 ```
 
-- [ ] **Step 3: Verificar el JSON y los valores**
+- [x] **Step 3: Verificar el JSON y los valores**
 
 Run:
 ```bash
@@ -177,7 +246,7 @@ print('contrato v2.1.0 coherente con las derivaciones')
 ```
 Expected: `contrato v2.1.0 coherente con las derivaciones`
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add contracts/cases.json contracts/README.md
@@ -210,7 +279,7 @@ MSG
 **Interfaces:**
 - Produces: `domain::error::DomainError` con las nueve variantes y `DomainError::contract_name() -> &'static str`, que usan todas las tareas siguientes y el golden para comparar contra el campo `error` de `cases.json`.
 
-- [ ] **Step 1: Crear el workspace**
+- [x] **Step 1: Crear el workspace**
 
 `rust-core/Cargo.toml`:
 
@@ -293,7 +362,7 @@ fn main() {
 }
 ```
 
-- [ ] **Step 2: Escribir el test que falla**
+- [x] **Step 2: Escribir el test que falla**
 
 `rust-core/crates/domain/src/error.rs`, al final del archivo:
 
@@ -327,12 +396,12 @@ mod tests {
 }
 ```
 
-- [ ] **Step 3: Correr el test y verificar que falla**
+- [x] **Step 3: Correr el test y verificar que falla**
 
 Run: `cd rust-core && cargo test -p domain`
 Expected: FAIL — `cannot find type DomainError` / `no method named contract_name`
 
-- [ ] **Step 4: Implementar `DomainError`**
+- [x] **Step 4: Implementar `DomainError`**
 
 Arriba del bloque de tests en `rust-core/crates/domain/src/error.rs`:
 
@@ -408,7 +477,7 @@ pub use error::DomainError;
 uniffi::setup_scaffolding!();
 ```
 
-- [ ] **Step 5: Correr los gates**
+- [x] **Step 5: Correr los gates**
 
 Run:
 ```bash
@@ -419,7 +488,7 @@ cargo fmt --all
 ```
 Expected: test PASS, clippy sin warnings.
 
-- [ ] **Step 6: Verificar que el compilador hace cumplir la frontera**
+- [x] **Step 6: Verificar que el compilador hace cumplir la frontera**
 
 Este paso prueba la tesis arquitectónica de la fase. Agregar temporalmente a `crates/domain/src/lib.rs`:
 
@@ -432,7 +501,7 @@ Run: `cargo build -p domain`
 Expected: **FAIL** con `failed to resolve: use of undeclared crate or module 'uniffi'`.
 Luego **borrar esas tres líneas** y volver a correr `cargo build -p domain`: debe pasar.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add rust-core/
@@ -468,7 +537,7 @@ Es la base de todo lo demás: `itf` y `transfer` usan su parseo y su formateo.
   - `pub(crate) fn round_amount(value: Decimal) -> Decimal`
   - `pub(crate) fn format_amount(value: Decimal) -> String`
 
-- [ ] **Step 1: Escribir los tests que fallan**
+- [x] **Step 1: Escribir los tests que fallan**
 
 `rust-core/crates/domain/src/arithmetic.rs`:
 
@@ -507,12 +576,12 @@ mod tests {
 }
 ```
 
-- [ ] **Step 2: Correr y verificar que falla**
+- [x] **Step 2: Correr y verificar que falla**
 
 Run: `cd rust-core && cargo test -p domain arithmetic`
 Expected: FAIL — `cannot find function add`
 
-- [ ] **Step 3: Implementar**
+- [x] **Step 3: Implementar**
 
 Arriba del bloque de tests en `arithmetic.rs`:
 
@@ -564,12 +633,12 @@ pub mod arithmetic;
 pub use arithmetic::{subtract, add};
 ```
 
-- [ ] **Step 4: Correr los tests**
+- [x] **Step 4: Correr los tests**
 
 Run: `cd rust-core && cargo test -p domain && cargo clippy --workspace --all-targets -- -D warnings && cargo fmt --all`
 Expected: PASS, clippy limpio.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add rust-core/
@@ -596,7 +665,7 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
   - `pub fn calculate_itf(amount: &str) -> Result<String, DomainError>`
   - `pub(crate) fn rounded_itf(amount: Decimal) -> Result<Decimal, DomainError>` — lo consume la Task 8.
 
-- [ ] **Step 1: Escribir los tests que fallan**
+- [x] **Step 1: Escribir los tests que fallan**
 
 `rust-core/crates/domain/src/itf.rs`:
 
@@ -633,12 +702,12 @@ mod tests {
 }
 ```
 
-- [ ] **Step 2: Correr y verificar que falla**
+- [x] **Step 2: Correr y verificar que falla**
 
 Run: `cd rust-core && cargo test -p domain itf`
 Expected: FAIL — `cannot find function calculate_itf`
 
-- [ ] **Step 3: Implementar**
+- [x] **Step 3: Implementar**
 
 ```rust
 use crate::arithmetic::{format_amount, parse_amount, round_amount};
@@ -675,12 +744,12 @@ pub mod itf;
 pub use itf::{calculate_itf, ITF_RATE};
 ```
 
-- [ ] **Step 4: Correr los tests**
+- [x] **Step 4: Correr los tests**
 
 Run: `cd rust-core && cargo test -p domain && cargo clippy --workspace --all-targets -- -D warnings && cargo fmt --all`
 Expected: PASS
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add rust-core/
@@ -706,7 +775,7 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
   - `pub struct ValidCci { pub bank_code: String, pub bank_name: String, pub branch: String, pub account: String }`
   - `pub fn validate_cci(cci: &str) -> Result<ValidCci, DomainError>`
 
-- [ ] **Step 1: Escribir los tests que fallan**
+- [x] **Step 1: Escribir los tests que fallan**
 
 `rust-core/crates/domain/src/cci.rs`:
 
@@ -763,12 +832,12 @@ mod tests {
 }
 ```
 
-- [ ] **Step 2: Correr y verificar que falla**
+- [x] **Step 2: Correr y verificar que falla**
 
 Run: `cd rust-core && cargo test -p domain cci`
 Expected: FAIL — `cannot find function validate_cci`
 
-- [ ] **Step 3: Implementar**
+- [x] **Step 3: Implementar**
 
 ```rust
 use crate::error::DomainError;
@@ -858,12 +927,12 @@ pub mod cci;
 pub use cci::{validate_cci, ValidCci};
 ```
 
-- [ ] **Step 4: Correr los tests**
+- [x] **Step 4: Correr los tests**
 
 Run: `cd rust-core && cargo test -p domain && cargo clippy --workspace --all-targets -- -D warnings && cargo fmt --all`
 Expected: PASS
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add rust-core/
@@ -890,7 +959,7 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
   - `pub struct ValidCard { pub brand: String, pub masked: String }`
   - `pub fn validate_card(number: &str) -> Result<ValidCard, DomainError>`
 
-- [ ] **Step 1: Escribir los tests que fallan**
+- [x] **Step 1: Escribir los tests que fallan**
 
 `rust-core/crates/domain/src/card.rs`:
 
@@ -941,12 +1010,12 @@ mod tests {
 }
 ```
 
-- [ ] **Step 2: Correr y verificar que falla**
+- [x] **Step 2: Correr y verificar que falla**
 
 Run: `cd rust-core && cargo test -p domain card`
 Expected: FAIL — `cannot find function validate_card`
 
-- [ ] **Step 3: Implementar**
+- [x] **Step 3: Implementar**
 
 ```rust
 use crate::error::DomainError;
@@ -1041,12 +1110,12 @@ pub mod card;
 pub use card::{validate_card, ValidCard};
 ```
 
-- [ ] **Step 4: Correr los tests**
+- [x] **Step 4: Correr los tests**
 
 Run: `cd rust-core && cargo test -p domain && cargo clippy --workspace --all-targets -- -D warnings && cargo fmt --all`
 Expected: PASS
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add rust-core/
@@ -1074,7 +1143,7 @@ La API de `chacha20poly1305` 0.11 está **verificada**: `Key::from_slice` y `Non
   - `pub fn encrypt(text: &str, key_hex: &str, nonce_hex: &str) -> Result<String, DomainError>`
   - `pub fn decrypt(ciphertext_hex: &str, key_hex: &str, nonce_hex: &str) -> Result<String, DomainError>`
 
-- [ ] **Step 1: Escribir los tests que fallan**
+- [x] **Step 1: Escribir los tests que fallan**
 
 `rust-core/crates/domain/src/crypto.rs`:
 
@@ -1131,12 +1200,12 @@ mod tests {
 }
 ```
 
-- [ ] **Step 2: Correr y verificar que falla**
+- [x] **Step 2: Correr y verificar que falla**
 
 Run: `cd rust-core && cargo test -p domain crypto`
 Expected: FAIL — `cannot find function encrypt`
 
-- [ ] **Step 3: Implementar**
+- [x] **Step 3: Implementar**
 
 ```rust
 use crate::error::DomainError;
@@ -1195,12 +1264,12 @@ pub mod crypto;
 pub use crypto::{encrypt, decrypt};
 ```
 
-- [ ] **Step 4: Correr los tests**
+- [x] **Step 4: Correr los tests**
 
 Run: `cd rust-core && cargo test -p domain && cargo clippy --workspace --all-targets -- -D warnings && cargo fmt --all`
 Expected: PASS
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add rust-core/
@@ -1230,7 +1299,7 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
   - `pub struct TransferResult { pub accounts: Vec<Account>, pub itf_fee: String, pub total_debited: String, pub receipt: String, pub simulated_latency_ms: u32 }`
   - `pub fn execute_transfer(accounts: Vec<Account>, request: TransferRequest) -> Result<TransferResult, DomainError>`
 
-- [ ] **Step 1: Escribir los tests que fallan**
+- [x] **Step 1: Escribir los tests que fallan**
 
 `rust-core/crates/domain/src/transfer.rs`:
 
@@ -1330,12 +1399,12 @@ mod tests {
 }
 ```
 
-- [ ] **Step 2: Correr y verificar que falla**
+- [x] **Step 2: Correr y verificar que falla**
 
 Run: `cd rust-core && cargo test -p domain transfer`
 Expected: FAIL — `cannot find function execute_transfer`
 
-- [ ] **Step 3: Implementar**
+- [x] **Step 3: Implementar**
 
 ```rust
 use crate::arithmetic::{format_amount, parse_amount, round_amount};
@@ -1467,12 +1536,12 @@ pub use transfer::{
 };
 ```
 
-- [ ] **Step 4: Correr los tests**
+- [x] **Step 4: Correr los tests**
 
 Run: `cd rust-core && cargo test -p domain && cargo clippy --workspace --all-targets -- -D warnings && cargo fmt --all`
 Expected: PASS — los seis casos de `transferencia` en verde.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add rust-core/
@@ -1500,7 +1569,7 @@ Las invariantes que los ejemplos no cubren. Es lo que Rust aporta y que el argum
 **Interfaces:**
 - Consumes: toda la API pública de `domain` (Tasks 3-8).
 
-- [ ] **Step 1: Escribir los tests**
+- [x] **Step 1: Escribir los tests**
 
 `rust-core/crates/domain/tests/properties.rs`:
 
@@ -1573,19 +1642,19 @@ proptest! {
 }
 ```
 
-- [ ] **Step 2: Correr los tests**
+- [x] **Step 2: Correr los tests**
 
 Run: `cd rust-core && cargo test -p domain --test properties`
 Expected: PASS. Si `proptest` encuentra un contraejemplo lo guarda en
 `crates/domain/proptest-regressions/` — **ese archivo se commitea**, es el caso que hizo
 fallar y no debe perderse.
 
-- [ ] **Step 3: Correr todos los gates**
+- [x] **Step 3: Correr todos los gates**
 
 Run: `cd rust-core && cargo test --workspace && cargo clippy --workspace --all-targets -- -D warnings && cargo fmt --all`
 Expected: PASS
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add rust-core/
@@ -1613,7 +1682,7 @@ API de uniffi 0.32 **verificada**: `setup_scaffolding!`, `#[derive(uniffi::Recor
 - Consumes: toda la API pública de `domain`.
 - Produces: la superficie FFI completa que consumen las cuatro apps y el golden de la Task 11.
 
-- [ ] **Step 1: Escribir el test que falla**
+- [x] **Step 1: Escribir el test que falla**
 
 Al final de `rust-core/crates/ffi/src/lib.rs`:
 
@@ -1650,12 +1719,12 @@ mod tests {
 }
 ```
 
-- [ ] **Step 2: Correr y verificar que falla**
+- [x] **Step 2: Correr y verificar que falla**
 
 Run: `cd rust-core && cargo test -p core_financiero`
 Expected: FAIL — `cannot find function core_version`
 
-- [ ] **Step 3: Escribir `build.rs`**
+- [x] **Step 3: Escribir `build.rs`**
 
 `rust-core/crates/ffi/build.rs`:
 
@@ -1690,7 +1759,7 @@ fn main() {
 }
 ```
 
-- [ ] **Step 4: Escribir la fachada**
+- [x] **Step 4: Escribir la fachada**
 
 `rust-core/crates/ffi/src/lib.rs`, arriba del bloque de tests:
 
@@ -1887,12 +1956,12 @@ pub fn core_version() -> String {
 }
 ```
 
-- [ ] **Step 5: Correr los gates**
+- [x] **Step 5: Correr los gates**
 
 Run: `cd rust-core && cargo test --workspace && cargo clippy --workspace --all-targets -- -D warnings && cargo fmt --all`
 Expected: PASS
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add rust-core/
@@ -1918,7 +1987,7 @@ No es un test más. Que esto pase en las cuatro plataformas **es** la demostraci
 **Interfaces:**
 - Consumes: toda la superficie FFI de la Task 10 y `contracts/cases.json` v2.2.0 (v2.1.0 de la Task 1 más el caso itf-005 del fix de la Task 4).
 
-- [ ] **Step 1: Escribir el golden**
+- [x] **Step 1: Escribir el golden**
 
 `rust-core/crates/ffi/tests/golden.rs`:
 
@@ -2082,7 +2151,7 @@ fn golden_transfer() {
 }
 ```
 
-- [ ] **Step 2: Correr el golden y confirmar que efectivamente corre**
+- [x] **Step 2: Correr el golden y confirmar que efectivamente corre**
 
 Run: `cd rust-core && cargo test -p core_financiero --test golden -- --nocapture`
 Expected: `running 6 tests` … `test result: ok. 6 passed`.
@@ -2092,12 +2161,12 @@ pasa igual. Cambiar temporalmente en `golden_itf` el `assert_eq!` por
 `assert_eq!(actual, "NO-DEBE-PASAR", "case {id}")`, correr, y confirmar que **falla**.
 Luego revertir y confirmar que vuelve a pasar.
 
-- [ ] **Step 3: Confirmar que el atajo documentado también lo alcanza**
+- [x] **Step 3: Confirmar que el atajo documentado también lo alcanza**
 
 Run: `cd rust-core && cargo test --workspace 2>&1 | grep golden`
 Expected: aparece `Running tests/golden.rs`.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add rust-core/
@@ -2122,7 +2191,7 @@ Adelanta a esta fase el fallo más caro de la Fase 2. No agrega toolchain: `unif
 **Files:**
 - Modify: `rust-core/README.md` (se crea en la Task 13; acá solo se anotan los comandos que funcionaron)
 
-- [ ] **Step 1: Compilar la librería del host**
+- [x] **Step 1: Compilar la librería del host**
 
 Run:
 ```bash
@@ -2132,7 +2201,7 @@ ls -la target/release/libcore_financiero.dylib
 ```
 Expected: el `.dylib` existe.
 
-- [ ] **Step 2: Generar los bindings Kotlin**
+- [x] **Step 2: Generar los bindings Kotlin**
 
 Run:
 ```bash
@@ -2146,7 +2215,7 @@ find target/bindings-smoke/kotlin -name '*.kt'
 ```
 Expected: al menos un `.kt` generado, sin error.
 
-- [ ] **Step 3: Generar los bindings Swift**
+- [x] **Step 3: Generar los bindings Swift**
 
 Run:
 ```bash
@@ -2162,7 +2231,7 @@ Expected: un `.swift`, un `.h` y un `module.modulemap`. **Los tres importan**: s
 `.h` y el `modulemap`, el XCFramework de la Fase 3 no expone ningún símbolo (hallazgo A1
 del review de CONTEXT).
 
-- [ ] **Step 4: Verificar que la API completa cruzó la frontera**
+- [x] **Step 4: Verificar que la API completa cruzó la frontera**
 
 Run:
 ```bash
@@ -2176,7 +2245,7 @@ done
 Expected: las nueve funciones con `kotlin:1` y `swift:1` o más. Si alguna sale en 0, el
 tipo de esa función no cruza el FFI y hay que arreglarlo **ahora**, no en la Fase 2.
 
-- [ ] **Step 5: Confirmar que los bindings no se commitean**
+- [x] **Step 5: Confirmar que los bindings no se commitean**
 
 Run: `git status --porcelain rust-core/target | head`
 Expected: vacío — `target/` ya está en `.gitignore`. Los bindings son artefactos
@@ -2193,7 +2262,7 @@ Sin esto la fase **no está terminada**, aunque los tests estén en verde.
 - Modify: `rust-core/CONTEXT.md`
 - Modify: `CLAUDE.md`
 
-- [ ] **Step 1: Escribir `rust-core/README.md`**
+- [x] **Step 1: Escribir `rust-core/README.md`**
 
 Con el diagrama Mermaid y **solo comandos ya ejecutados** en las tareas anteriores:
 
@@ -2267,18 +2336,18 @@ que más fácil se rompen:
   uniffi y cualquier pánico mata la app.
 ````
 
-- [ ] **Step 2: Corregir `rust-core/CONTEXT.md`**
+- [x] **Step 2: Corregir `rust-core/CONTEXT.md`**
 
 Dos cambios, con su porqué:
 1. La estructura: de cinco crates a dos (`domain` + `ffi`), con los módulos adentro de `domain`.
 2. La ubicación del golden: de `rust-core/tests/` a `crates/ffi/tests/golden.rs`.
 
-- [ ] **Step 3: Corregir `CLAUDE.md`**
+- [x] **Step 3: Corregir `CLAUDE.md`**
 
 En la lista de fases, cambiar "Workspace y los cinco crates (`domain`, `calculation`,
 `validation`, `crypto`, `ffi`)" por "Workspace y los dos crates (`domain` + `ffi`)".
 
-- [ ] **Step 4: Verificación final de la fase**
+- [x] **Step 4: Verificación final de la fase**
 
 Run:
 ```bash
@@ -2292,7 +2361,7 @@ find crates/domain/src crates/ffi/src -name '*.rs' -exec awk '/#\[cfg\(test\)\]/
 ```
 Expected: todo verde y los dos `grep` sin resultados en código de producción.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add rust-core/README.md rust-core/CONTEXT.md CLAUDE.md
@@ -2308,7 +2377,7 @@ raiz del workspace cargo nunca lo habria ejecutado.
 Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 ```
 
-- [ ] **Step 6: Cerrar la fase**
+- [x] **Step 6: Cerrar la fase**
 
 Correr `/security-review` sobre la rama y luego
 `superpowers:finishing-a-development-branch` para mergear a `main`.
