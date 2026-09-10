@@ -25,6 +25,10 @@ Copiadas de la spec y de `CLAUDE.md`. **Valen para todas las tareas.**
 - **Todo `when` sobre `DomainException` va exhaustivo, como expresión y sin rama `else`**, para que una décima variante rompa la compilación.
 - **Emulador:** `Pixel_9_Pro` (arm64, android-36.1) ya corriendo como `emulator-5554`. Los tests instrumentados corren ahí.
 - **Rutas relativas a** `apps/android/` salvo que se indique otra cosa.
+- **`--tests` NO funciona con `connectedDebugAndroidTest`** en AGP 9 / Gradle 9: ese flag es
+  solo de la tarea de unit tests JVM (`testDebugUnitTest`). Para acotar una corrida
+  instrumentada a una clase se usa
+  `-Pandroid.testInstrumentationRunnerArguments.class=<FQCN>`. Verificado en la Task 1.
 
 ### Los nueve tipos que emite uniffi
 
@@ -239,7 +243,8 @@ class ContractAssetsTest {
 - [ ] **Step 2: Correr y verificar que falla**
 
 ```bash
-./gradlew :app:connectedDebugAndroidTest --tests '*ContractAssetsTest*'
+./gradlew :app:connectedDebugAndroidTest \
+  -Pandroid.testInstrumentationRunnerArguments.class=dev.tohure.android_rust_test.ContractAssetsTest
 ```
 
 Esperado: **FAIL** con `FileNotFoundException: cases.json`.
@@ -287,7 +292,8 @@ En el `.gitignore` de la **raíz del repo**, junto a los otros artefactos de uni
 - [ ] **Step 5: Correr y verificar que pasa**
 
 ```bash
-./gradlew :app:connectedDebugAndroidTest --tests '*ContractAssetsTest*'
+./gradlew :app:connectedDebugAndroidTest \
+  -Pandroid.testInstrumentationRunnerArguments.class=dev.tohure.android_rust_test.ContractAssetsTest
 ```
 
 Esperado: **2 tests, 0 failures.**
@@ -377,7 +383,8 @@ class AssetSourcesTest {
 - [ ] **Step 2: Correr y verificar que falla**
 
 ```bash
-./gradlew :app:connectedDebugAndroidTest --tests '*AssetSourcesTest*'
+./gradlew :app:connectedDebugAndroidTest \
+  -Pandroid.testInstrumentationRunnerArguments.class=dev.tohure.android_rust_test.contract.AssetSourcesTest
 ```
 
 Esperado: **FAIL** — no compila, `AssetContractSource` no existe.
@@ -501,7 +508,8 @@ class AssetMessageSource(private val assets: AssetManager) : MessageSource {
 - [ ] **Step 5: Correr y verificar que pasa**
 
 ```bash
-./gradlew :app:connectedDebugAndroidTest --tests '*AssetSourcesTest*'
+./gradlew :app:connectedDebugAndroidTest \
+  -Pandroid.testInstrumentationRunnerArguments.class=dev.tohure.android_rust_test.contract.AssetSourcesTest
 ```
 
 Esperado: **2 tests, 0 failures.**
@@ -980,7 +988,8 @@ class GoldenTest {
 - [ ] **Step 2: Correr el golden**
 
 ```bash
-./gradlew :app:connectedDebugAndroidTest --tests '*GoldenTest*'
+./gradlew :app:connectedDebugAndroidTest \
+  -Pandroid.testInstrumentationRunnerArguments.class=dev.tohure.android_rust_test.GoldenTest
 ```
 
 Esperado: **8 tests, 0 failures.** Los cinco `golden*` más las tres guardias.
