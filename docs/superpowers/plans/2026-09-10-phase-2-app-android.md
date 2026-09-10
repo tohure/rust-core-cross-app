@@ -2044,7 +2044,7 @@ import uniffi.core_financiero.TransferResult
 private class FakeContract : ContractSource {
     override fun initialAccounts() = listOf(
         Account("00219100123456789047", "Ana Quispe", "5000.00"),
-        Account("01122000987654321065", "Luis Ramos", "3000.00"),
+        Account("01122000987654321065", "Luis Ramos", "1200.50"),
     )
 
     override fun demoKeyHex() = "00010203"
