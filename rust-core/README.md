@@ -162,6 +162,16 @@ con toda la `std` adentro y sin `strip`, y el linker se queda solo con lo que se
 armar la app. Genera los mismos bindings que el `.dylib`, byte por byte — verificado con
 `diff` sobre los tres archivos Swift.
 
+> **`crate-type` no se elige por target: el `.a` se construye para TODOS.** Solo iOS lo
+> necesita, pero cargo emite los tres tipos de crate en cada build, para cada target. En la
+> Fase 2 eso son **tres `.a` de ~66 MB con LTO** —uno por ABI de Android
+> (`arm64-v8a`, `armeabi-v7a`, `x86_64`)— que nadie va a usar; en la Fase 5, uno más para
+> wasm. Se paga en tiempo de build y en espacio de `target/`, no en el tamaño del `.so` que
+> se embarca. Está escrito acá para que, cuando `cargo ndk` se ponga lento, nadie salga a
+> buscarle la culpa al NDK ni a la máquina. Si molesta lo suficiente, la salida es un
+> `--crate-type` en la línea de comandos o una feature de Cargo — **no** sacar `staticlib`
+> del `Cargo.toml`, que es lo que rompería la Fase 3.
+
 ```bash
 mkdir -p target/bindings-smoke/kotlin
 cargo run --quiet --bin uniffi-bindgen -- generate \
