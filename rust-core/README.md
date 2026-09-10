@@ -3,7 +3,7 @@
 Núcleo de dominio de la POC. Es el único lugar donde vive lógica de negocio: las cuatro
 apps lo consumen sin reescribirlo.
 
-**Estado: Fase 1 completada.** 51 tests en verde —34 unitarios de `domain`, 6 de `proptest`,
+**Estado: Fase 1 completada.** 54 tests en verde —37 unitarios de `domain`, 6 de `proptest`,
 3 del lib de `ffi` y 8 del golden— contra `contracts/cases.json` v2.2.0, 27 casos.
 
 Todos los comandos de este README **se ejecutaron tal como están escritos**, desde
@@ -43,7 +43,7 @@ de la stdlib, y `#[derive(thiserror::Error)]` deja de compilar con `cannot find 
 ## Correr los tests
 
 ```bash
-cargo test --workspace                                        # todo: 51 tests
+cargo test --workspace                                        # todo: 54 tests
 cargo test -p domain                                          # solo el núcleo, sin compilar uniffi
 cargo test -p core_financiero --test golden                   # solo los 27 casos del contrato
 cargo test -p domain rounds_half_away_from_zero_not_to_even   # un solo test por nombre
@@ -59,9 +59,9 @@ doc-tests— reportan `0 passed`, que es lo esperado:
 |---|---|
 | `crates/ffi/src/lib.rs` (unitarias del lib) | 3 |
 | `crates/ffi/tests/golden.rs` | 8 |
-| `crates/domain/src/**` (unitarias del lib) | 34 |
+| `crates/domain/src/**` (unitarias del lib) | 37 |
 | `crates/domain/tests/properties.rs` (`proptest`) | 6 |
-| **Total** | **51** |
+| **Total** | **54** |
 
 `cargo test -p core_financiero --test golden` imprime:
 
@@ -368,6 +368,6 @@ grep -rn "f32\|f64" crates/ --include='*.rs' || echo "sin punto flotante ✅"
 find crates/domain/src crates/ffi/src -name '*.rs' -exec awk '/#\[cfg\(test\)\]/{exit} /unwrap\(\)|expect\(/{print FILENAME":"FNR": "$0}' {} + | grep . || echo "sin unwrap/expect en produccion ✅"
 ```
 
-Qué se debe ver — 51 tests en `0 failed`, clippy y fmt sin salida, y los dos últimos
+Qué se debe ver — 54 tests en `0 failed`, clippy y fmt sin salida, y los dos últimos
 comandos imprimiendo su mensaje de "sin ...", que es lo que pasa cuando **no** encuentran
 nada.

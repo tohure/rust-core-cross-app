@@ -113,6 +113,38 @@ mod tests {
         );
     }
 
+    /// Un nonce de largo distinto de 12 bytes tiene que salir por `Err`, no por un
+    /// pánico: el nonce entra por el FFI desde la app, así que un `panic!` acá sería un
+    /// crash de la app del banco con una entrada que el usuario controla. La afirmación
+    /// de seguridad de la fase ("el core no panica con entrada arbitraria") descansa en
+    /// esta rama, y hasta ahora ningún test la ejercitaba.
+    #[test]
+    fn a_wrong_length_nonce_errors_without_panicking() {
+        assert_eq!(
+            encrypt("x", KEY, "0001").unwrap_err().contract_name(),
+            "Cifrado"
+        );
+        assert_eq!(
+            decrypt("00", KEY, "0001").unwrap_err().contract_name(),
+            "Cifrado"
+        );
+    }
+
+    /// Un ciphertext más corto que el tag de Poly1305 (16 bytes) es el borde donde una
+    /// implementación descuidada haría un slice fuera de rango. `aead` devuelve `Err`;
+    /// este test lo fija para que un cambio de versión que lo convierta en pánico se vea.
+    #[test]
+    fn a_ciphertext_shorter_than_the_tag_errors_without_panicking() {
+        assert_eq!(
+            decrypt("00112233", KEY, NONCE).unwrap_err().contract_name(),
+            "Cifrado"
+        );
+        assert_eq!(
+            decrypt("", KEY, NONCE).unwrap_err().contract_name(),
+            "Cifrado"
+        );
+    }
+
     #[test]
     fn a_tampered_tag_does_not_decrypt() {
         let mut ciphertext = encrypt("4111111111111111", KEY, NONCE).unwrap();

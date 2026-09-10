@@ -273,7 +273,7 @@ Los comandos exactos están en el plan de cada fase.
 
 ```bash
 # Desarrollo del core (desde rust-core/)
-cargo test --workspace              # todo: 51 tests
+cargo test --workspace              # todo: 54 tests
 cargo test -p domain                # un solo crate, sin compilar uniffi
 cargo test -p domain rounds_half_away_from_zero_not_to_even   # un solo test por nombre
 cargo test -p core_financiero --test golden       # solo los vectores de cases.json

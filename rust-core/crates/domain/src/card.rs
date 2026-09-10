@@ -137,6 +137,29 @@ mod tests {
         ); // tj-006
     }
 
+    /// La rama `OutOfRange { field: "marca" }` no la ejercita ningún caso del contrato:
+    /// los seis casos de `tarjeta` son Visa, Mastercard, Amex o fallan antes, en Luhn o
+    /// en la longitud. Sin este test, la única rama del core que dice "no sé qué marca
+    /// es" nunca se ejecuta, y podría estar rota sin que nada lo note.
+    ///
+    /// `6011111111111117` es un número Discover-like construido a propósito: la suma de
+    /// Luhn da 30, así que **pasa** el dígito de control, y su prefijo no matchea nada de
+    /// `brand()` — no empieza con 4, `60` no está en 51..=55 ni es 34/37, y `6011` no
+    /// está en 2221..=2720. Es la única forma de llegar a la tercera rama de
+    /// `validate_card`.
+    #[test]
+    fn rejects_a_valid_luhn_with_an_unknown_brand() {
+        let e = validate_card("6011111111111117").unwrap_err();
+        assert_eq!(e.contract_name(), "FueraDeRango");
+        assert_eq!(
+            e,
+            DomainError::OutOfRange {
+                field: "marca".into()
+            },
+            "el campo debe nombrar la marca: es lo que la UI necesita para explicar el fallo"
+        );
+    }
+
     #[test]
     fn never_panics_with_arbitrary_text() {
         for input in ["", "abcd", "ñññññññññññññ", "4111-1111-1111-1111"] {
