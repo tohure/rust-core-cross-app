@@ -1338,6 +1338,17 @@ class MoneyFormatterTest {
     }
 
     @Test
+    fun groupsThousandsCorrectlyAtEveryBoundary() {
+        // El caso que rompía: parte entera con múltiplo de 3 dígitos Y signo negativo.
+        assertEquals("S/ -123,456.78", MoneyFormatter.format("-123456.78"))
+        assertEquals("S/ 123,456.78", MoneyFormatter.format("123456.78"))
+        assertEquals("S/ -1,500.08", MoneyFormatter.format("-1500.08"))
+        assertEquals("S/ 999.99", MoneyFormatter.format("999.99"))
+        assertEquals("S/ 1,234,567.89", MoneyFormatter.format("1234567.89"))
+        assertEquals("S/ 1,000", MoneyFormatter.format("1000"))
+    }
+
+    @Test
     fun aValueThatIsNotAnAmountComesBackUntouched() {
         // Defensivo: si el core devolviera algo inesperado, la pantalla muestra el string
         // crudo en vez de romperse. Nunca inventa un número.
@@ -1374,14 +1385,18 @@ import java.math.BigDecimal
 object MoneyFormatter {
     fun format(amount: String): String {
         val value = runCatching { BigDecimal(amount) }.getOrNull() ?: return amount
-        val parts = value.toPlainString().split(".")
+        // El signo se separa ANTES de agrupar: si entra al `chunked(3)` se comporta como un
+        // dígito más y, cuando la parte entera tiene un múltiplo de 3 dígitos, queda aislado
+        // en su propio grupo — "-123456.78" salía como "S/ -,123,456.78".
+        val sign = if (value.signum() < 0) "-" else ""
+        val parts = value.abs().toPlainString().split(".")
         val grouped = parts[0]
             .reversed()
             .chunked(3)
             .joinToString(",")
             .reversed()
         val decimals = parts.getOrNull(1)
-        return if (decimals != null) "S/ $grouped.$decimals" else "S/ $grouped"
+        return if (decimals != null) "S/ $sign$grouped.$decimals" else "S/ $sign$grouped"
     }
 }
 ```
@@ -1504,7 +1519,9 @@ import androidx.compose.ui.unit.dp
 /**
  * Los cinco componentes de `docs/ui-spec.md`, compartidos por las cuatro pantallas.
  *
- * Convención de firma: **`modifier` va último y el caller decide el posicionamiento.**
+ * Convención de firma: **`modifier` es el PRIMER parámetro opcional** —no el último de
+ * todos— y el caller decide el posicionamiento. Los opcionales propios del componente
+ * (`keyboardType`, `mono`) van después.
  * El componente aporta tipografía y espaciado internos; el padding posicional lo pone
  * quien lo usa. Así el mismo componente sirve dentro de una lista y dentro de una tarjeta
  * sin inventar variantes.
@@ -3040,6 +3057,12 @@ no 'solo en test'.
 
 Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 ```
+
+- [ ] **Step 2b: Corregir la convención de firma en la spec de UI**
+
+`docs/ui-spec.md:237` dice que "los parámetros de disposición van al final". Es incorrecto y lo
+contradice el propio código: la convención de Compose es que **`modifier` sea el primer parámetro
+opcional**, con los opcionales propios del componente después. Corregir esa frase.
 
 - [ ] **Step 3: Corregir los nombres de pantalla en español**
 
