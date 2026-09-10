@@ -36,17 +36,21 @@ xcodebuild -create-xcframework \
 > exige que el directorio de headers contenga un archivo llamado exactamente
 > `module.modulemap`. Con el nombre generado tal cual, el XCFramework **se construye sin
 > error** y después `import core_financieroFFI` no resuelve: el síntoma es "el XCFramework
-> no exporta nada", y se descubre tarde. Antes de correr `-create-xcframework`, dentro del
-> directorio de headers:
+> no exporta nada", y se descubre tarde. Antes de correr `-create-xcframework`, armá el
+> directorio de headers —los mismos tres comandos que trae el bloque canónico de
+> [`rust-core/CONTEXT.md`](../../rust-core/CONTEXT.md), que es de donde conviene copiarlos—:
 >
 > ```bash
-> cp core_financieroFFI.modulemap module.modulemap
+> mkdir -p Generated/include
+> mv Generated/core_financieroFFI.h Generated/include/
+> cp Generated/core_financieroFFI.modulemap Generated/include/module.modulemap
 > ```
 >
-> Qué se debe ver: `Generated/include` queda con **tres** archivos —
-> `core_financieroFFI.h`, el `core_financieroFFI.modulemap` original y la copia
-> `module.modulemap`—. El cuarto, `core_financiero.swift`, **no va ahí**: es fuente Swift
-> que se compila con la app, no un header, y se queda en `Generated/`.
+> Qué se debe ver: `Generated/include` queda con **dos** archivos —`core_financieroFFI.h`
+> y `module.modulemap`—, que son los dos que el XCFramework necesita. Los otros dos se
+> quedan en `Generated/`: el `core_financiero.swift`, que es fuente Swift y se compila con
+> la app en vez de ir a un directorio de headers, y el `core_financieroFFI.modulemap`
+> original, porque el paso de arriba lo **copia** y no lo mueve.
 
 Enlaza el XCFramework en Build Phases. Verifica que incluya los slices
 arm64 device y arm64 simulator; sin el segundo no corre en Macs con Apple

@@ -6,7 +6,7 @@ rust-version.workspace = true
 
 [lib]
 # staticlib: lo exige el XCFramework de iOS. `xcodebuild -create-xcframework -library`
-# toma un `.a`, no un `.dylib`, asi que sin esto la Fase 3 arranca contra un archivo que
+# toma un `.a`, no un `.dylib`, así que sin esto la Fase 3 arranca contra un archivo que
 # cargo nunca produjo. cdylib es para Android (.so) y lib para que el golden y el
 # [[bin]] uniffi-bindgen puedan importar el crate como una dependencia Rust normal.
 crate-type = ["cdylib", "staticlib", "lib"]

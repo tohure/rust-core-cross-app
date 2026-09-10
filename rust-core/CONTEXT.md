@@ -252,6 +252,9 @@ cargo run --bin uniffi-bindgen -- generate --library target/release/libcore_fina
 # iOS: XCFramework + Swift
 cargo build --release --target aarch64-apple-ios
 cargo build --release --target aarch64-apple-ios-sim
+# bindgen lee el `.a` del **host** (`target/release/`), no el de los targets de iOS, y es
+# a proposito: los bindings que emite uniffi no dependen de la arquitectura. Los dos `.a`
+# por arquitectura de arriba existen solo para armar el XCFramework.
 cargo run --bin uniffi-bindgen -- generate --library target/release/libcore_financiero.a \
   --language swift --out-dir ../apps/ios/Generated
 
