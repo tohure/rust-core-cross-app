@@ -104,14 +104,18 @@ la demo y hay que reemplazarlo.
 Función pura de estado: entran las cuentas, sale el estado nuevo.
 
 ```
+escala_min(x) = cantidad MÍNIMA de decimales que representa a x exacto
+              = escala de x después de quitarle los ceros a la derecha
+                (escala_min(1.000) = 0 ; escala_min(0.001) = 3)
+
 si origen == destino                      -> MismaCuenta
 si origen o destino no existen            -> CuentaNoEncontrada
-si monto <= 0 o escala(monto) > 2         -> MontoInvalido
+si monto <= 0 o escala_min(monto) > 2     -> MontoInvalido
 comision = itf(monto)
 total    = redondear2(monto + comision)
-si escala(saldo(origen)) > 2              -> MontoInvalido
+si escala_min(saldo(origen)) > 2          -> MontoInvalido
 si saldo(origen) < total                  -> SaldoInsuficiente
-si escala(saldo(destino)) > 2             -> MontoInvalido
+si escala_min(saldo(destino)) > 2         -> MontoInvalido
 saldo(origen)  -= total       # el origen paga monto + ITF
 saldo(destino) += monto       # el destino recibe el monto íntegro
 ```
@@ -125,6 +129,13 @@ El porqué: sin esa regla el redondeo al formatear la salida mueve la suma total
 —un saldo de `0.005` sale como `0.01`— y el invariante de abajo, "no se crea ni se destruye
 dinero", deja de valer. Con `"0.001"` la transferencia además "salía bien" sin mover un
 centavo: `total_debitado "0.00"` y los dos saldos intactos.
+
+**Lo que se mide es `escala_min`, no la escala con la que el número vino escrito.** La
+distinción no es cosmética: `"1.000"` vale exactamente 1, se representa exacto con 2
+decimales y **se acepta** —los tres ceros a la derecha no cambian el valor, así que no
+pueden cambiar el resultado—, mientras que `"0.001"` necesita 3 decimales y se rechaza. Un
+chequeo sobre la escala literal rechaza los dos y deja fuera montos perfectamente válidos.
+En Rust eso es `Decimal::normalize().scale()`, no `Decimal::scale()`.
 
 Dos salidas más, ambas **deterministas** — `execute_transfer` es pura, así que no
 pueden depender de reloj ni de azar: si lo hicieran, las cuatro apps mostrarían valores
