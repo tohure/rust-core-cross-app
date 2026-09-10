@@ -106,13 +106,25 @@ Función pura de estado: entran las cuentas, sale el estado nuevo.
 ```
 si origen == destino                      -> MismaCuenta
 si origen o destino no existen            -> CuentaNoEncontrada
-si monto <= 0                             -> MontoInvalido
+si monto <= 0 o escala(monto) > 2         -> MontoInvalido
 comision = itf(monto)
 total    = redondear2(monto + comision)
+si escala(saldo(origen)) > 2              -> MontoInvalido
 si saldo(origen) < total                  -> SaldoInsuficiente
+si escala(saldo(destino)) > 2             -> MontoInvalido
 saldo(origen)  -= total       # el origen paga monto + ITF
 saldo(destino) += monto       # el destino recibe el monto íntegro
 ```
+
+**Escala de entrada: 2 decimales como máximo.** A diferencia de `aritmetica`, que acepta
+escala libre en la entrada, la transferencia es **normativa** en esto: todo monto y todo
+saldo entran con **2 decimales como máximo**. Un monto con más decimales devuelve
+`MontoInvalido` (`tr-007`, `"0.001"`); un saldo mal escalado, también.
+
+El porqué: sin esa regla el redondeo al formatear la salida mueve la suma total de saldos
+—un saldo de `0.005` sale como `0.01`— y el invariante de abajo, "no se crea ni se destruye
+dinero", deja de valer. Con `"0.001"` la transferencia además "salía bien" sin mover un
+centavo: `total_debitado "0.00"` y los dos saldos intactos.
 
 Dos salidas más, ambas **deterministas** — `execute_transfer` es pura, así que no
 pueden depender de reloj ni de azar: si lo hicieran, las cuatro apps mostrarían valores
@@ -162,11 +174,11 @@ el hex exacto **y** el roundtrip `decrypt(encrypt(x)) == x`.
 | Grupo | Casos | Cubre |
 |---|---|---|
 | `aritmetica` | 6 | los seis divergen bajo IEEE-754 |
-| `transferencia` | 6 | feliz, redondeo del ITF, saldo insuficiente, cuenta inexistente, misma cuenta, monto 0 |
+| `transferencia` | 7 | feliz, redondeo del ITF, saldo insuficiente, cuenta inexistente, misma cuenta, monto 0, monto con 3 decimales |
 | `cci` | 4 | válido, otro banco, dígito de control malo, longitud mala |
 | `itf` | 5 | incluye `itf-005`, el que distingue medio-hacia-afuera de banker's rounding |
 | `tarjeta` | 6 | Visa, Mastercard y Amex con su cifrado; dos Luhn inválidos; longitud mala |
-| **Total** | **27** | v2.2.0 |
+| **Total** | **28** | v2.3.0 |
 
 `cuentas_iniciales` trae el estado de partida de las transferencias: las mismas dos cuentas
 en las cuatro apps, para que la comparación lado a lado sea limpia.
