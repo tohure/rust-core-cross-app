@@ -474,6 +474,21 @@ raíz. Las dos que más fácil se rompen:
   `simulated_latency_ms: u32`.
 - **`panic = "unwind"`, nunca `abort`.** Con `abort` se desactiva el `catch_unwind` de
   uniffi y cualquier pánico de Rust mata la app en vez de volver como error del FFI.
+  **Con una salvedad que no es opcional:** `wasm32-unknown-unknown` impone `abort` desde el
+  target —el wasm base no tiene unwinding— así que en la Fase 5 la app Angular **no va a
+  tener esa red**. Se verifica sin instalar nada:
+
+  ```bash
+  rustc --print cfg --target wasm32-unknown-unknown | grep panic   # panic="abort"
+  rustc --print cfg --target aarch64-linux-android  | grep panic   # panic="unwind"
+  rustc --print cfg --target aarch64-apple-ios      | grep panic   # panic="unwind"
+  ```
+
+  Ahí un pánico del core no vuelve como error del FFI: es un trap de WebAssembly que deja
+  la instancia del módulo inutilizable. Lo único que protege a esa app es la regla de arriba
+  —cero `panic!`/`unwrap()`/`expect()` en producción— y los tres proptests
+  `*_never_panics`. En la plataforma sin red, esos tres tests dejan de ser robustez y pasan
+  a ser el mecanismo de seguridad.
 
 Los comandos de exportación por plataforma (cargo-ndk, `xcodebuild -create-xcframework`,
 `ubrn build android|ios|web`) están en [CONTEXT.md](CONTEXT.md); no se duplican acá porque

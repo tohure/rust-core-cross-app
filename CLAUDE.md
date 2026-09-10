@@ -294,6 +294,23 @@ cualquier pánico mata el proceso de la app. Ver hallazgo B1 del
 [review de CONTEXT](docs/superpowers/specs/2026-09-08-context-review.md) y el perfil
 completo en [rust-core/CONTEXT.md](rust-core/CONTEXT.md).
 
+**Salvedad: en wasm la regla no se puede cumplir, y no es opcional.** El target
+`wasm32-unknown-unknown` **impone** `abort` — no hay unwinding en el wasm base, así que el
+`panic = "unwind"` del perfil se ignora ahí. Verificable sin instalar nada:
+
+```bash
+rustc --print cfg --target wasm32-unknown-unknown | grep panic   # panic="abort"
+rustc --print cfg --target aarch64-linux-android  | grep panic   # panic="unwind"
+rustc --print cfg --target aarch64-apple-ios      | grep panic   # panic="unwind"
+```
+
+La regla sigue valiendo tal cual para Android e iOS, que es donde hay algo que elegir. La
+consecuencia es para la **Fase 5**: la app Angular no va a tener la red del `catch_unwind`,
+así que un pánico del core ahí no vuelve como error del FFI — es un trap de WebAssembly que
+deja la instancia del módulo inutilizable. Lo único que protege esa app es la disciplina de
+la regla 5 (cero `panic!`/`unwrap()`/`expect()` en producción) y los proptests
+`*_never_panics` del core. No hay segunda red: no la debilites.
+
 ## Si el build de Angular pelea con el WASM
 
 Servir el `.wasm` con MIME `application/wasm` es el punto donde más tiempo se pierde en

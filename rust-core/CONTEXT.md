@@ -298,7 +298,44 @@ lto = true
 codegen-units = 1
 strip = true
 panic = "unwind"    # NO cambiar a abort: desactiva el catch_unwind de uniffi
+                    # (en wasm32 no aplica: ese target impone abort, ver abajo)
 ```
+
+### En wasm la regla no se puede cumplir
+
+`panic = "unwind"` vale para los cinco targets de Android e iOS. **No vale para
+`wasm32-unknown-unknown`, que impone `abort` desde el target mismo**: el wasm base no tiene
+unwinding, así que el perfil no tiene nada que elegir ahí. Se comprueba sin instalar el
+target ni compilar nada:
+
+```bash
+rustc --print cfg --target wasm32-unknown-unknown  | grep panic
+rustc --print cfg --target aarch64-linux-android   | grep panic
+rustc --print cfg --target armv7-linux-androideabi | grep panic
+rustc --print cfg --target x86_64-linux-android    | grep panic
+rustc --print cfg --target aarch64-apple-ios       | grep panic
+rustc --print cfg --target aarch64-apple-ios-sim   | grep panic
+```
+
+Qué se debe ver — `panic="abort"` en la primera línea y `panic="unwind"` en las otras cinco:
+
+```
+panic="abort"
+panic="unwind"
+panic="unwind"
+panic="unwind"
+panic="unwind"
+panic="unwind"
+```
+
+Qué significa para la **Fase 5**: el paquete WASM que consume Angular **no tiene la red del
+`catch_unwind` de uniffi**. Un pánico del core ahí no se convierte en un error del FFI; es
+un trap de WebAssembly que deja la instancia del módulo inutilizable y obliga a recargar la
+página. O sea que en la única plataforma donde no hay red, lo único que protege a la app es
+la regla 3 de este documento —cero `panic!`/`unwrap()`/`expect()` en producción— y los
+proptests `validate_cci_never_panics`, `validate_card_never_panics` y
+`decrypt_never_panics`. Eso convierte esos tres tests, que se leen como robustez, en el
+mecanismo de seguridad real de la Fase 5.
 
 > **Nota para el benchmark:** `opt-level = "z"` optimiza tamaño a costa de velocidad. Si la
 > pantalla de benchmark va a presentarse como "lo rápido que es Rust", hay que medir con
