@@ -69,7 +69,7 @@ pub fn validate_cci(cci: &str) -> Result<ValidCci, DomainError> {
     let bank_name = BANKS
         .iter()
         .find(|(code, _)| *code == bank_code)
-        .map(|(_, contract_name)| *contract_name)
+        .map(|(_, name)| *name)
         .ok_or_else(|| DomainError::UnknownBank {
             code: bank_code.to_string(),
         })?;

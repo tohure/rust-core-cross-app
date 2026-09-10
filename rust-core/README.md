@@ -15,7 +15,7 @@ la demo, que es el único día que importa.
 
 ```mermaid
 graph TD
-    ffi["<b>crates/ffi</b> · paquete core_financiero<br/>uniffi::export · cdylib + lib<br/>único crate exportado"]
+    ffi["<b>crates/ffi</b> · paquete core_financiero<br/>uniffi::export · cdylib + staticlib + lib<br/>único crate exportado"]
     domain["<b>crates/domain</b><br/>Rust puro · NO declara uniffi<br/>error · arithmetic · itf · transfer<br/>cci · card · crypto"]
     contrato[("contracts/cases.json<br/>v2.2.0 · 27 casos")]
     bindings["target/release/libcore_financiero.dylib<br/>+ bindings Kotlin / Swift"]

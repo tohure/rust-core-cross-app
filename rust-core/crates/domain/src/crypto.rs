@@ -62,7 +62,7 @@ pub fn decrypt(
 mod tests {
     use super::*;
 
-    const CLAVE: &str = "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f";
+    const KEY: &str = "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f";
     const NONCE: &str = "000102030405060708090a0b";
 
     // Vectores del grupo `tarjeta` de contracts/cases.json. Se derivaron con la
@@ -71,24 +71,24 @@ mod tests {
     #[test]
     fn reproduces_the_contract_vectors() {
         assert_eq!(
-            encrypt("4111111111111111", CLAVE, NONCE).unwrap(),
+            encrypt("4111111111111111", KEY, NONCE).unwrap(),
             "bdca39311826947186b20ec2a92c3f521aacff902e37d519bcd2754fc7c7c0dd"
         );
         assert_eq!(
-            encrypt("5555555555554444", CLAVE, NONCE).unwrap(),
+            encrypt("5555555555554444", KEY, NONCE).unwrap(),
             "bcce3d351c22907582b60ac6ac293a57e26c8e6007abc9a2b0c323bf74184036"
         );
         assert_eq!(
-            encrypt("378282246310005", CLAVE, NONCE).unwrap(),
+            encrypt("378282246310005", KEY, NONCE).unwrap(),
             "bacc30321125977481b00ec3a82d3b43191141e9da8b2ad948e1c7b3a8ee5e"
         );
     }
 
     #[test]
     fn roundtrip_returns_the_original() {
-        let ciphertext = encrypt("4111111111111111", CLAVE, NONCE).unwrap();
+        let ciphertext = encrypt("4111111111111111", KEY, NONCE).unwrap();
         assert_eq!(
-            decrypt(&ciphertext, CLAVE, NONCE).unwrap(),
+            decrypt(&ciphertext, KEY, NONCE).unwrap(),
             "4111111111111111"
         );
     }
@@ -108,15 +108,15 @@ mod tests {
             "Cifrado"
         );
         assert_eq!(
-            decrypt("zzzz", CLAVE, NONCE).unwrap_err().contract_name(),
+            decrypt("zzzz", KEY, NONCE).unwrap_err().contract_name(),
             "Cifrado"
         );
     }
 
     #[test]
     fn a_tampered_tag_does_not_decrypt() {
-        let mut ciphertext = encrypt("4111111111111111", CLAVE, NONCE).unwrap();
+        let mut ciphertext = encrypt("4111111111111111", KEY, NONCE).unwrap();
         ciphertext.replace_range(0..1, "0");
-        assert!(decrypt(&ciphertext, CLAVE, NONCE).is_err());
+        assert!(decrypt(&ciphertext, KEY, NONCE).is_err());
     }
 }

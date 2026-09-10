@@ -225,7 +225,7 @@ mod tests {
 
     // Reemplaza a un test anterior (`does_not_mutate_the_input_accounts`) que no podía
     // fallar: `execute_transfer` toma `Vec<Account>` por valor, así que el test le
-    // pasaba un clon y aseraba sobre el vector original — eso vale para cualquier
+    // pasaba un clon y asertaba sobre el vector original — eso vale para cualquier
     // implementación imaginable, incluida una que mutara todo lo que recibe. La pureza
     // ya la garantiza la firma de la función, no hacía falta (ni servía) un test para
     // eso. Este test sí puede fallar: cubre una tercera cuenta ajena a la transferencia

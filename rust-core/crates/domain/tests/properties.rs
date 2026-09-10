@@ -4,13 +4,21 @@ use proptest::prelude::*;
 use rust_decimal::Decimal;
 use std::str::FromStr;
 
-const CLAVE: &str = "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f";
+const KEY: &str = "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f";
 const NONCE: &str = "000102030405060708090a0b";
 
+/// `expect()` y no `filter_map(... .ok())`: esta suma es el lado izquierdo del invariante
+/// de conservación del dinero, y un saldo que no parsee tiene que **romper el test**, no
+/// desaparecer de la suma. Descartarlo en silencio haría que `after == before - fee` se
+/// cumpla justamente cuando el core devolvió un saldo con formato roto. Es un test, así
+/// que el `expect()` está permitido.
 fn sum_balances(accounts: &[Account]) -> Decimal {
     accounts
         .iter()
-        .filter_map(|c| Decimal::from_str(&c.balance).ok())
+        .map(|c| {
+            Decimal::from_str(&c.balance)
+                .unwrap_or_else(|e| panic!("saldo no parseable en {}: {:?} ({e})", c.id, c.balance))
+        })
         .sum()
 }
 
@@ -34,8 +42,8 @@ proptest! {
 
     #[test]
     fn the_encryption_roundtrip_returns_the_original(text in ".{0,200}") {
-        let ciphertext = encrypt(&text, CLAVE, NONCE).unwrap();
-        prop_assert_eq!(decrypt(&ciphertext, CLAVE, NONCE).unwrap(), text);
+        let ciphertext = encrypt(&text, KEY, NONCE).unwrap();
+        prop_assert_eq!(decrypt(&ciphertext, KEY, NONCE).unwrap(), text);
     }
 
     /// No se crea ni se destruye dinero: la suma de saldos baja exactamente el ITF.
@@ -46,16 +54,16 @@ proptest! {
             Account { id: "00219100123456789047".into(), holder: "Ana".into(), balance: "5000.00".into() },
             Account { id: "01122000987654321065".into(), holder: "Luis".into(), balance: "1200.50".into() },
         ];
-        let antes = sum_balances(&accounts);
+        let before = sum_balances(&accounts);
         let request = TransferRequest {
             origin: "00219100123456789047".into(),
             destination: "01122000987654321065".into(),
             amount: format!("{amount:.2}"),
         };
         if let Ok(r) = execute_transfer(accounts, request) {
-            let despues = sum_balances(&r.accounts);
+            let after = sum_balances(&r.accounts);
             let fee = Decimal::from_str(&r.itf_fee).unwrap();
-            prop_assert_eq!(despues, antes - fee);
+            prop_assert_eq!(after, before - fee);
 
             // Y ningún saldo queda negativo.
             for account in &r.accounts {
