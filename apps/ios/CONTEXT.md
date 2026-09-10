@@ -43,7 +43,10 @@ xcodebuild -create-xcframework \
 > cp core_financieroFFI.modulemap module.modulemap
 > ```
 >
-> Qué se debe ver: el directorio queda con los cuatro archivos, `module.modulemap` incluido.
+> Qué se debe ver: `Generated/include` queda con **tres** archivos —
+> `core_financieroFFI.h`, el `core_financieroFFI.modulemap` original y la copia
+> `module.modulemap`—. El cuarto, `core_financiero.swift`, **no va ahí**: es fuente Swift
+> que se compila con la app, no un header, y se queda en `Generated/`.
 
 Enlaza el XCFramework en Build Phases. Verifica que incluya los slices
 arm64 device y arm64 simulator; sin el segundo no corre en Macs con Apple
@@ -69,7 +72,7 @@ Reglas:
 
 1. Montos como `String` de extremo a extremo. **Nunca `Double` ni `Float`.**
 2. Para comparar u ordenar en la UI, usa `Decimal` de Foundation.
-3. Los `ErrorDominio` llegan como `Error` de Swift; captúralos con `do/catch`
+3. Los `DomainError` llegan como `Error` de Swift; captúralos con `do/catch`
    en la vista y traduce ahí el mensaje de usuario.
 4. Llamadas síncronas. No las envuelvas en `Task` salvo en el benchmark.
 
@@ -104,7 +107,7 @@ la comparación lado a lado en la demo sea limpia.
    plataformas — y lo que cifra una descifra cualquier otra.
 4. **Benchmark.** Ejecuta el core N veces y reporta p50/p95 contra una implementación
    equivalente nativa que vive solo en el código de test.
-5. **Pie de pantalla:** `version_core()` visible en todas. En la demo se compara con las
+5. **Pie de pantalla:** `coreVersion()` visible en todas. En la demo se compara con las
    otras tres apps: mismo string = mismo build.
 
 ## Pruebas

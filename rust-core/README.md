@@ -140,16 +140,27 @@ paquete `core_financiero` y lee la librería del host.
 
 ```bash
 cargo build --release -p core_financiero
-ls -la target/release/libcore_financiero.dylib
+ls -la target/release/ | grep -E 'libcore_financiero\.(a|dylib)$'
 ```
 
-Qué se debe ver — el `.dylib` existe y pesa ~432 KB con el perfil de release del workspace
+Qué se debe ver — **dos** artefactos, porque `crates/ffi` declara
+`crate-type = ["cdylib", "staticlib", "lib"]`:
+
+```
+-rw-r--r--@   1 tohure  staff  69281640 Sep 10 09:43 libcore_financiero.a
+-rwxr-xr-x@   1 tohure  staff    442784 Sep 10 09:43 libcore_financiero.dylib
+```
+
+El **`.dylib`** (cdylib) es el que consume Android como `.so` y el que alimenta el
+`uniffi-bindgen` de acá abajo: ~432 KB con el perfil de release del workspace
 (`opt-level = "z"`, `lto = true`, `codegen-units = 1`, `strip = true`, `panic = "unwind"`).
-La primera compilación en limpio tarda alrededor de 1 m 05 s:
+La primera compilación en limpio tarda alrededor de 1 m 05 s.
 
-```
--rwxr-xr-x@ 1 tohure  staff  442784 Sep 10 09:27 target/release/libcore_financiero.dylib
-```
+El **`.a`** (staticlib) es el que pide `xcodebuild -create-xcframework -library` en la Fase
+3. Sus ~66 MB no contradicen los 432 KB del `.dylib`: un staticlib es un archivo de objetos
+con toda la `std` adentro y sin `strip`, y el linker se queda solo con lo que se usa al
+armar la app. Genera los mismos bindings que el `.dylib`, byte por byte — verificado con
+`diff` sobre los tres archivos Swift.
 
 ```bash
 mkdir -p target/bindings-smoke/kotlin
@@ -228,8 +239,12 @@ decrypt              kotlin:1 swift:1 header:1
 core_version         kotlin:1 swift:1 header:1
 ```
 
-Todos los montos cruzan como `String` / `kotlin.String`: **ningún `Double`, `Float` ni
-`number` en la API generada**. `Vec<Account>` se mapea a `List<Account>` en Kotlin y
+Todos los montos cruzan como `String` / `kotlin.String`: **ninguna de las nueve firmas ni
+ninguno de los cinco Records usa `Double`, `Float` ni `number`**. Ojo con verificar esto con
+un `grep Double` sobre el archivo entero: da positivo (3 veces en el `.kt`, más
+`readFloat`/`writeFloat` en el `.swift`) porque el **scaffolding** de uniffi trae los
+lectores de todos los tipos que sabe serializar, los use este core o no. Lo que importa es
+la superficie pública, y ahí no hay ninguno. `Vec<Account>` se mapea a `List<Account>` en Kotlin y
 `[Account]` en Swift. Ojo con el nombre del enum de error, que **difiere por lenguaje**:
 `DomainException` en Kotlin, `DomainError` en Swift.
 

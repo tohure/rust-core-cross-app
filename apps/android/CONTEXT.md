@@ -58,7 +58,8 @@ Reglas de la capa adapter:
 1. Los montos viajan como `String` de extremo a extremo. **Nunca los conviertas
    a `Double` ni a `Float`**, en ningún punto, ni siquiera temporalmente.
 2. Si necesitas comparar u ordenar montos en la UI, usa `BigDecimal`.
-3. Los `ErrorDominio` del core se mapean a mensajes de usuario en la capa de
+3. Los `DomainException` del core (así lo nombra el binding Kotlin) se mapean a
+   mensajes de usuario en la capa de
    UI, no en el adapter. El adapter propaga el error tal cual.
 4. Las llamadas al core son síncronas y rápidas (microsegundos). No las metas
    en corrutinas ni en `Dispatchers.IO`, excepto en la pantalla de benchmark.
@@ -89,7 +90,7 @@ Nunca redondea: el core ya entregó el valor con la escala correcta.
    plataformas — y lo que cifra una descifra cualquier otra.
 4. **Benchmark.** Ejecuta el core N veces y reporta p50/p95 contra una implementación
    equivalente nativa que vive solo en el código de test.
-5. **Pie de pantalla:** `version_core()` visible en todas. En la demo se compara con las
+5. **Pie de pantalla:** `coreVersion()` visible en todas. En la demo se compara con las
    otras tres apps: mismo string = mismo build.
 
 ## Pruebas

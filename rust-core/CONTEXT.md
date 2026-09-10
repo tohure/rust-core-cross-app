@@ -10,9 +10,14 @@ bancaria. Se consume desde Android nativo, iOS nativo, React Native y web.
 2. **Nunca `f32` ni `f64` en la API pública.** Los montos son `String` en el
    límite FFI. Internamente se usa `rust_decimal::Decimal`.
 3. **Nunca `panic!`, `unwrap()` ni `expect()` en código de producción.** Todo
-   error se modela con `Result` y un enum `#[derive(uniffi::Error)]`.
-4. **Toda función pública lleva `#[uniffi::export]`.** No se escriben bindings
-   a mano para ninguna plataforma.
+   error se modela con `Result` y un `DomainError`. El enum vive dos veces: en
+   `crates/domain` es un `thiserror` puro y **solo** la copia de `crates/ffi` lleva
+   `#[derive(uniffi::Error)]`.
+4. **Toda función pública de `crates/ffi` lleva `#[uniffi::export]`.** No se escriben
+   bindings a mano para ninguna plataforma. **En `crates/domain` es exactamente al
+   revés:** ahí no hay ni una macro de uniffi, y no puede haberla —el crate no declara
+   la dependencia, así que un `#[uniffi::export]` adentro no compila (ver "Estructura")—.
+   Las reglas 4 y 5 hablan del crate de la fachada, no del dominio.
 5. **Sin `#[cfg(target_arch)]` sobre las macros de uniffi.** Si necesitas
    comportamiento por plataforma, usa un feature de cargo, nunca condicionar
    `uniffi::export`.
@@ -43,6 +48,8 @@ rust-core/
 │   │   ├── src/crypto.rs         encrypt · decrypt (ChaCha20-Poly1305)
 │   │   └── tests/properties.rs   proptest
 │   └── ffi/                      paquete `core_financiero`, el único crate exportado
+│       │                         crate-type = cdylib + staticlib + lib:
+│       │                         .so/.dylib para Android, .a para el XCFramework de iOS
 │       ├── src/lib.rs            uniffi::export, los Record y DomainError con piel de uniffi
 │       ├── build.rs              inyecta el SHA de git para core_version()
 │       ├── uniffi-bindgen.rs     el [[bin]] que genera los bindings
@@ -247,9 +254,22 @@ cargo build --release --target aarch64-apple-ios
 cargo build --release --target aarch64-apple-ios-sim
 cargo run --bin uniffi-bindgen -- generate --library target/release/libcore_financiero.a \
   --language swift --out-dir ../apps/ios/Generated
+
+# uniffi 0.32 emite el modulemap como `core_financieroFFI.modulemap`, pero
+# `-create-xcframework -headers <dir>` exige que el directorio traiga uno llamado
+# exactamente `module.modulemap`. Sin este paso el XCFramework se construye SIN ERROR
+# y después `import core_financieroFFI` no resuelve. Verificado en la Fase 1.
+mkdir -p ../apps/ios/Generated/include
+mv ../apps/ios/Generated/core_financieroFFI.h ../apps/ios/Generated/include/
+cp ../apps/ios/Generated/core_financieroFFI.modulemap \
+   ../apps/ios/Generated/include/module.modulemap
+
+# `-headers` va una vez por cada `-library`, inmediatamente después del suyo.
 xcodebuild -create-xcframework \
   -library target/aarch64-apple-ios/release/libcore_financiero.a \
+  -headers ../apps/ios/Generated/include \
   -library target/aarch64-apple-ios-sim/release/libcore_financiero.a \
+  -headers ../apps/ios/Generated/include \
   -output ../apps/ios/CoreFinanciero.xcframework
 
 # React Native y web: desde apps/react-native, vía ubrn

@@ -100,7 +100,7 @@ Las mismas cinco que Android e iOS, con los mismos labels y el mismo orden.
    plataformas — y lo que cifra una descifra cualquier otra.
 4. **Benchmark.** Ejecuta el core N veces y reporta p50/p95 contra una implementación
    equivalente nativa que vive solo en el código de test.
-5. **Pie de pantalla:** `version_core()` visible en todas. En la demo se compara con las
+5. **Pie de pantalla:** `coreVersion()` visible en todas. En la demo se compara con las
    otras tres apps: mismo string = mismo build.
 
 En la pantalla de aritmética, el lado "double" se calcula con `Number` a propósito. Es la

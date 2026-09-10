@@ -101,7 +101,7 @@ Reglas derivadas, válidas en los cinco proyectos:
 4. **Sin red, sin persistencia, sin async, sin I/O.** En el core son funciones puras;
    en las apps está fuera de alcance. Esto es una POC de dominio.
 5. El core no hace `panic!`/`unwrap()`/`expect()` en producción: todo error es
-   `Result` con `ErrorDominio`. El mapeo a mensaje de usuario ocurre en la capa de
+   `Result` con `DomainError`. El mapeo a mensaje de usuario ocurre en la capa de
    UI, no en el adapter — el adapter propaga tal cual.
 
 ## `contracts/cases.json` — el contrato compartido
@@ -132,12 +132,15 @@ mismo hex. En producción eso sería catastrófico; ver [contracts/README.md](co
 ## Paridad entre apps
 
 Las cuatro apps tienen las **mismas cinco pantallas, con los mismos labels y el mismo
-orden de campos**: Aritmética, Transferencia, Tarjeta, Benchmark, y `version_core()`
-visible al pie. Esto no es cosmético: la demo consiste en poner las cuatro lado a lado
+orden de campos**: Aritmética, Transferencia, Tarjeta, Benchmark, y el valor de
+`core_version()` visible al pie —la función se llama así en Rust; el binding generado es
+`coreVersion()` en Kotlin, Swift y TypeScript—. Esto no es cosmético: la demo consiste en poner las cuatro lado a lado
 y comparar. Cambiar un label en una app obliga a cambiarlo en las cuatro.
 
-`version_core()` visible en todas es la prueba en pantalla de que corren exactamente
-el mismo build.
+Ese string visible en las cuatro es la prueba en pantalla de que corren exactamente el
+mismo build. No es automático: cada artefacto congela el SHA del momento en que se
+construyó, así que hay que regenerar los cuatro desde el mismo HEAD antes de la demo (ver
+[rust-core/README.md](rust-core/README.md)).
 
 ## Estado actual y flujo de trabajo (SDD con superpowers)
 
