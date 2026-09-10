@@ -3,8 +3,8 @@
 Núcleo de dominio de la POC. Es el único lugar donde vive lógica de negocio: las cuatro
 apps lo consumen sin reescribirlo.
 
-**Estado: Fase 1 completada.** 54 tests en verde —37 unitarios de `domain`, 6 de `proptest`,
-3 del lib de `ffi` y 8 del golden— contra `contracts/cases.json` v2.2.0, 27 casos.
+**Estado: Fase 1 completada.** 59 tests en verde —42 unitarios de `domain`, 6 de `proptest`,
+3 del lib de `ffi` y 8 del golden— contra `contracts/cases.json` v2.3.0, 28 casos.
 
 Todos los comandos de este README **se ejecutaron tal como están escritos**, desde
 `rust-core/`, y la salida que sigue a cada uno es la que devolvieron. Ninguno está deducido
@@ -17,7 +17,7 @@ la demo, que es el único día que importa.
 graph TD
     ffi["<b>crates/ffi</b> · paquete core_financiero<br/>uniffi::export · cdylib + staticlib + lib<br/>único crate exportado"]
     domain["<b>crates/domain</b><br/>Rust puro · NO declara uniffi<br/>error · arithmetic · itf · transfer<br/>cci · card · crypto"]
-    contrato[("contracts/cases.json<br/>v2.2.0 · 27 casos")]
+    contrato[("contracts/cases.json<br/>v2.3.0 · 28 casos")]
     bindings["target/release/libcore_financiero.dylib<br/>+ bindings Kotlin / Swift"]
 
     ffi --> domain
@@ -43,9 +43,9 @@ de la stdlib, y `#[derive(thiserror::Error)]` deja de compilar con `cannot find 
 ## Correr los tests
 
 ```bash
-cargo test --workspace                                        # todo: 54 tests
+cargo test --workspace                                        # todo: 59 tests
 cargo test -p domain                                          # solo el núcleo, sin compilar uniffi
-cargo test -p core_financiero --test golden                   # solo los 27 casos del contrato
+cargo test -p core_financiero --test golden                   # solo los 28 casos del contrato
 cargo test -p domain rounds_half_away_from_zero_not_to_even   # un solo test por nombre
 cargo clippy --workspace --all-targets -- -D warnings
 cargo fmt --all
@@ -59,9 +59,9 @@ doc-tests— reportan `0 passed`, que es lo esperado:
 |---|---|
 | `crates/ffi/src/lib.rs` (unitarias del lib) | 3 |
 | `crates/ffi/tests/golden.rs` | 8 |
-| `crates/domain/src/**` (unitarias del lib) | 37 |
+| `crates/domain/src/**` (unitarias del lib) | 42 |
 | `crates/domain/tests/properties.rs` (`proptest`) | 6 |
-| **Total** | **54** |
+| **Total** | **59** |
 
 `cargo test -p core_financiero --test golden` imprime:
 
@@ -94,9 +94,9 @@ de la fase habría figurado como "pasado" sin haber corrido una sola vez. Dentro
 
 ### Qué prueba
 
-Los 27 casos de `contracts/cases.json`, con **igualdad exacta de strings** (`assert_eq!`),
+Los 28 casos de `contracts/cases.json`, con **igualdad exacta de strings** (`assert_eq!`),
 nunca comparación numérica con tolerancia. Cubre los cinco grupos del contrato:
-`aritmetica` 6, `cci` 4, `itf` 5, `tarjeta` 6, `transferencia` 6. El contrato se embebe con
+`aritmetica` 6, `cci` 4, `itf` 5, `tarjeta` 6, `transferencia` 7. El contrato se embebe con
 `include_str!`, así que editarlo fuerza recompilar el test y no hay I/O en runtime.
 
 ### Qué NO prueba
@@ -115,7 +115,7 @@ puedan mentir:
 
 | Guardia | Qué caza |
 |---|---|
-| `the_contract_is_the_expected_version` | que el contrato deje de ser v2.2.0 |
+| `the_contract_is_the_expected_version` | que el contrato deje de ser v2.3.0 |
 | `the_contract_has_the_expected_number_of_cases` | un grupo vaciado a `[]` o renombrado |
 | `the_contract_has_no_unknown_top_level_keys` | un grupo nuevo que ningún `golden_*` lee |
 
@@ -507,6 +507,6 @@ grep -rn "f32\|f64" crates/ --include='*.rs' || echo "sin punto flotante ✅"
 find crates/domain/src crates/ffi/src -name '*.rs' -exec awk '/#\[cfg\(test\)\]/{exit} /unwrap\(\)|expect\(/{print FILENAME":"FNR": "$0}' {} + | grep . || echo "sin unwrap/expect en produccion ✅"
 ```
 
-Qué se debe ver — 54 tests en `0 failed`, clippy y fmt sin salida, y los dos últimos
+Qué se debe ver — 59 tests en `0 failed`, clippy y fmt sin salida, y los dos últimos
 comandos imprimiendo su mensaje de "sin ...", que es lo que pasa cuando **no** encuentran
 nada.

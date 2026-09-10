@@ -1,4 +1,4 @@
-use crate::arithmetic::{format_amount, parse_amount, round_amount};
+use crate::arithmetic::{format_amount, parse_scaled_amount, round_amount};
 use crate::error::DomainError;
 use crate::itf::rounded_itf;
 use rust_decimal::prelude::ToPrimitive;
@@ -82,7 +82,10 @@ pub fn execute_transfer(
             id: request.destination.clone(),
         })?;
 
-    let amount = parse_amount(&request.amount, "monto")?;
+    // `parse_scaled_amount` rechaza acá el monto con más de 2 decimales, junto al chequeo
+    // de "mayor que cero" y **después** de resolver las cuentas: adelantarlo le cambiaría
+    // el error a tr-004 y tr-005, que el contrato fija en CuentaNoEncontrada y MismaCuenta.
+    let amount = parse_scaled_amount(&request.amount, "monto")?;
     if amount <= Decimal::ZERO {
         return Err(DomainError::InvalidAmount {
             detail: "el monto debe ser mayor que cero".into(),
@@ -94,14 +97,17 @@ pub fn execute_transfer(
         field: "total".into(),
     })?);
 
-    let origin_balance = parse_amount(&accounts[i_origin].balance, "saldo origen")?;
+    // El saldo entra por la misma puerta que el monto: un saldo con más de 2 decimales se
+    // redondea al formatear la salida, y ese redondeo crea o destruye centavos.
+    let origin_balance = parse_scaled_amount(&accounts[i_origin].balance, "saldo origen")?;
     if origin_balance < total {
         return Err(DomainError::InsufficientFunds {
             available: format_amount(origin_balance),
             required: format_amount(total),
         });
     }
-    let destination_balance = parse_amount(&accounts[i_destination].balance, "saldo destino")?;
+    let destination_balance =
+        parse_scaled_amount(&accounts[i_destination].balance, "saldo destino")?;
 
     // Entra el estado, sale el estado nuevo: la entrada no se muta.
     let mut updated = accounts.clone();
@@ -221,6 +227,73 @@ mod tests {
         )
         .unwrap_err();
         assert_eq!(e.contract_name(), "MontoInvalido");
+    }
+
+    /// tr-007 del contrato: el monto con 3 decimales se rechaza.
+    ///
+    /// Antes de esta guardia devolvía `Ok` con los dos saldos intactos y
+    /// `total_debitado "0.00"`: una transferencia "exitosa" que no movía nada. Y con un
+    /// saldo mal escalado creaba dinero (ver el test de abajo).
+    #[test]
+    fn tr_007_amount_with_more_than_two_decimals() {
+        let e = execute_transfer(
+            accounts(),
+            request("00219100123456789047", "01122000987654321065", "0.001"),
+        )
+        .unwrap_err();
+        assert_eq!(e.contract_name(), "MontoInvalido");
+    }
+
+    /// El otro lado de la misma guardia, este sin caso en el contrato porque los saldos
+    /// del contrato son fixture y siempre llegan bien escalados: con `5000.005` y
+    /// `0.005` de saldos, la transferencia de `0.001` devolvía `Ok` con saldos
+    /// `5000.01` y `0.01` — un centavo entero salido de la nada, con ITF `0.00`.
+    #[test]
+    fn a_badly_scaled_balance_is_rejected() {
+        let mis_scaled = vec![
+            Account {
+                id: "00219100123456789047".into(),
+                holder: "Ana Quispe".into(),
+                balance: "5000.005".into(),
+            },
+            Account {
+                id: "01122000987654321065".into(),
+                holder: "Luis Ramos".into(),
+                balance: "0.005".into(),
+            },
+        ];
+        let e = execute_transfer(
+            mis_scaled,
+            request("00219100123456789047", "01122000987654321065", "100.00"),
+        )
+        .unwrap_err();
+        assert_eq!(e.contract_name(), "MontoInvalido");
+        assert!(e.to_string().contains("saldo origen"), "{e}");
+    }
+
+    /// Y el saldo destino tiene su propia puerta: el origen bien escalado no alcanza para
+    /// que el estado de salida esté bien escalado.
+    #[test]
+    fn a_badly_scaled_destination_balance_is_rejected() {
+        let mis_scaled = vec![
+            Account {
+                id: "00219100123456789047".into(),
+                holder: "Ana Quispe".into(),
+                balance: "5000.00".into(),
+            },
+            Account {
+                id: "01122000987654321065".into(),
+                holder: "Luis Ramos".into(),
+                balance: "0.005".into(),
+            },
+        ];
+        let e = execute_transfer(
+            mis_scaled,
+            request("00219100123456789047", "01122000987654321065", "100.00"),
+        )
+        .unwrap_err();
+        assert_eq!(e.contract_name(), "MontoInvalido");
+        assert!(e.to_string().contains("saldo destino"), "{e}");
     }
 
     // Reemplaza a un test anterior (`does_not_mutate_the_input_accounts`) que no podía

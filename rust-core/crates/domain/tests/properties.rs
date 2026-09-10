@@ -22,6 +22,37 @@ fn sum_balances(accounts: &[Account]) -> Decimal {
         .sum()
 }
 
+/// Escala del texto generado. Tres de cada cuatro veces sale bien escalado (0 a 2
+/// decimales), que es la rama donde el invariante de conservación **debe** cumplirse; una
+/// de cada cuatro sale con 3 a 5 decimales, la rama donde `execute_transfer` debe rechazar.
+fn scale() -> impl Strategy<Value = u32> {
+    prop_oneof![
+        3 => Just(0u32),
+        3 => Just(1u32),
+        3 => Just(2u32),
+        1 => Just(3u32),
+        1 => Just(4u32),
+        1 => Just(5u32),
+    ]
+}
+
+/// Un monto o un saldo como texto, con escala variable.
+///
+/// El generador anterior (`cents in 1i64..400_000`, saldos fijos de dos decimales)
+/// producía **solo** montos de exactamente 2 decimales contra saldos de 2 decimales: el
+/// subespacio donde el invariante de conservación no puede fallar, porque ningún
+/// redondeo de salida cambia nada. Es decir, el test pasaba por construcción. Con escala
+/// variable el generador sí alcanza los valores mal escalados (`0.001`, `5000.005`) que
+/// creaban centavos de la nada; el invariante sigue siendo cierto, ahora por la otra
+/// rama: `execute_transfer` los rechaza con MontoInvalido y el `if let Ok` no entra.
+///
+/// `Decimal::new(mantisa, escala)` conserva la escala al imprimirse: `Decimal::new(1, 3)`
+/// se imprime `"0.001"` y `Decimal::new(100, 2)` se imprime `"1.00"`. Nada de esto usa
+/// punto flotante: la mantisa es `i64` y la escala `u32`.
+fn scaled_text(mantissa: impl Strategy<Value = i64>) -> impl Strategy<Value = String> {
+    (mantissa, scale()).prop_map(|(mantissa, scale)| Decimal::new(mantissa, scale).to_string())
+}
+
 proptest! {
     /// Test de SEGURIDAD, no solo de robustez: estas funciones reciben texto
     /// arbitrario del usuario a través del FFI. Un pánico acá es un crash de la app.
@@ -47,18 +78,25 @@ proptest! {
     }
 
     /// No se crea ni se destruye dinero: la suma de saldos baja exactamente el ITF.
+    ///
+    /// El monto **y los dos saldos** se generan con escala variable (ver `scaled_text`),
+    /// así que la corrida cubre las dos ramas: la transferencia se rechaza, o conserva
+    /// el dinero. No hay una tercera.
     #[test]
-    fn a_transfer_conserves_money(cents in 1i64..400_000i64) {
-        let amount = Decimal::new(cents, 2);
+    fn a_transfer_conserves_money(
+        amount in scaled_text(1i64..400_000i64),
+        origin_balance in scaled_text(0i64..1_000_000i64),
+        destination_balance in scaled_text(0i64..1_000_000i64),
+    ) {
         let accounts = vec![
-            Account { id: "00219100123456789047".into(), holder: "Ana".into(), balance: "5000.00".into() },
-            Account { id: "01122000987654321065".into(), holder: "Luis".into(), balance: "1200.50".into() },
+            Account { id: "00219100123456789047".into(), holder: "Ana".into(), balance: origin_balance },
+            Account { id: "01122000987654321065".into(), holder: "Luis".into(), balance: destination_balance },
         ];
         let before = sum_balances(&accounts);
         let request = TransferRequest {
             origin: "00219100123456789047".into(),
             destination: "01122000987654321065".into(),
-            amount: format!("{amount:.2}"),
+            amount,
         };
         if let Ok(r) = execute_transfer(accounts, request) {
             let after = sum_balances(&r.accounts);

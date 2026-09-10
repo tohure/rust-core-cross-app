@@ -12,6 +12,33 @@ pub(crate) fn parse_amount(value: &str, field: &str) -> Result<Decimal, DomainEr
     })
 }
 
+/// Parsea un monto que además debe **entrar** con la escala del contrato: 2 decimales
+/// como máximo.
+///
+/// Vive acá, junto a `parse_amount` y `SCALE`, y no duplicada en `transfer.rs`: la
+/// transferencia la necesita en tres lugares (el monto y los dos saldos) y la misma
+/// condición escrita tres veces es la que después se corrige en dos.
+///
+/// `add`/`subtract` **no** pasan por esta puerta a propósito: el contrato les acepta
+/// escala libre en la entrada (`"0.1"` es un caso válido, `ar-001`) porque su salida
+/// redondeada no alimenta ningún saldo. La transferencia sí: un monto o un saldo con más
+/// de 2 decimales se redondea al formatear la salida y mueve la suma total de saldos,
+/// con lo que el invariante "no se crea ni se destruye dinero" deja de valer. Ver la
+/// sección Transferencia de contracts/README.md.
+pub(crate) fn parse_scaled_amount(value: &str, field: &str) -> Result<Decimal, DomainError> {
+    let amount = parse_amount(value, field)?;
+    let scale = amount.scale();
+    if scale > SCALE {
+        return Err(DomainError::InvalidAmount {
+            detail: format!(
+                "{field}: se aceptan {SCALE} decimales como máximo, llegaron {scale} en `{}`",
+                value.trim()
+            ),
+        });
+    }
+    Ok(amount)
+}
+
 /// Redondeo normativo del contrato: 2 decimales, medio hacia afuera del cero.
 pub(crate) fn round_amount(value: Decimal) -> Decimal {
     value.round_dp_with_strategy(SCALE, RoundingStrategy::MidpointAwayFromZero)
@@ -44,6 +71,10 @@ pub fn subtract(a: &str, b: &str) -> Result<String, DomainError> {
 mod tests {
     use super::*;
 
+    fn dec(value: &str) -> Decimal {
+        Decimal::from_str(value).expect("literal de test bien formado")
+    }
+
     // Los seis casos del grupo `aritmetica` de contracts/cases.json.
     // Los seis divergen bajo IEEE-754; ese es el punto de la pantalla.
     #[test]
@@ -64,6 +95,28 @@ mod tests {
     fn the_output_always_has_two_decimals() {
         assert_eq!(add("1", "1").unwrap(), "2.00");
         assert_eq!(add("0", "0").unwrap(), "0.00");
+    }
+
+    #[test]
+    fn the_scaled_gate_accepts_up_to_two_decimals_and_rejects_more() {
+        assert_eq!(
+            parse_scaled_amount("100.55", "monto").unwrap(),
+            dec("100.55")
+        );
+        assert_eq!(parse_scaled_amount("100.5", "monto").unwrap(), dec("100.5"));
+        assert_eq!(parse_scaled_amount("100", "monto").unwrap(), dec("100"));
+
+        let e = parse_scaled_amount("0.001", "monto").unwrap_err();
+        assert_eq!(e.contract_name(), "MontoInvalido");
+        assert!(e.to_string().contains("monto"), "{e}");
+    }
+
+    /// `add`/`subtract` conservan la escala libre en la entrada: `ar-001` es `"0.1"`, y
+    /// nada de esto los toca.
+    #[test]
+    fn the_scaled_gate_does_not_apply_to_arithmetic() {
+        assert_eq!(add("0.001", "0.001").unwrap(), "0.00");
+        assert_eq!(add("0.005", "0.005").unwrap(), "0.01");
     }
 
     #[test]

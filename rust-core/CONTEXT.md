@@ -53,7 +53,7 @@ rust-core/
 │       ├── src/lib.rs            uniffi::export, los Record y DomainError con piel de uniffi
 │       ├── build.rs              inyecta el SHA de git para core_version()
 │       ├── uniffi-bindgen.rs     el [[bin]] que genera los bindings
-│       └── tests/golden.rs       los 27 casos de ../contracts/cases.json
+│       └── tests/golden.rs       los 28 casos de ../contracts/cases.json
 ```
 
 `domain` NO conoce uniffi. Solo `ffi` depende de uniffi, y eso **no es una convención**:
@@ -191,8 +191,14 @@ Las reglas y sus constantes están especificadas en
   de la demo.
 - **Transferencia**: el destino recibe `monto`; el origen se debita `monto + ITF`. Valida
   que ambas cuentas existan, que sean distintas, que el monto sea > 0 y que el saldo
-  alcance para `monto + ITF`.
-- **Aritmética**: entrada con escala libre, salida siempre con 2 decimales.
+  alcance para `monto + ITF`. Valida además la **escala de la entrada**: el monto y los
+  dos saldos entran con 2 decimales como máximo, o el resultado es `InvalidAmount`
+  (`MontoInvalido` en el contrato, caso `tr-007`). Sin esa puerta, el redondeo al
+  formatear la salida mueve la suma total de saldos y el invariante de conservación del
+  dinero deja de valer.
+- **Aritmética**: entrada con escala libre, salida siempre con 2 decimales. Es la
+  diferencia deliberada con la transferencia: la salida redondeada de `add`/`subtract` no
+  alimenta ningún saldo.
 
 ### Cifrado
 
@@ -221,7 +227,9 @@ Tres niveles, los tres obligatorios:
 1. **Unitarias** en cada crate, en Rust puro.
 2. **Property-based** con `proptest`. Invariantes mínimas:
    - una transferencia válida **conserva la suma total de saldos** (más el ITF debitado):
-     no se crea ni se destruye dinero
+     no se crea ni se destruye dinero. El generador tiene que producir montos y saldos con
+     **3 o más decimales**, no solo centavos enteros: sobre centavos enteros el invariante
+     no puede fallar y el test pasa por construcción
    - ningún saldo queda negativo tras una transferencia aceptada
    - `decrypt(encrypt(x)) == x` para todo `x`
    - `validate_cci`, `validate_card` y `decrypt` **nunca entran en pánico** con

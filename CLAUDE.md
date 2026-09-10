@@ -146,8 +146,8 @@ construyó, así que hay que regenerar los cuatro desde el mismo HEAD antes de l
 
 **Fases 0 y 1 completadas. El núcleo existe y funciona; no hay todavía ninguna app.**
 `rust-core/` tiene dos crates —`domain` (Rust puro, siete módulos) y `ffi` (paquete
-`core_financiero`, la fachada uniffi)— con ~1930 líneas de Rust, **54 tests en verde** y el
-**test golden pasando 27/27** contra `contracts/cases.json` **v2.2.0**. Los bindings Kotlin
+`core_financiero`, la fachada uniffi)— con ~1930 líneas de Rust, **59 tests en verde** y el
+**test golden pasando 28/28** contra `contracts/cases.json` **v2.3.0**. Los bindings Kotlin
 y Swift se generaron y se verificó que las nueve funciones cruzan la frontera.
 
 Lo que **no** existe todavía: ni una línea de Kotlin, Swift o TypeScript. Lo que sigue
@@ -190,8 +190,9 @@ El orden no es negociable: lo impone el grafo de dependencias de build de arriba
 
 - **Fase 0 — Toolchain y contrato.** ✅ **Completada.** Rust 1.98.1 (solo target host) y
   `contracts/cases.json`, escrito a mano. La fase lo entregó como **v2.0.0 con 26 casos**;
-  la Fase 1 lo llevó a **v2.2.0 con 27**: la v2.1.0 agregó `comprobante` y
-  `latencia_simulada_ms` a los esperados de `transferencia`, y la v2.2.0 sumó `itf-005`.
+  la Fase 1 lo llevó a **v2.3.0 con 28**: la v2.1.0 agregó `comprobante` y
+  `latencia_simulada_ms` a los esperados de `transferencia`, la v2.2.0 sumó `itf-005` y la
+  v2.3.0 sumó `tr-007`, el monto con más de 2 decimales.
   Ningún valor esperado anterior se corrigió. Los vectores de cifrado se
   derivaron con ChaCha20-Poly1305 de Node 22, independiente de Rust. El alcance se recortó
   antes de la Fase 1: fuera el cronograma francés, la TCEA y `validar_ruc`; dentro
@@ -199,12 +200,16 @@ El orden no es negociable: lo impone el grafo de dependencias de build de arriba
   [recorte de alcance](docs/superpowers/specs/2026-09-08-scope-simplification-design.md)).
 - **Fase 1 — `rust-core`.** ✅ **Completada.** Workspace y los dos crates: `domain` (Rust
   puro, con los módulos `arithmetic`, `card`, `cci`, `crypto`, `error`, `itf`, `transfer`) y
-  `ffi` (paquete `core_financiero`, la fachada uniffi). Entregó **54 tests en verde** —37
+  `ffi` (paquete `core_financiero`, la fachada uniffi). Entregó **59 tests en verde** —42
   unitarios de `domain`, 6 de `proptest`, 3 del lib de `ffi` y 8 del golden— y el **golden
-  27/27** contra `cases.json` v2.2.0, sin haber corregido un solo valor esperado para que
-  pasara. El contrato subió de v2.1.0 a v2.2.0 durante la fase: se agregó `itf-005`, el
-  único caso que distingue `MidpointAwayFromZero` de banker's rounding (los cuatro casos de
-  `itf` anteriores **no** lo distinguían, contra lo que afirmaba el comentario del test).
+  28/28** contra `cases.json` v2.3.0, sin haber corregido un solo valor esperado para que
+  pasara. El contrato subió de v2.1.0 a v2.3.0 durante la fase: la v2.2.0 agregó `itf-005`,
+  el único caso que distingue `MidpointAwayFromZero` de banker's rounding (los cuatro casos
+  de `itf` anteriores **no** lo distinguían, contra lo que afirmaba el comentario del test);
+  la v2.3.0 agregó `tr-007` junto con la guardia de escala de `execute_transfer`: un monto o
+  un saldo con más de 2 decimales devuelve `MontoInvalido`, porque sin esa puerta el
+  redondeo al formatear movía la suma de saldos y el invariante de conservación del dinero
+  dejaba de valer.
   Fue la única fase donde se decidió lógica de negocio. Ver
   [rust-core/README.md](rust-core/README.md).
 - **Fase 2 — `apps/android`.** Primer consumidor: valida el pipeline uniffi + el test
@@ -289,7 +294,7 @@ Los comandos exactos están en el plan de cada fase.
 
 ```bash
 # Desarrollo del core (desde rust-core/)
-cargo test --workspace              # todo: 54 tests
+cargo test --workspace              # todo: 59 tests
 cargo test -p domain                # un solo crate, sin compilar uniffi
 cargo test -p domain rounds_half_away_from_zero_not_to_even   # un solo test por nombre
 cargo test -p core_financiero --test golden       # solo los vectores de cases.json

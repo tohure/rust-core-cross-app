@@ -59,7 +59,7 @@ fn assert_exact_fields(v: &Value, expected: &[&str], what: &str) {
 
 #[test]
 fn the_contract_is_the_expected_version() {
-    assert_eq!(field(&contract(), "version"), "2.2.0");
+    assert_eq!(field(&contract(), "version"), "2.3.0");
 }
 
 /// Guardia contra el golden que reporta éxito sin haber ejercitado nada.
@@ -76,15 +76,15 @@ fn the_contract_is_the_expected_version() {
 ///    poner este archivo dentro del paquete `ffi` y no en la raíz del workspace.
 #[test]
 fn the_contract_has_the_expected_number_of_cases() {
-    // Los conteos reales del contrato v2.2.0. Cambiarlos es cambiar el alcance de la POC.
+    // Los conteos reales del contrato v2.3.0. Cambiarlos es cambiar el alcance de la POC.
     const EXPECTED: [(&str, usize); 5] = [
         ("aritmetica", 6),
         ("cci", 4),
         ("itf", 5),
         ("tarjeta", 6),
-        ("transferencia", 6),
+        ("transferencia", 7),
     ];
-    const EXPECTED_TOTAL: usize = 27;
+    const EXPECTED_TOTAL: usize = 28;
 
     let d = contract();
     let mut total = 0;
@@ -100,7 +100,7 @@ fn the_contract_has_the_expected_number_of_cases() {
         total += actual;
     }
     // Esto NO es una segunda guardia: si los cinco asserts de arriba pasaron, el total es
-    // necesariamente 27, y si alguno falla el test aborta antes de llegar acá. Está para
+    // necesariamente 28, y si alguno falla el test aborta antes de llegar acá. Está para
     // documentar el tamaño del contrato y para que crecerlo obligue a tocar dos números.
     assert_eq!(
         total, EXPECTED_TOTAL,
@@ -121,7 +121,7 @@ fn the_contract_has_the_expected_number_of_cases() {
 /// y que una se quede atrás sin que nada falle es justo lo que la POC no puede permitirse.
 #[test]
 fn the_contract_has_no_unknown_top_level_keys() {
-    // Las doce claves del contrato v2.2.0: seis de metadatos, cinco grupos de casos, y
+    // Las doce claves del contrato v2.3.0: seis de metadatos, cinco grupos de casos, y
     // `cuentas_iniciales`, que `golden_transfer` usa como fixture y no como casos.
     const KNOWN: [&str; 12] = [
         "version",
@@ -315,7 +315,7 @@ fn golden_card() {
 #[test]
 fn golden_transfer() {
     // Ver `golden_arithmetic`: el contador es lo que impide pasar en verde sin ejercitar.
-    const EXPECTED_CASES: usize = 6;
+    const EXPECTED_CASES: usize = 7;
     let mut exercised = 0;
 
     let d = contract();
