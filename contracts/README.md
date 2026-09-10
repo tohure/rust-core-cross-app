@@ -128,9 +128,10 @@ La latencia crece con el monto y está topeada en 750 ms: montos grandes "tardan
 decide el core, no la app.
 
 `latencia_simulada_ms` es **entero sin signo, en milisegundos** (`u32`), y es **el único
-esperado del contrato que no es un string**: se compara como número, no como texto. Todo lo
-demás —montos, comprobantes, hex de cifrado, nombres de error— se compara por igualdad
-exacta de strings, según la regla de arriba.
+campo dentro de un `esperado` que no es un string**: se compara como número, no como texto.
+Todo el resto del `esperado` —montos, comprobantes, hex de cifrado, nombres de error— se
+compara por igualdad exacta de strings, según la regla de arriba. (Fuera del `esperado`,
+cada caso trae además `valido`, que es un booleano y dice si se espera éxito o error.)
 
 Lo devuelve el core y la app lo espera antes de pintar, para que la demo "parezca" una
 llamada HTTP. **No hay ningún cliente HTTP en ninguna parte.**
