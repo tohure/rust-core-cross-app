@@ -12,11 +12,20 @@ La tesis que la POC debe probar es una sola: **la lógica de negocio (dominio + 
 se comparte, la UI varía por plataforma.** La evidencia es que las cuatro apps
 producen strings idénticos carácter por carácter sobre el mismo set de casos.
 
-**Idioma.** Nombres de archivos, carpetas, crates y ramas: **inglés**. Contenido de la
-documentación, textos de UI y mensajes de commit: **español**. Los identificadores de
-dominio conservan la terminología bancaria peruana (`validar_cci`, `transferencia`,
-`itf`, `tarjeta`) — son lenguaje ubicuo, no traducible sin perder significado.
-Commits en Conventional Commits.
+**Idioma.** **Todo identificador va en inglés**, en las cinco bases de código: nombres de
+archivos, carpetas, crates, ramas, funciones, tipos, campos, variables, constantes y
+nombres de test (`validate_cci`, `execute_transfer`, `DomainError`, `Account.balance`).
+Contenido de la documentación, comentarios, docs de función, textos de UI y mensajes de
+commit: **español**. Commits en Conventional Commits.
+
+Las siglas bancarias peruanas —`cci`, `itf`— **no se traducen**: son nombres propios, no
+palabras. Sí llevan prefijo en inglés (`validate_cci`, `calculate_itf`, `ITF_RATE`).
+
+**Excepción: `contracts/cases.json` conserva sus claves y sus nombres de error en
+español** (`comision_itf`, `saldo`, `"MismaCuenta"`). Es un archivo de datos que las cinco
+bases de código comparan por igualdad exacta de strings, no código; traducirlo obligaría a
+un cambio *major* del contrato sin ganar nada. El puente vive en un solo lugar: en Rust,
+`DomainError::contract_name()` devuelve el nombre en español que espera el contrato.
 
 ## Documentos de contexto por proyecto
 
@@ -41,7 +50,7 @@ a los cuatro consumidores más `contracts/cases.json` en el mismo cambio.
 No es una estrella. Angular **no** consume el core directamente:
 
 ```
-rust-core/crates/ffi  (único crate exportado; domain/calculation/validation no conocen uniffi)
+rust-core/crates/ffi  (único crate exportado; crates/domain es Rust puro y no conoce uniffi)
    │
    ├── cargo ndk + uniffi-bindgen kotlin ──> apps/android  (jniLibs/*.so + core/)
    ├── xcodebuild -create-xcframework    ──> apps/ios      (CoreFinanciero.xcframework + Generated/)
@@ -55,9 +64,9 @@ Consecuencias que hay que tener presentes:
 - **`apps/web-angular` depende del build de `apps/react-native`**, no del de `rust-core`.
   El `.wasm` se consume como paquete local del workspace (`@banco/core-financiero`);
   nunca se copia a mano dentro de `assets/`.
-- Los crates internos (`domain`, `calculation`, `validation`) son Rust puro y no
-  dependen de uniffi. Eso los mantiene testeables rápido, sin FFI de por medio.
-  Solo `crates/ffi` lleva las macros `#[uniffi::export]`.
+- `crates/domain` es Rust puro y no declara uniffi en su `Cargo.toml`. Eso lo mantiene
+  testeable rápido, sin FFI de por medio, y hace que un `#[uniffi::export]` ahí adentro
+  **no compile**: la frontera la sostiene el compilador. Solo `crates/ffi` lleva las macros.
 - Cada app tiene un directorio de **artefactos generados que nunca se editan a mano**
   (ver el CONTEXT de cada una). Si algo generado está mal, se corrige en `rust-core`
   y se regenera.
@@ -92,7 +101,7 @@ Reglas derivadas, válidas en los cinco proyectos:
 4. **Sin red, sin persistencia, sin async, sin I/O.** En el core son funciones puras;
    en las apps está fuera de alcance. Esto es una POC de dominio.
 5. El core no hace `panic!`/`unwrap()`/`expect()` en producción: todo error es
-   `Result` con `ErrorDominio`. El mapeo a mensaje de usuario ocurre en la capa de
+   `Result` con `DomainError`. El mapeo a mensaje de usuario ocurre en la capa de
    UI, no en el adapter — el adapter propaga tal cual.
 
 ## `contracts/cases.json` — el contrato compartido
@@ -123,18 +132,28 @@ mismo hex. En producción eso sería catastrófico; ver [contracts/README.md](co
 ## Paridad entre apps
 
 Las cuatro apps tienen las **mismas cinco pantallas, con los mismos labels y el mismo
-orden de campos**: Aritmética, Transferencia, Tarjeta, Benchmark, y `version_core()`
-visible al pie. Esto no es cosmético: la demo consiste en poner las cuatro lado a lado
+orden de campos**: Aritmética, Transferencia, Tarjeta, Benchmark, y el valor de
+`core_version()` visible al pie —la función se llama así en Rust; el binding generado es
+`coreVersion()` en Kotlin, Swift y TypeScript—. Esto no es cosmético: la demo consiste en poner las cuatro lado a lado
 y comparar. Cambiar un label en una app obliga a cambiarlo en las cuatro.
 
-`version_core()` visible en todas es la prueba en pantalla de que corren exactamente
-el mismo build.
+Ese string visible en las cuatro es la prueba en pantalla de que corren exactamente el
+mismo build. No es automático: cada artefacto congela el SHA del momento en que se
+construyó, así que hay que regenerar los cuatro desde el mismo HEAD antes de la demo (ver
+[rust-core/README.md](rust-core/README.md)).
 
 ## Estado actual y flujo de trabajo (SDD con superpowers)
 
-**Fase 0 completada; no hay código de producción todavía.** Existen los CONTEXT, este
-CLAUDE.md, la spec + plan de la Fase 0 y el contrato `contracts/cases.json`. Ni una línea
-de Rust, Kotlin, Swift o TypeScript: lo que sigue (Fase 1) es el primer código real.
+**Fases 0 y 1 completadas. El núcleo existe y funciona; no hay todavía ninguna app.**
+`rust-core/` tiene dos crates —`domain` (Rust puro, siete módulos) y `ffi` (paquete
+`core_financiero`, la fachada uniffi)— con ~1930 líneas de Rust, **67 tests en verde** y el
+**test golden pasando 28/28** contra `contracts/cases.json` **v2.3.0**. Los bindings Kotlin
+y Swift se generaron y se verificó que las nueve funciones cruzan la frontera.
+
+Lo que **no** existe todavía: ni una línea de Kotlin, Swift o TypeScript. Lo que sigue
+—Fase 2, `apps/android`— es el primer consumidor real, y el primero que va a ejercitar el
+borde FFI de verdad: el golden de Rust llama a las funciones como funciones Rust ordinarias,
+así que nada cruzó JNI ni el ABI de C todavía.
 
 Este proyecto se desarrolla con **Spec-Driven Development** usando el plugin
 `superpowers`. El flujo por fase es:
@@ -160,21 +179,39 @@ Documentos vigentes:
 - **Skills y gates por fase:** [docs/superpowers/skills-by-phase.md](docs/superpowers/skills-by-phase.md) — qué instalar en cada fase, y los gates de TDD / `/simplify` / seguridad
 - Spec Fase 0: [docs/superpowers/specs/2026-09-08-toolchain-and-contract-design.md](docs/superpowers/specs/2026-09-08-toolchain-and-contract-design.md)
 - Plan Fase 0: [docs/superpowers/plans/2026-09-08-phase-0-toolchain-and-contract.md](docs/superpowers/plans/2026-09-08-phase-0-toolchain-and-contract.md)
+- Spec Fase 1: [docs/superpowers/specs/2026-09-08-phase-1-rust-core-design.md](docs/superpowers/specs/2026-09-08-phase-1-rust-core-design.md) — decisiones D1-D6 del núcleo
+- Plan Fase 1: [docs/superpowers/plans/2026-09-08-phase-1-rust-core.md](docs/superpowers/plans/2026-09-08-phase-1-rust-core.md) — trece tareas, todas completas; su "Estado de ejecución" lista las seis desviaciones respecto del plan original
+- **Cierre de la Fase 1:** [rust-core/README.md](rust-core/README.md) — los comandos efectivamente ejecutados, el diagrama, qué prueba y qué no prueba el golden, y las dos cosas que **no** cruzan el FFI (el mapeo variante → nombre del contrato y los mensajes de error en español)
+- Ledger de ejecución de la Fase 1: `.superpowers/sdd/2026-09-08-phase-1-rust-core/progress.md` — las rulings tarea por tarea y la evidencia de cada review
 
 ## Fases de desarrollo
 
 El orden no es negociable: lo impone el grafo de dependencias de build de arriba.
 
 - **Fase 0 — Toolchain y contrato.** ✅ **Completada.** Rust 1.98.1 (solo target host) y
-  `contracts/cases.json` v2.0.0 con 26 casos, escritos a mano; los vectores de cifrado se
+  `contracts/cases.json`, escrito a mano. La fase lo entregó como **v2.0.0 con 26 casos**;
+  la Fase 1 lo llevó a **v2.3.0 con 28**: la v2.1.0 agregó `comprobante` y
+  `latencia_simulada_ms` a los esperados de `transferencia`, la v2.2.0 sumó `itf-005` y la
+  v2.3.0 sumó `tr-007`, el monto con más de 2 decimales.
+  Ningún valor esperado anterior se corrigió. Los vectores de cifrado se
   derivaron con ChaCha20-Poly1305 de Node 22, independiente de Rust. El alcance se recortó
   antes de la Fase 1: fuera el cronograma francés, la TCEA y `validar_ruc`; dentro
   aritmética decimal, transferencia y cifrado de tarjeta (ver
   [recorte de alcance](docs/superpowers/specs/2026-09-08-scope-simplification-design.md)).
-- **Fase 1 — `rust-core`.** Workspace y los cinco crates (`domain`, `calculation`,
-  `validation`, `crypto`, `ffi`). Dominio y cálculo primero en
-  Rust puro (unitarias + `proptest`), `ffi` al final. Es la única fase donde se decide
-  lógica de negocio.
+- **Fase 1 — `rust-core`.** ✅ **Completada.** Workspace y los dos crates: `domain` (Rust
+  puro, con los módulos `arithmetic`, `card`, `cci`, `crypto`, `error`, `itf`, `transfer`) y
+  `ffi` (paquete `core_financiero`, la fachada uniffi). Entregó **67 tests en verde** —47
+  unitarios de `domain`, 6 de `proptest`, 3 del lib de `ffi` y 11 del golden— y el **golden
+  28/28** contra `cases.json` v2.3.0, sin haber corregido un solo valor esperado para que
+  pasara. El contrato subió de v2.1.0 a v2.3.0 durante la fase: la v2.2.0 agregó `itf-005`,
+  el único caso que distingue `MidpointAwayFromZero` de banker's rounding (los cuatro casos
+  de `itf` anteriores **no** lo distinguían, contra lo que afirmaba el comentario del test);
+  la v2.3.0 agregó `tr-007` junto con la guardia de escala de `execute_transfer`: un monto o
+  un saldo con más de 2 decimales devuelve `MontoInvalido`, porque sin esa puerta el
+  redondeo al formatear movía la suma de saldos y el invariante de conservación del dinero
+  dejaba de valer.
+  Fue la única fase donde se decidió lógica de negocio. Ver
+  [rust-core/README.md](rust-core/README.md).
 - **Fase 2 — `apps/android`.** Primer consumidor: valida el pipeline uniffi + el test
   golden en una plataforma real.
 - **Fase 3 — `apps/ios`.** Espejo funcional de Android.
@@ -191,10 +228,10 @@ Cada fase termina con tres cosas, no una:
    CONTEXT: un README con comandos sin ejecutar se descubre roto el día de la demo, que
    es el único día que importa.
 3. **Un diagrama de arquitectura en Mermaid dentro de ese README**, que muestre cómo está
-   organizado ese subproyecto: los cinco crates y sus dependencias en `rust-core`; en
-   cada app, el camino desde el artefacto que produce el core hasta la pantalla. Si la
-   estructura no se ve en un diagrama, no está justificada — cinco crates que nadie puede
-   ver de un vistazo son ceremonia, no arquitectura.
+   organizado ese subproyecto: los crates y sus dependencias en `rust-core`; en cada app,
+   el camino desde el artefacto que produce el core hasta la pantalla. Si la estructura no
+   se ve en un diagrama, no está justificada — crates que nadie puede ver de un vistazo son
+   ceremonia, no arquitectura.
 
 Una fase sin las tres no está terminada, por más que la UI se vea bien.
 
@@ -247,7 +284,7 @@ y cada instalación se verifica antes de seguir.
 | Fase | Se agrega | Verificación |
 |---|---|---|
 | 0 | `rustup` + stable + clippy + rustfmt — ✅ **hecho** (1.98.1) | `cargo --version` |
-| 1 | nada (crates puros, se testean en host) | `cargo test --workspace` |
+| 1 | nada — ✅ **hecho** (crates puros, se testean en el host) | `cargo test --workspace` → 67 passed |
 | 2 | `cargo install cargo-ndk` + 3 targets Android | `cargo ndk --version` |
 | 3 | 2 targets iOS (`aarch64-apple-ios`, `-sim`) | `rustup target list --installed` |
 | 4 | `uniffi-bindgen-react-native` en `apps/react-native` | `npx ubrn --version` |
@@ -257,10 +294,10 @@ Los comandos exactos están en el plan de cada fase.
 
 ```bash
 # Desarrollo del core (desde rust-core/)
-cargo test --workspace              # todo
-cargo test -p calculation           # un solo crate
-cargo test -p calculation itf_redondeo_al_medio   # un solo test por nombre
-cargo test --test golden            # solo los vectores de cases.json
+cargo test --workspace              # todo: 67 tests
+cargo test -p domain                # un solo crate, sin compilar uniffi
+cargo test -p domain rounds_half_away_from_zero_not_to_even   # un solo test por nombre
+cargo test -p core_financiero --test golden       # los vectores y las guardias del contrato
 cargo clippy --workspace --all-targets -- -D warnings
 cargo fmt --all
 ```
@@ -277,6 +314,23 @@ convertir un pánico de Rust en un error del FFI; con `abort` esa red se desacti
 cualquier pánico mata el proceso de la app. Ver hallazgo B1 del
 [review de CONTEXT](docs/superpowers/specs/2026-09-08-context-review.md) y el perfil
 completo en [rust-core/CONTEXT.md](rust-core/CONTEXT.md).
+
+**Salvedad: en wasm la regla no se puede cumplir, y no es opcional.** El target
+`wasm32-unknown-unknown` **impone** `abort` — no hay unwinding en el wasm base, así que el
+`panic = "unwind"` del perfil se ignora ahí. Verificable sin instalar nada:
+
+```bash
+rustc --print cfg --target wasm32-unknown-unknown | grep panic   # panic="abort"
+rustc --print cfg --target aarch64-linux-android  | grep panic   # panic="unwind"
+rustc --print cfg --target aarch64-apple-ios      | grep panic   # panic="unwind"
+```
+
+La regla sigue valiendo tal cual para Android e iOS, que es donde hay algo que elegir. La
+consecuencia es para la **Fase 5**: la app Angular no va a tener la red del `catch_unwind`,
+así que un pánico del core ahí no vuelve como error del FFI — es un trap de WebAssembly que
+deja la instancia del módulo inutilizable. Lo único que protege esa app es la disciplina de
+la regla 5 (cero `panic!`/`unwrap()`/`expect()` en producción) y los proptests
+`*_never_panics` del core. No hay segunda red: no la debilites.
 
 ## Si el build de Angular pelea con el WASM
 
