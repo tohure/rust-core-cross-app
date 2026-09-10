@@ -247,6 +247,108 @@ Cinco reglas, todas con motivo:
    diferencia es que el primero deja de colectar cuando la pantalla no está visible; el
    segundo sigue colectando en background.
 
+### Cómo se escribe el ViewModel por dentro
+
+Esto es lo que hay que copiar de TanayenAI. Son convenciones, no estilo: cada una tapa un
+fallo concreto.
+
+```kotlin
+class TransferViewModel(private val core: CoreFinanciero) : ViewModel() {
+    private val _uiState = MutableStateFlow(TransferUiState())
+    val uiState: StateFlow<TransferUiState> = _uiState.asStateFlow()
+
+    /** Cache crudo, separado del estado: el estado guarda lo YA derivado. */
+    private var allAccounts: List<Account> = emptyList()
+
+    // ── Entrada del usuario ───────────────────────────────────────────────────
+
+    fun amountChanged(value: String) {
+        if (!AMOUNT.matches(value)) return          // filtro de texto, no regla de negocio
+        _uiState.value = _uiState.value.copy(amount = value)
+    }
+
+    // ── Acciones ──────────────────────────────────────────────────────────────
+
+    fun transfer() {
+        viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(isLoading = true, error = null)
+            core.transfer(allAccounts, currentRequest())
+                .onSuccess { result ->
+                    delay(result.simulatedLatencyMs.toLong())   // la "red" que no existe
+                    allAccounts = result.accounts
+                    _uiState.value = _uiState.value.copy(result = result, isLoading = false)
+                }.onFailure { e ->
+                    _uiState.value =
+                        _uiState.value.copy(error = userMessage(e), isLoading = false)
+                }
+        }
+    }
+
+    fun clearError() {
+        _uiState.value = _uiState.value.copy(error = null)
+    }
+}
+```
+
+**Diez reglas, con el fallo que cada una evita:**
+
+1. **`_uiState` privado, `uiState` público de solo lectura.** La vista no puede escribir
+   estado. Si puede, tarde o temprano lo hace.
+2. **Toda mutación es `_uiState.value = _uiState.value.copy(...)`.** Nunca se muta un campo.
+   Un `data class` inmutable con `copy()` es lo que le permite a Compose comparar
+   referencias y saltarse la recomposición.
+3. **Las funciones públicas son acciones con nombre de dominio** —`transfer()`,
+   `amountChanged()`, `clearError()`—, no setters. La vista dice *qué pasó*, no *qué guardar*.
+4. **`runCatching { }.onSuccess { }.onFailure { }` en cada acción**, no `try/catch` disperso.
+   Un solo camino de error significa que ninguno queda sin `isLoading = false`, que es el bug
+   clásico: la pantalla se queda cargando para siempre porque el `catch` se olvidó de apagar
+   el spinner.
+5. **`clearError()` existe.** El error se *consume*, no se muestra y se olvida: sin esta
+   acción el mensaje reaparece al rotar la pantalla, porque sigue en el estado.
+6. **Un booleano por operación**, no uno global. `isLoading` (transferencia en curso) y
+   `isSaving` son cosas distintas; colapsarlos hace que una operación apague el indicador de
+   la otra.
+7. **El error se guarda ya traducido a texto de usuario.** La traducción vive acá, leyendo
+   `contracts/messages.es.json`; la vista solo pinta. Ver la regla 3 del adapter.
+8. **El cache crudo va aparte del estado.** El estado guarda lo derivado —lo que la pantalla
+   pinta—; el cache guarda la lista completa. Así filtrar no obliga a volver a pedir, y en
+   esta POC evita reconstruir la lista de cuentas en cada tecla.
+9. **Lo derivado se calcula en un `private fun` del ViewModel**, nunca en el `@Composable`.
+   Un cálculo dentro de un composable se re-ejecuta en cada recomposición.
+10. **Comentarios de sección** (`// ── Acciones ───`) agrupando funciones relacionadas. Con
+    ocho o diez acciones por pantalla, es la diferencia entre navegar el archivo y buscarlo.
+
+### Y cómo NO se escribe la capa de datos acá
+
+TanayenAI tiene `domain/repository` (interfaces) + `data/repository` (impls con SQLDelight),
+`suspend fun` con `withContext(Dispatchers.Default)` adentro, y un `toDomain()` que mapea los
+tipos de la base a los de dominio. **Ese diseño resuelve problemas que esta POC no tiene**, y
+copiarlo sería ceremonia:
+
+| Práctica de allá | Acá | Por qué |
+|---|---|---|
+| Interfaz de repositorio + impl | **No.** Un solo `object CoreFinanciero` | No hay implementación alternativa que inyectar, ni base de datos que sustituir en tests. La interfaz existiría para nadie. |
+| `withContext(Dispatchers.Default)` dentro del repo | **No.** Llamadas síncronas | El core responde en microsegundos. El salto de hilo cuesta más que el cálculo. Única excepción: la pantalla de benchmark. |
+| `toDomain()` mapeando tipos | **No.** El adapter reexporta | Los tipos que emite uniffi *son* los de dominio. Una segunda nomenclatura en Kotlin se desincroniza en la primera regeneración de bindings. |
+| `sealed class Result<Success/Error/Loading>` | **No.** `kotlin.Result` de `runCatching` | `Loading` no es un resultado, es un campo del `UiState`. Meterlo en el tipo de retorno obliga a un `when` con una rama imposible en cada llamada. |
+| `Flow` para lectura reactiva | **No.** Funciones puras | El core no tiene estado que observar. Devuelve un valor y termina. |
+| Koin para DI | **No.** `viewModel()` | Cinco pantallas y un adapter sin dependencias. |
+
+**La regla detrás de la tabla:** cada capa de esas existe para desacoplar algo que puede
+cambiar. Acá lo único que hay del otro lado del adapter es una librería estática de Rust que
+no se reemplaza, no se moquea y no tiene modos. Agregar capas sobre eso no es arquitectura,
+es ceremonia — y en una POC cuyo argumento es *"la lógica vive en un solo lugar"*, cada capa
+intermedia en Kotlin debilita la demostración.
+
+### `kotlinx.collections.immutable`: cuidado con la versión
+
+Se usa `ImmutableList` / `persistentListOf()` para las listas del estado (ver arriba). **La
+línea 0.5.x renombró todos los métodos que devuelven copia** (KEEP-0459): `add` → `adding`,
+`removeAt` → `removingAt`, `set` → `replacingAt`, `put` → `putting`, `clear` → `cleared`.
+Los nombres viejos siguen compilando con warning de deprecación. Como este proyecto arranca
+de cero, se usan **los nombres nuevos desde el principio**: cualquier ejemplo de internet
+anterior a 0.5 va a estar con los viejos.
+
 ### Componentes compartidos, y la firma que los hace reusables
 
 Los de [`docs/ui-spec.md`](../../docs/ui-spec.md) —`ScreenHeader`, `LabeledField`,

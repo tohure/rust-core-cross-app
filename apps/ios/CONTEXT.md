@@ -242,6 +242,80 @@ final class TransferViewModel {
   pinta; quien traduce es el ViewModel, leyendo `contracts/messages.es.json`.
 - **Para comparar u ordenar montos en UI: `Decimal` de Foundation.** Nunca `Double`.
 
+### Cómo se escribe el ViewModel por dentro
+
+Las mismas diez reglas que
+[`apps/android/CONTEXT.md`](../android/CONTEXT.md) → "Cómo se escribe el ViewModel por
+dentro", en Swift. Se listan acá completas y no por referencia porque quien implemente iOS no
+va a leer el CONTEXT de Android — pero **si cambian allá, cambian acá**.
+
+```swift
+@MainActor
+@Observable
+final class TransferViewModel {
+    private(set) var state = TransferUiState()      // la vista NO escribe estado
+
+    private let core: CoreFinanciero
+    private var allAccounts: [Account] = []          // cache crudo, aparte del estado
+
+    // MARK: - Entrada del usuario
+
+    func amountChanged(_ value: String) {
+        guard amountPattern.matches(value) else { return }   // filtro de texto
+        state.amount = value
+    }
+
+    // MARK: - Acciones
+
+    func transfer() async {
+        state.isLoading = true
+        state.error = nil
+        do {
+            let result = try core.transfer(allAccounts, currentRequest())
+            try? await Task.sleep(for: .milliseconds(Int(result.simulatedLatencyMs)))
+            allAccounts = result.accounts
+            state.result = result
+        } catch {
+            state.error = userMessage(error)         // ya traducido, no localizedDescription
+        }
+        state.isLoading = false                      // una sola salida: nunca queda colgado
+    }
+
+    func clearError() { state.error = nil }
+}
+```
+
+1. **`private(set)`** sobre el estado: la vista lee, no escribe.
+2. **Un `struct` de estado**, no propiedades sueltas. `struct` en Swift ya es valor: el
+   `copy()` de Kotlin es gratis acá.
+3. **Funciones con nombre de dominio** —`transfer()`, `amountChanged(_:)`, `clearError()`—,
+   no setters.
+4. **`isLoading = false` en una sola salida.** El bug clásico es el `catch` que se olvida de
+   apagar el spinner y deja la pantalla cargando para siempre. Acá se apaga después del
+   `do/catch`, no dentro de cada rama.
+5. **`clearError()` existe.** El error se consume; si no, reaparece al volver a la pantalla.
+6. **Un booleano por operación**, no uno global.
+7. **El error se guarda ya traducido**, leyendo `contracts/messages.es.json`.
+   `localizedDescription` es diagnóstico (ver regla 3 del adapter).
+8. **El cache crudo va aparte del estado.**
+9. **Lo derivado se calcula en el ViewModel**, no en el `body` de la vista: `body` se
+   re-evalúa en cada invalidación.
+10. **`// MARK: -`** agrupando secciones — el equivalente de los comentarios de sección de
+    Kotlin, y además puebla el jump bar de Xcode.
+
+### Y cómo NO se escribe la capa de datos acá
+
+Vale íntegra la tabla de
+[`apps/android/CONTEXT.md`](../android/CONTEXT.md) → "Y cómo NO se escribe la capa de datos
+acá": **sin protocolo de repositorio, sin mapeo a tipos propios, sin `Result` sellado
+propio, sin capa reactiva y sin contenedor de DI.** El adapter reexporta los tipos de uniffi
+y las llamadas son síncronas.
+
+Lo único específico de Swift: **`async` no entra por la puerta de atrás.** `transfer()` es
+`async` arriba **solo** por el `Task.sleep` que simula la latencia; la llamada al core en sí
+es síncrona y no va envuelta en `Task`. Si te encontrás poniendo `await` sobre una función
+del core, algo se desvió.
+
 ### Componentes compartidos
 
 Los de [`docs/ui-spec.md`](../../docs/ui-spec.md) van en un `Components/` propio, con la
