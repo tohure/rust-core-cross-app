@@ -146,7 +146,13 @@ Reglas:
    lo define como `String(reflecting: self)`, o sea el volcado de debug del enum
    (`DomainError.CheckDigit`), y no coincide ni con los `#[error("...")]` en
    español del core ni con lo que produce Kotlin. Los nueve textos de usuario,
-   iguales en las cuatro apps, están en la tabla de
+   iguales en las cuatro apps, viven en
+   [`contracts/messages.es.json`](../../contracts/messages.es.json), que esta app
+   lee igual que `cases.json` desde el bundle de test. Está indexado por el
+   **nombre del contrato** (`Longitud`, `DigitoControl`, …) y no por el de la
+   variante, así que el mapeo `DomainError` → nombre del contrato hace falta **en
+   producción**, y el golden reusa ese mismo mapeo en vez de escribir el suyo. Va
+   exhaustivo: `switch` sin `default`. El porqué del archivo está en
    [rust-core/README.md](../../rust-core/README.md) — "Los mensajes de error en
    español NO cruzan el FFI".
 4. Llamadas síncronas. No las envuelvas en `Task` salvo en el benchmark.

@@ -131,7 +131,13 @@ Reglas de la capa adapter:
    `#[error("...")]` en español del core, arma el mensaje con los campos de la
    variante (`"field=cci, expected=20, received=18"`) y devuelve **string
    vacío** para `CheckDigit` y `SameAccount`, que no tienen campos. Los nueve
-   textos de usuario, iguales en las cuatro apps, están en la tabla de
+   textos de usuario, iguales en las cuatro apps, viven en
+   [`contracts/messages.es.json`](../../contracts/messages.es.json), que esta app
+   lee igual que `cases.json`. Está indexado por el **nombre del contrato**
+   (`Longitud`, `DigitoControl`, …) y no por el de la variante, así que el mapeo
+   `DomainException` → nombre del contrato hace falta **en producción**, y el
+   golden reusa ese mismo mapeo en vez de escribir el suyo. Va exhaustivo: `when`
+   como expresión, sin `else`. El porqué del archivo está en
    [rust-core/README.md](../../rust-core/README.md) — "Los mensajes de error en
    español NO cruzan el FFI".
 4. Las llamadas al core son síncronas y rápidas (microsegundos). No las metas

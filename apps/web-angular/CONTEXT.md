@@ -116,9 +116,15 @@ con los campos en `e.inner`.
 **El `message` del binding es diagnóstico, nunca texto de usuario**: uniffi no
 usa los `#[error("...")]` en español del core, arma el mensaje con los campos de
 la variante y lo deja vacío para las que no tienen campos (`CheckDigit`,
-`SameAccount`). Los nueve textos de usuario, iguales en las cuatro apps, están
-en la tabla de [rust-core/README.md](../../rust-core/README.md) — "Los mensajes
-de error en español NO cruzan el FFI".
+`SameAccount`). Los nueve textos de usuario, iguales en las cuatro apps, viven
+en [`contracts/messages.es.json`](../../contracts/messages.es.json), que esta app
+lee igual que `cases.json`. Está indexado por el **nombre del contrato**
+(`Longitud`, `DigitoControl`, …) y no por el de la variante, así que el mapeo
+`e.tag` → nombre del contrato hace falta **en producción**, y el golden reusa ese
+mismo mapeo en vez de escribir el suyo. Va exhaustivo, con el `default` que
+asigna a `never`. El porqué del archivo está en
+[rust-core/README.md](../../rust-core/README.md) — "Los mensajes de error en
+español NO cruzan el FFI".
 
 ## Configuración del build
 
