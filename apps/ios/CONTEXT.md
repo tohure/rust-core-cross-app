@@ -203,27 +203,63 @@ Construye el `Decimal` desde el string del core con
 `Decimal(string:locale:)` usando locale POSIX, para que el punto decimal se
 interprete correctamente. Es el error más común en este archivo.
 
+## Arquitectura de UI
+
+Destilado de [TanayenAI](https://github.com/tohure/TanayenAI). **Con una advertencia grande
+sobre qué NO copiar:** ese proyecto tiene un `*ViewModelWrapper.swift` por pantalla
+—`ObservableObject` con `@Published` por campo, que observa un `StateFlow` de Kotlin vía
+`KMPNativeCoroutines` y cancela el `Task` en `deinit`—. Ese wrapper existe **solo porque
+ahí el ViewModel es Kotlin y hay que adaptarlo a SwiftUI**.
+
+**Acá no hay nada que envolver.** El core es Rust y cruza por uniffi como funciones
+síncronas: Swift llama `executeTransfer(...)` y le devuelve un valor, sin flows, sin
+corrutinas, sin `Task` de observación, sin `deinit` que cancelar. Escribir un
+`ViewModelWrapper` en esta POC sería copiar la solución sin el problema.
+
+Lo que sí se toma es la forma: **un objeto de estado por pantalla, observable, con la vista
+sin lógica.**
+
+```swift
+@Observable
+final class TransferViewModel {
+    var origin = ""
+    var destination = ""
+    var amount = ""               // String. Siempre. Nunca Double ni Decimal.
+    var accounts: [Account] = []
+    var result: TransferResult?
+    var isLoading = false         // true mientras corre simulatedLatencyMs
+    var error: String?            // ya resuelto a texto de usuario
+}
+```
+
+- **`@Observable` (iOS 17+)** en vez de `ObservableObject` + `@Published`: menos ceremonia y
+  solo invalida las vistas que leen la propiedad que cambió. `ObservableObject` queda como
+  alternativa si hay que bajar el deployment target.
+- **`@MainActor` sobre la clase**, como en el original.
+- **Las llamadas al core NO se envuelven en `Task`**, salvo en el benchmark. Son
+  microsegundos; `Task` acá solo agrega un salto de hilo y un frame de latencia.
+- **El error es una propiedad del estado**, no un `throw` que sube a la vista. La vista lo
+  pinta; quien traduce es el ViewModel, leyendo `contracts/messages.es.json`.
+- **Para comparar u ordenar montos en UI: `Decimal` de Foundation.** Nunca `Double`.
+
+### Componentes compartidos
+
+Los de [`docs/ui-spec.md`](../../docs/ui-spec.md) van en un `Components/` propio, con la
+misma descomposición que Android para que las pantallas sean comparables lado a lado. Misma
+convención de firma: el componente aporta tipografía y espaciado internos, el caller pone el
+padding posicional.
+
 ## Pantallas
 
 Las mismas cinco en las cuatro apps, con los mismos labels y el mismo orden de campos, para
-que la comparación lado a lado en la demo sea limpia.
+que la comparación lado a lado en la demo sea limpia: **Aritmética, Transferencia, Tarjeta,
+Benchmark**, y el pie con `coreVersion()` visible en las cuatro.
 
-1. **Aritmética.** Dos inputs y una operación. Muestra lado a lado el resultado con el
-   tipo de punto flotante nativo de la plataforma y el del core. Los seis casos del
-   contrato divergen: `0.1 + 0.2` da `0.30000000000000004` con double y `0.30` con el core.
-   Es la única pantalla donde se permite usar el tipo flotante nativo, y existe justamente
-   para exhibir el fallo.
-2. **Transferencia.** Dos cuentas fake en memoria. Monto, origen, destino. Muestra la
-   comisión ITF, el total debitado, el comprobante y los saldos nuevos. La app espera
-   `simulatedLatencyMs` antes de pintar, para que parezca una llamada HTTP: **no hay red**.
-   Las cuentas se reinician al cerrar la app; sin BD, sin cache.
-3. **Tarjeta.** Un número de tarjeta fake. Valida por Luhn, muestra marca y enmascarado, y
-   cifra con ChaCha20-Poly1305. El hex resultante debe ser idéntico al de las otras tres
-   plataformas — y lo que cifra una descifra cualquier otra.
-4. **Benchmark.** Ejecuta el core N veces y reporta p50/p95 contra una implementación
-   equivalente nativa que vive solo en el código de test.
-5. **Pie de pantalla:** `coreVersion()` visible en todas. En la demo se compara con las
-   otras tres apps: mismo string = mismo build.
+**Los wireframes, los labels exactos y el orden de campos viven en
+[`docs/ui-spec.md`](../../docs/ui-spec.md)** — normativo para las cuatro apps. No se
+duplican acá: cuatro copias de la misma lista divergen, que es justo lo que la demo no puede
+permitirse. Cambiar un label obliga a cambiarlo en las cuatro apps y en ese archivo, en el
+mismo cambio.
 
 ## Pruebas
 

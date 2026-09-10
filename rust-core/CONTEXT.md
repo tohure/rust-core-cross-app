@@ -254,7 +254,11 @@ El formato de `cases.json` y la especificación normativa de cada algoritmo est�
 ```bash
 # Android: .so por ABI + Kotlin
 cargo ndk -t arm64-v8a -t armeabi-v7a -t x86_64 -o ../apps/android/app/src/main/jniLibs build --release
-cargo run --bin uniffi-bindgen -- generate --library target/release/libcore_financiero.so \
+# bindgen lee el `.dylib` del **host**, NO el `.so` de Android, por dos razones verificadas
+# en la Fase 2: en macOS el host no produce `.so` (produce `.dylib`), y el `.so` de Android
+# sale con `strip = true` del perfil release, que borra la metadata de uniffi — apuntarle da
+# "No UniFFI metadata found". Los bindings no dependen de la arquitectura.
+cargo run --bin uniffi-bindgen -- generate --library target/release/libcore_financiero.dylib \
   --language kotlin --out-dir ../apps/android/app/src/main/java
 
 # iOS: XCFramework + Swift

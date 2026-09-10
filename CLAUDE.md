@@ -131,6 +131,10 @@ mismo hex. En producción eso sería catastrófico; ver [contracts/README.md](co
 
 ## Paridad entre apps
 
+Los wireframes, los labels exactos y el orden de campos están en
+**[docs/ui-spec.md](docs/ui-spec.md)**, normativo para las cuatro apps y única copia: los
+CONTEXT apuntan ahí en vez de repetir la lista.
+
 Las cuatro apps tienen las **mismas cinco pantallas, con los mismos labels y el mismo
 orden de campos**: Aritmética, Transferencia, Tarjeta, Benchmark, y el valor de
 `core_version()` visible al pie —la función se llama así en Rust; el binding generado es
@@ -213,7 +217,10 @@ El orden no es negociable: lo impone el grafo de dependencias de build de arriba
   Fue la única fase donde se decidió lógica de negocio. Ver
   [rust-core/README.md](rust-core/README.md).
 - **Fase 2 — `apps/android`.** Primer consumidor: valida el pipeline uniffi + el test
-  golden en una plataforma real.
+  golden en una plataforma real. **Toolchain y pipeline ya verificados**: las tres `.so` y
+  los bindings Kotlin están en el APK y las nueve funciones cruzaron; falta el adapter, los
+  ViewModels, las cinco pantallas y el golden de `androidTest/`. Ver
+  [apps/android/README.md](apps/android/README.md).
 - **Fase 3 — `apps/ios`.** Espejo funcional de Android.
 - **Fase 4 — `apps/react-native`.** Turbo Module vía `ubrn`. Desbloquea la fase 5.
 - **Fase 5 — `apps/web-angular`.** Consume el WASM producido en la fase 4.
@@ -285,7 +292,7 @@ y cada instalación se verifica antes de seguir.
 |---|---|---|
 | 0 | `rustup` + stable + clippy + rustfmt — ✅ **hecho** (1.98.1) | `cargo --version` |
 | 1 | nada — ✅ **hecho** (crates puros, se testean en el host) | `cargo test --workspace` → 67 passed |
-| 2 | `cargo install cargo-ndk` + 3 targets Android | `cargo ndk --version` |
+| 2 | `cargo install cargo-ndk` + 3 targets Android — ✅ **hecho** (cargo-ndk 4.1.2, NDK 30.0.16248370) | `cargo ndk --version` |
 | 3 | 2 targets iOS (`aarch64-apple-ios`, `-sim`) | `rustup target list --installed` |
 | 4 | `uniffi-bindgen-react-native` en `apps/react-native` | `npx ubrn --version` |
 | 5 | target `wasm32-unknown-unknown` + Angular CLI | `ng version` |

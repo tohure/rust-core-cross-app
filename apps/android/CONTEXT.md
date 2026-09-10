@@ -3,7 +3,11 @@
 App nativa Android que consume `rust-core`. Su único propósito es demostrar
 que la lógica de dominio no vive aquí.
 
-Stack: Kotlin, Jetpack Compose, minSdk 26, AGP con NDK r27+.
+Stack: Kotlin 2.4.20, Jetpack Compose (BOM 2026.09.00), **AGP 9.4.0**, compileSdk 37,
+**minSdk 28**, Java 21, NDK 30.0.16248370 (r27+). Package: `dev.tohure.android_rust_test`.
+
+El proyecto base ya existe y compila; los valores de arriba salen de
+`gradle/libs.versions.toml` y `app/build.gradle.kts`, no de una decisión de este documento.
 
 ## Regla central
 
@@ -63,14 +67,20 @@ Dos detalles que ahorran una tarde:
   subclases son `Length`, `CheckDigit`, `UnknownBank`, `InvalidAmount`, `AccountNotFound`,
   `SameAccount`, `InsufficientFunds`, `Encryption` y `OutOfRange`. `contracts/cases.json`
   los nombra en español (`"Longitud"`, `"DigitoControl"`, …) y **ese mapeo no cruza el
-  FFI**: hay que escribirlo, nueve líneas, **en el test golden de `androidTest/`, no en
-  producción**, con un `when` exhaustivo usado como expresión y **sin rama `else`**, para
-  que una décima variante rompa la compilación en vez de pasar en verde. Ver
-  [rust-core/README.md](../../rust-core/README.md).
+  FFI**: hay que escribirlo, nueve líneas, **en código de producción** —no solo en el test—,
+  con un `when` exhaustivo usado como expresión y **sin rama `else`**, para que una décima
+  variante rompa la compilación en vez de pasar en verde. Va en producción porque
+  `contracts/messages.es.json` indexa los mensajes de usuario por el nombre del contrato, así
+  que la pantalla de error lo necesita igual que el golden; se escribe una vez y el golden
+  reusa ese mismo. Ver [rust-core/README.md](../../rust-core/README.md).
 
 `validateCci` y `calculateItf` no tienen pantalla propia entre las cinco de la demo: hoy
 las consume el test golden. Si se decide darles pantalla, se agrega **en las cuatro apps a
 la vez** — la paridad es la demo.
+
+**Las pantallas, sus labels y el orden de campos están en
+[`docs/ui-spec.md`](../../docs/ui-spec.md)**, que es normativo para las cuatro apps. No
+inventes labels acá: cambiarlos obliga a cambiarlos en las cuatro.
 
 ## Estructura
 
@@ -79,10 +89,9 @@ app/src/main/java/
 │                            uniffi-bindgen los emite acá solo: con
 │                            `--out-dir app/src/main/java` crea él mismo el árbol del
 │                            paquete `uniffi.core_financiero`. No hace falta moverlos.
-└── pe/banco/poc/
+└── dev/tohure/android_rust_test/
     ├── adapter/       CoreFinanciero.kt, la única clase que llama al core
-    ├── ui/            Compose: AritmeticaScreen, TransferenciaScreen, TarjetaScreen,
-    │                  BenchmarkScreen
+    ├── ui/            Compose, una carpeta por pantalla (ver "Arquitectura de UI")
     └── format/        MoneyFormatter.kt
 
 `jniLibs/` contiene los `.so` por ABI. Ambos son artefactos generados: nunca los edites a
@@ -186,27 +195,91 @@ El formatter recibe un `BigDecimal` construido desde el string del core. Su
 único trabajo es agregar `S/`, separadores de miles y ubicar la coma decimal.
 Nunca redondea: el core ya entregó el valor con la escala correcta.
 
+## Arquitectura de UI
+
+Destilado de [TanayenAI](https://github.com/tohure/TanayenAI), que resolvió bien esta capa.
+**Ojo con qué se copia:** ahí el ViewModel vive en `shared/commonMain/presentation/viewmodel`
+y es KMP, compartido entre Android e iOS. **Acá eso no aplica y no va a aplicar**: lo
+compartido es el dominio en Rust, que cruza por uniffi como funciones puras. Cada app escribe
+su propio ViewModel, en su propio lenguaje, y eso es exactamente lo que la POC demuestra.
+Lo transferible son los patrones de UI, no la estrategia de compartir.
+
+Lo mismo con el stack de ese proyecto: **Koin, SQLDelight, Ktor y KMP-NativeCoroutines no
+entran acá.** No hay red, ni persistencia, ni flows cruzando a Swift, y una app de cinco
+pantallas con un solo adapter no necesita un contenedor de DI. `viewModel()` de
+`lifecycle-viewmodel-compose` alcanza.
+
+### Un ViewModel y un UiState por pantalla
+
+```kotlin
+@Immutable
+data class TransferUiState(
+    val origin: String = "",
+    val destination: String = "",
+    val amount: String = "",          // String. Siempre. Nunca Double.
+    val accounts: ImmutableList<Account> = persistentListOf(),
+    val result: TransferResult? = null,
+    val isLoading: Boolean = false,   // true mientras corre simulatedLatencyMs
+    val error: String? = null,        // ya resuelto a texto de usuario
+)
+
+class TransferViewModel : ViewModel() {
+    private val _uiState = MutableStateFlow(TransferUiState())
+    val uiState: StateFlow<TransferUiState> = _uiState.asStateFlow()
+}
+```
+
+Cinco reglas, todas con motivo:
+
+1. **`@Immutable` + valores por defecto en todos los campos.** El default hace que la
+   pantalla tenga un estado inicial válido sin ceremonia, y `@Immutable` le promete a Compose
+   que puede saltarse la recomposición.
+2. **Listas como `ImmutableList` / `persistentListOf()`** (`kotlinx.collections.immutable`).
+   Un `List<T>` de Kotlin es *inestable* para Compose —la interfaz no garantiza que nadie la
+   mute— y recompone de más. Es la diferencia entre una lista que se salta el frame y una que
+   no.
+3. **El error es un campo del estado, no una excepción que sube a la vista.** Se guarda ya
+   resuelto a texto de usuario, leído de `contracts/messages.es.json`.
+4. **El estado no calcula.** Guarda lo que devolvió el core. Aritmética en el ViewModel =
+   lógica de negocio fuera de `rust-core`.
+5. **Se colecta con `collectAsStateWithLifecycle()`**, de
+   `androidx.lifecycle:lifecycle-runtime-compose` — **no** con `collectAsState()`. La
+   diferencia es que el primero deja de colectar cuando la pantalla no está visible; el
+   segundo sigue colectando en background.
+
+### Componentes compartidos, y la firma que los hace reusables
+
+Los de [`docs/ui-spec.md`](../../docs/ui-spec.md) —`ScreenHeader`, `LabeledField`,
+`ResultRow`, `SectionDivider`, `CoreVersionFooter`— van en un solo archivo de componentes,
+no repetidos por pantalla.
+
+```kotlin
+@Composable
+fun ScreenHeader(title: String, subtitle: String, modifier: Modifier = Modifier) { … }
+```
+
+**`modifier: Modifier = Modifier` va último y el caller decide el posicionamiento.** El
+componente aporta tipografía y espaciado *internos*; el padding posicional lo pone quien lo
+usa. Así el mismo `ScreenHeader` sirve dentro de una lista y dentro de una tarjeta sin
+inventar variantes.
+
+### Insets
+
+La app va edge-to-edge (obligatorio desde targetSdk 35). Los campos de monto y los botones
+no pueden quedar tapados por la barra de navegación ni por el teclado. Hay una skill
+`edge-to-edge` instalada en el repo para esto.
+
 ## Pantallas
 
 Las mismas cinco en las cuatro apps, con los mismos labels y el mismo orden de campos, para
-que la comparación lado a lado en la demo sea limpia.
+que la comparación lado a lado en la demo sea limpia: **Aritmética, Transferencia, Tarjeta,
+Benchmark**, y el pie con `coreVersion()` visible en las cuatro.
 
-1. **Aritmética.** Dos inputs y una operación. Muestra lado a lado el resultado con el
-   tipo de punto flotante nativo de la plataforma y el del core. Los seis casos del
-   contrato divergen: `0.1 + 0.2` da `0.30000000000000004` con double y `0.30` con el core.
-   Es la única pantalla donde se permite usar el tipo flotante nativo, y existe justamente
-   para exhibir el fallo.
-2. **Transferencia.** Dos cuentas fake en memoria. Monto, origen, destino. Muestra la
-   comisión ITF, el total debitado, el comprobante y los saldos nuevos. La app espera
-   `simulatedLatencyMs` antes de pintar, para que parezca una llamada HTTP: **no hay red**.
-   Las cuentas se reinician al cerrar la app; sin BD, sin cache.
-3. **Tarjeta.** Un número de tarjeta fake. Valida por Luhn, muestra marca y enmascarado, y
-   cifra con ChaCha20-Poly1305. El hex resultante debe ser idéntico al de las otras tres
-   plataformas — y lo que cifra una descifra cualquier otra.
-4. **Benchmark.** Ejecuta el core N veces y reporta p50/p95 contra una implementación
-   equivalente nativa que vive solo en el código de test.
-5. **Pie de pantalla:** `coreVersion()` visible en todas. En la demo se compara con las
-   otras tres apps: mismo string = mismo build.
+**Los wireframes, los labels exactos y el orden de campos viven en
+[`docs/ui-spec.md`](../../docs/ui-spec.md)** — normativo para las cuatro apps. No se
+duplican acá: cuatro copias de la misma lista divergen, que es justo lo que la demo no puede
+permitirse. Cambiar un label obliga a cambiarlo en las cuatro apps y en ese archivo, en el
+mismo cambio.
 
 ## Pruebas
 

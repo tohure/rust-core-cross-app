@@ -205,27 +205,14 @@ Tres cosas que no son opcionales:
 ## Pantallas
 
 Las mismas cinco en las cuatro apps, con los mismos labels y el mismo orden de campos, para
-que la comparación lado a lado en la demo sea limpia.
+que la comparación lado a lado en la demo sea limpia: **Aritmética, Transferencia, Tarjeta,
+Benchmark**, y el pie con `coreVersion()` visible en las cuatro.
 
-1. **Aritmética.** Dos inputs y una operación. Muestra lado a lado el resultado con el
-   tipo de punto flotante nativo de la plataforma y el del core. Los seis casos del
-   contrato divergen: `0.1 + 0.2` da `0.30000000000000004` con double y `0.30` con el core.
-   Es la única pantalla donde se permite usar el tipo flotante nativo, y existe justamente
-   para exhibir el fallo.
-2. **Transferencia.** Dos cuentas fake en memoria. Monto, origen, destino. Muestra la
-   comisión ITF, el total debitado, el comprobante y los saldos nuevos. La app espera
-   `simulatedLatencyMs` antes de pintar, para que parezca una llamada HTTP: **no hay red**.
-   Las cuentas se reinician al cerrar la app; sin BD, sin cache.
-3. **Tarjeta.** Un número de tarjeta fake. Valida por Luhn, muestra marca y enmascarado, y
-   cifra con ChaCha20-Poly1305. El hex resultante debe ser idéntico al de las otras tres
-   plataformas — y lo que cifra una descifra cualquier otra.
-4. **Benchmark.** Ejecuta el core N veces y reporta p50/p95 contra una implementación
-   equivalente nativa que vive solo en el código de test.
-5. **Pie de pantalla:** `coreVersion()` visible en todas. En la demo se compara con las
-   otras tres apps: mismo string = mismo build.
-
-En la pantalla de aritmética, el lado "number" se calcula con el tipo nativo a propósito,
-con un comentario que lo explique.
+**Los wireframes, los labels exactos y el orden de campos viven en
+[`docs/ui-spec.md`](../../docs/ui-spec.md)** — normativo para las cuatro apps. No se
+duplican acá: cuatro copias de la misma lista divergen, que es justo lo que la demo no puede
+permitirse. Cambiar un label obliga a cambiarlo en las cuatro apps y en ese archivo, en el
+mismo cambio.
 
 ## Pruebas
 

@@ -293,6 +293,40 @@ la superficie pública, y ahí no hay ninguno. `Vec<Account>` se mapea a `List<A
 `[Account]` en Swift. Ojo con el nombre del enum de error, que **difiere por lenguaje**:
 `DomainException` en Kotlin, `DomainError` en Swift.
 
+### El `.so` de Android NO sirve para generar bindings
+
+Verificado en la Fase 2, y vale la pena porque el error no dice la causa. El comando que uno
+escribiría —apuntarle al `.so` que produjo `cargo ndk`— falla así:
+
+```
+No UniFFI metadata found in target/aarch64-linux-android/release/libcore_financiero.so
+```
+
+Dos razones independientes, cualquiera de las dos alcanza:
+
+1. **El perfil de release lleva `strip = true`**, que borra los símbolos de metadata que
+   `uniffi-bindgen` necesita leer. El `.so` que se embarca en el APK está stripeado a
+   propósito —el tamaño del binario es criterio de la demo—, así que esto no se "arregla":
+   se evita.
+2. **En macOS el host no produce `.so`, produce `.dylib`.** Cualquier comando que diga
+   `target/release/libcore_financiero.so` no puede funcionar en esta máquina, porque ese
+   archivo no existe. `rust-core/CONTEXT.md` lo decía así y estaba roto; se corrigió.
+
+**Se usa siempre el `.dylib` del host, para Kotlin y para Swift.** Los bindings que emite
+uniffi no dependen de la arquitectura: son el mismo archivo salga de donde salga. Es el mismo
+razonamiento que ya estaba escrito para iOS, donde bindgen lee el `.a` del host y los `.a`
+por arquitectura existen solo para armar el XCFramework.
+
+La consecuencia práctica es que **hay que haber construido el host al menos una vez** antes
+de generar bindings para cualquier plataforma:
+
+```bash
+cargo build --release            # produce target/release/libcore_financiero.dylib
+```
+
+Los comandos de exportación completos, con su salida real, están en
+[apps/android/README.md](../apps/android/README.md).
+
 ### El modulemap de Swift no se llama `module.modulemap`
 
 uniffi 0.32 nombra el modulemap según el crate: genera **`core_financieroFFI.modulemap`**.
