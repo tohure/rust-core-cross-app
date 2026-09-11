@@ -237,7 +237,7 @@ core (.a) → CoreFinanciero → XxxViewModel → XxxUiState → SwiftUI
                                   │ switch exhaustivo, SIN default ← nueve líneas
                             "SaldoInsuficiente"
                                   │ busca en messages.es.json
-                            "Saldo insuficiente: tenés {available}…"
+                            "Saldo insuficiente: tienes {available}…"
                                   │ interpola CRUDO
                             state.error
 ```

@@ -169,10 +169,11 @@ importan: valida por Luhn, cifra, y **descifra**.
 │  Luhn y cifrado ChaCha20-Poly1305   │
 ├─────────────────────────────────────┤
 │  Número       [ 4111111111111111 ]  │
-│  Probá 4111111111111111 (Visa) o    │  ← ayuda: sin esto nadie sabe qué tipear
-│  5555555555554444 (Mastercard).     │
-│  Un número inválido lo rechaza el   │
-│  core, no esta pantalla.            │
+│  Puedes probar 4111111111111111     │  ← ayuda: sin esto nadie sabe qué tipear
+│  (Visa) o 5555555555554444          │
+│  (Mastercard). Un número inválido   │
+│  lo rechaza el core, no esta        │
+│  pantalla.                          │
 │                                     │
 │           [  Validar y cifrar  ]    │
 │                                     │
@@ -191,8 +192,8 @@ importan: valida por Luhn, cifra, y **descifra**.
 │                                     │
 │  ─── Descifrar un hex de otra ───   │
 │      plataforma                     │
-│  Pegá acá el hex que produjo la app │
-│  de iOS, React Native o Angular…    │
+│  Pega aquí el hex que produjo la    │
+│  app de iOS, React Native o Angular…│
 │  Hex cifrado  [ bcce3d351c2290… ]   │
 │           [  Descifrar  ]           │
 │  Número recuperado 5555555555554444 │
@@ -203,7 +204,7 @@ importan: valida por Luhn, cifra, y **descifra**.
   `Cifrado (hex)`, `Descifrado`, `Descifrar un hex de otra plataforma`, `Hex cifrado`,
   `Descifrar`, `Número recuperado`.
 - **El texto de ayuda bajo `Número` es obligatorio**, con estas dos líneas exactas:
-  `Probá 4111111111111111 (Visa) o 5555555555554444 (Mastercard).` y
+  `Puedes probar 4111111111111111 (Visa) o 5555555555554444 (Mastercard).` y
   `Un número inválido lo rechaza el core, no esta pantalla.`
   Sin él, la pantalla no dice qué espera: el campo acepta cualquier dígito pero el core
   exige un número que pase Luhn, y quien hace la demo tiene que **adivinarlo frente a la

@@ -945,7 +945,7 @@ struct ContractMessagesTest {
         let text = try messages().userMessage(
             .InsufficientFunds(available: "1200.50", required: "10000.50")
         )
-        #expect(text == "Saldo insuficiente: tenés 1200.50 y se necesitan 10000.50.")
+        #expect(text == "Saldo insuficiente: tienes 1200.50 y se necesitan 10000.50.")
         // Ni `S/` ni separadores de miles: los formateadores de Android, iOS y el navegador
         // no coinciden entre sí y una diferencia rompe la comparación carácter por carácter.
         #expect(!text.contains("S/"))
@@ -2714,7 +2714,7 @@ struct TransferViewModelTest {
         #expect(vm.state.isLoading == false)
         #expect(vm.state.result == nil)
         #expect(
-            vm.state.error == "Saldo insuficiente: tenés 1200.50 y se necesitan 10000.50."
+            vm.state.error == "Saldo insuficiente: tienes 1200.50 y se necesitan 10000.50."
         )
     }
 
@@ -3265,7 +3265,7 @@ struct CardView: View {
             // ver docs/ui-spec.md.
             Text(
                 """
-                Probá 4111111111111111 (Visa) o 5555555555554444 (Mastercard).
+                Puedes probar 4111111111111111 (Visa) o 5555555555554444 (Mastercard).
                 Un número inválido lo rechaza el core, no esta pantalla.
                 """
             )
@@ -3307,7 +3307,7 @@ struct CardView: View {
             }
 
             SectionDivider(title: "Descifrar un hex de otra plataforma")
-            Text("Pegá acá el hex que produjo la app de iOS, React Native o Angular…")
+            Text("Pega aquí el hex que produjo la app de iOS, React Native o Angular…")
                 .font(.caption)
                 .foregroundStyle(Palette.onSurfaceMuted)
             LabeledField(
