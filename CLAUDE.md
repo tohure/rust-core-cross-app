@@ -148,19 +148,27 @@ construyó, así que hay que regenerar los cuatro desde el mismo HEAD antes de l
 
 ## Estado actual y flujo de trabajo (SDD con superpowers)
 
-**Fases 0, 1 y 2 completadas. El núcleo existe, funciona, y Android lo consume.**
+**Fases 0, 1, 2 y 3 completadas.** El núcleo existe, funciona, y Android e iOS lo consumen.
 `rust-core/` tiene dos crates —`domain` (Rust puro, siete módulos) y `ffi` (paquete
 `core_financiero`, la fachada uniffi)— con ~1930 líneas de Rust, **67 tests en verde** y el
 **test de contrato pasando 28/28** contra `contracts/cases.json` **v2.3.0**. Los bindings Kotlin
 y Swift se generaron y se verificó que las nueve funciones cruzan la frontera.
 
-`apps/android/` es el primer consumidor real y **ya ejercita el borde FFI de verdad**: 35
-tests en verde —20 de JVM y 15 instrumentados sobre dispositivo, de los cuales 9 son el
+`apps/android/` es el primer consumidor real y **ya ejercita el borde FFI de verdad**: 40
+tests en verde —25 de JVM y 15 instrumentados sobre dispositivo, de los cuales 9 son el
 test de contrato—, las cuatro pantallas funcionando y el pie con `coreVersion()` visible en todas. Ver
 [apps/android/README.md](apps/android/README.md).
 
-Lo que **no** existe todavía: ni una línea de Swift o TypeScript. Lo que sigue es la Fase 3,
-`apps/ios`, espejo funcional de Android.
+`apps/ios/` es el segundo consumidor: las cuatro pantallas andando y **47 tests en verde**,
+incluido el test de contrato 28/28, **verificados también sobre hardware real** —o sea sobre el
+slice `aarch64-apple-ios`, que es el que se embarca y es un binario distinto del de simulador—.
+Queda abierto el número del benchmark, que se mide en un teléfono y no en el iPad con el que se
+validó la app: ese lleva un M1 y compararlo contra el Pixel 6 de Android mezclaría el costo del
+puente con la diferencia de chip. Ver [apps/ios/README.md](apps/ios/README.md) y
+[apps/ios/PENDING.md](apps/ios/PENDING.md).
+
+Lo que **no** existe todavía: ni una línea de TypeScript. Lo que sigue es la Fase 4,
+`apps/react-native`.
 
 Este proyecto se desarrolla con **Spec-Driven Development** usando el plugin
 `superpowers`. El flujo por fase es:
@@ -188,7 +196,7 @@ Documentos vigentes:
 - Plan Fase 0: [docs/superpowers/plans/2026-09-08-phase-0-toolchain-and-contract.md](docs/superpowers/plans/2026-09-08-phase-0-toolchain-and-contract.md)
 - Spec Fase 1: [docs/superpowers/specs/2026-09-08-phase-1-rust-core-design.md](docs/superpowers/specs/2026-09-08-phase-1-rust-core-design.md) — decisiones D1-D6 del núcleo
 - Plan Fase 1: [docs/superpowers/plans/2026-09-08-phase-1-rust-core.md](docs/superpowers/plans/2026-09-08-phase-1-rust-core.md) — trece tareas, todas completas; su "Estado de ejecución" lista las seis desviaciones respecto del plan original
-- **Cierre de la Fase 1:** [rust-core/README.md](rust-core/README.md) — los comandos efectivamente ejecutados, el diagrama, qué prueba y qué no prueba el test de contrato, y las dos cosas que **no** cruzan el FFI (el mapeo variante → nombre del contrato y los mensajes de error en español)
+- **Cierre de la Fase 1:** [rust-core/README.md](rust-core/README.md) — qué es y cómo está organizado, con el diagrama. La doc del núcleo está partida en un archivo por pregunta: [BUILD.md](rust-core/BUILD.md) (toolchain, compilación y bindings), [TESTING.md](rust-core/TESTING.md) (qué prueba y qué **no** prueba el test de contrato, y sus siete guardias), [FFI.md](rust-core/FFI.md) (**las dos cosas que no cruzan el FFI**: el mapeo variante → nombre del contrato y los mensajes de error en español) y [PENDING.md](rust-core/PENDING.md)
 - Ledger de ejecución de la Fase 1: `.superpowers/sdd/2026-09-08-phase-1-rust-core/progress.md` — las rulings tarea por tarea y la evidencia de cada review
 
 ## Fases de desarrollo
@@ -220,13 +228,23 @@ El orden no es negociable: lo impone el grafo de dependencias de build de arriba
   Fue la única fase donde se decidió lógica de negocio. Ver
   [rust-core/README.md](rust-core/README.md).
 - **Fase 2 — `apps/android`.** ✅ **Completada.** Primer consumidor real: validó el pipeline
-  uniffi y el test de contrato sobre un dispositivo. Entregó **35 tests en verde** —20 de JVM con
+  uniffi y el test de contrato sobre un dispositivo. Entregó **40 tests en verde** —25 de JVM con
   `FakeCoreFinanciero` y 15 instrumentados que sí cruzan el FFI, de los cuales 9 son el
   test de contrato— y las cuatro pantallas de [docs/ui-spec.md](docs/ui-spec.md). Fue la fase que
   probó lo que el test de contrato de Rust no podía: `System.loadLibrary`, la resolución de símbolos
   de JNA, y que el `strip` del perfil release no se comiera nada. Ver
   [apps/android/README.md](apps/android/README.md).
-- **Fase 3 — `apps/ios`.** Espejo funcional de Android.
+- **Fase 3 — `apps/ios`.** ✅ **Completada.** Espejo funcional de Android: las cuatro pantallas
+  de [docs/ui-spec.md](docs/ui-spec.md) y **47 tests en verde**, de los cuales 10 son el test de
+  contrato (5 guardias + 5 grupos parametrizados que expanden a los 28 casos). Corrieron en
+  simulador **y sobre hardware real**, que es lo que prueba lo que ninguna corrida de simulador
+  podía: que el slice `aarch64-apple-ios` está enlazado, que sus símbolos resuelven y que el
+  `strip` del perfil release no se comió nada.
+  A diferencia de Android **no hay dos suites**: el core se enlaza estáticamente, así que los
+  tres niveles corren en el mismo bundle — y por eso nada obliga a que el seam de
+  `CoreFinanciero` exista, cosa que allá sí fuerza la plataforma.
+  Queda abierto el número del benchmark: se mide en un teléfono, no en el iPad con el que se
+  validó la app. Ver [apps/ios/PENDING.md](apps/ios/PENDING.md).
 - **Fase 4 — `apps/react-native`.** Turbo Module vía `ubrn`. Desbloquea la fase 5.
 - **Fase 5 — `apps/web-angular`.** Consume el WASM producido en la fase 4.
 
@@ -298,7 +316,7 @@ y cada instalación se verifica antes de seguir.
 | 0 | `rustup` + stable + clippy + rustfmt — ✅ **hecho** (1.98.1) | `cargo --version` |
 | 1 | nada — ✅ **hecho** (crates puros, se testean en el host) | `cargo test --workspace` → 67 passed |
 | 2 | `cargo install cargo-ndk` + 3 targets Android — ✅ **hecho** (cargo-ndk 4.1.2, NDK 30.0.16248370) | `cargo ndk --version`; `./gradlew :app:connectedDebugAndroidTest` → 15 passed |
-| 3 | 2 targets iOS (`aarch64-apple-ios`, `-sim`) | `rustup target list --installed` |
+| 3 | 2 targets iOS (`aarch64-apple-ios`, `-sim`) — ✅ **hecho** (XCFramework con los dos slices) | `rustup target list --installed`; `xcodebuild test …` → **47 passed en simulador y en aparato** |
 | 4 | `uniffi-bindgen-react-native` en `apps/react-native` | `npx ubrn --version` |
 | 5 | target `wasm32-unknown-unknown` + Angular CLI | `ng version` |
 

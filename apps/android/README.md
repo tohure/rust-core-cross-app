@@ -6,7 +6,7 @@ otras tres apps de la POC (iOS, React Native, Angular) consumen **sin reescribir
 
 Lo que esta app hace con los datos es pedirlos y mostrarlos.
 
-**Estado:** funcional. 35 tests en verde, las cuatro pantallas andando.
+**Estado:** funcional. 40 tests en verde, las cuatro pantallas andando.
 
 | | |
 |---|---|
@@ -96,7 +96,7 @@ vacío, la librería nativa no cargó — andá a [BUILD.md](BUILD.md).
 
 ### Aritmética — por qué el `Double` no sirve para dinero
 
-Escribí `0.1` y `0.2`, tocá **Calcular**. Dos tarjetas:
+Escribí `0.1` y `0.2`, toca **Calcular**. Dos tarjetas:
 
 ```
 Punto flotante nativo     0.30000000000000004     ← Double de Kotlin
@@ -120,12 +120,12 @@ Saldos              S/ 4,899.99   ·   S/ 1,300.50
 La app **espera** antes de pintar el resultado, para que parezca una llamada de red. **No hay
 red**: el núcleo devuelve cuántos milisegundos simular.
 
-Probá a romperlo: un monto mayor al saldo, origen igual a destino, o `100.123` — el campo no te
+Puedes probar a romperlo: un monto mayor al saldo, origen igual a destino, o `100.123` — el campo no te
 deja escribir el tercer decimal, y aunque pudieras, el núcleo lo rechaza.
 
 ### Tarjeta — cifrado, y que se note que es cifrado
 
-Escribí `4111111111111111` y tocá **Validar y cifrar**:
+Escribí `4111111111111111` y toca **Validar y cifrar**:
 
 ```
 Marca               Visa
@@ -145,8 +145,13 @@ comparten clave, nonce y algoritmo desde el mismo núcleo.
 ### Benchmark — cuánto cuesta cruzar la frontera
 
 Mide el núcleo contra una suma en `Double`, N veces. El núcleo es **más lento** —cruzar el FFI
-por JNA cuesta ~150 µs por llamada— y esa es exactamente la comparación honesta: la alternativa
-nativa es más rápida **y da mal el resultado**. Ver [TESTING.md](TESTING.md).
+cuesta ~444 µs por llamada en un Pixel 6, contra ~3,7 µs de la suma nativa— y esa es exactamente
+la comparación honesta: la alternativa nativa es más rápida **y da mal el resultado**.
+
+Los números que te salgan dependen del aparato, y bastante: en el emulador de un Mac con Apple
+Silicon el core baja a ~150 µs, porque esos cores son más rápidos que los de un teléfono. La
+descomposición de a dónde se va ese tiempo —y por qué **no** se puede optimizar— está en
+[TESTING.md](TESTING.md) y [PENDING.md](PENDING.md).
 
 ---
 

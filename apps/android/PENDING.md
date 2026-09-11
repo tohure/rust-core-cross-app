@@ -39,6 +39,93 @@ regresiones. Se cierra con un test instrumentado chico.
 crean con `remember` en vez de `viewModel()`. Rotar la pantalla vuelve a Aritmética y limpia
 todo. No afecta la demo, que se hace sin rotar.
 
+### Optimizar el cruce del FFI: se evaluó con mediciones y no hay nada que hacer
+
+**La pregunta ya se hizo y ya se contestó con números, no con opiniones.** Si vuelve a
+aparecer, esto es lo que se midió en un Pixel 6 (el detalle y el método están en
+[TESTING.md](TESTING.md)):
+
+| Idea | Veredicto |
+|---|---|
+| **Pasar de JNA a JNI** | **No aplica: ya estás en JNI.** uniffi 0.32 genera *direct mapping* (`Native.register` + `external fun`), o sea métodos nativos enlazados de verdad. No hay despacho reflexivo por llamada que eliminar |
+| **Subir `opt-level` de `"z"` a `3`** | **Descartado por medición.** `coreVersion()` —sin argumentos y sin parseo— cuesta 172 µs y `add` cuesta 444: si cada `String` vale ~150 µs, el cómputo de Rust cae dentro del ruido. Comprimir el binario o no da igual, así que la prioridad de tamaño se sostiene |
+| **`java.lang.foreign` (Panama)** | **No existe en Android.** ART no implementa la FFM API |
+| **Menos cruces por interacción** | **Es el único lever real… y ya está aplicado.** Cada pantalla hace una o dos llamadas. El Benchmark cruza N veces *a propósito*, que es su razón de ser |
+| **Menos argumentos `String` por llamada** | Un `Record` de uniffi viaja como **un** `RustBuffer`, mientras que N `String` sueltos son N. La API ya usa `Record` donde hay varios campos (`TransferRequest`). Cambiar `add(a, b)` sería tocar el contrato y las cuatro apps para ahorrar microsegundos en algo que no es ruta caliente |
+| **Calentar el puente al arrancar** | Innecesario: el pie llama `coreVersion()` en la primera composición, así que la librería ya está cargada antes de que el usuario toque nada |
+
+El piso de 172 µs vive en **código generado que no se edita**: `RustBuffer` y
+`UniffiRustCallStatus` son `Structure` de JNA —con reflexión de campos y memoria nativa por
+llamada— y devolver un `String` cuesta un cruce extra para liberar el buffer. Bajar eso es
+trabajo *upstream* en uniffi, no en esta app.
+
+**Y no hace falta:** 444 µs es el 2,7% de un frame a 60 Hz, con una o dos llamadas por
+interacción.
+
+Lo único que quedó sin verificar es si un APK de **release** cambia algo; se midió con el de
+debug (el `.so` sí es release). No debería, porque el camino del binding no lleva
+instrumentación de debug.
+
+### El `@Immutable` de los `UiState` se apoya en disciplina, no en el compilador
+
+Los tipos que genera uniffi son `data class` con propiedades **`var`**:
+
+```kotlin
+data class Account(var id: String, var holder: String, var balance: String)
+```
+
+El reporte del compilador de Compose los lista como `unstable class`, y sin embargo
+`TransferUiState` figura `stable` — porque lleva `@Immutable`, que **anula la inferencia**. Esa
+anotación es una promesa, y acá se cumple solo porque la app **nunca muta un `Account` en el
+lugar**: reemplaza la lista entera con la que devuelve el core. Si alguien escribiera
+`account.balance = "0.00"`, Compose no se enteraría y la pantalla mostraría un saldo viejo.
+
+**Es un riesgo de corrección, no de rendimiento**, y por eso está acá arriba de los detalles
+menores. Las dos salidas obvias no sirven: los tipos son generados y no se editan, y envolverlos
+en tipos propios de la app es exactamente el `toDomain()` que el proyecto rechaza —duplicaría el
+contrato en Kotlin y se desincronizaría en la primera regeneración de bindings—.
+
+Queda entonces como **regla**: un `Record` de uniffi se trata como inmutable, se reemplaza y no
+se muta. Vale igual en las cuatro apps, aunque el riesgo no sea idéntico: en Swift los `Record`
+son `struct`, o sea tipos de valor, así que mutar una propiedad produce una copia y la
+asignación al estado sí se observa.
+
+### Las advertencias de estabilidad de Compose, y por qué se anotó
+
+`AppContainer` y los cuatro ViewModels llevan `@Immutable` / `@Stable`. Se agregaron porque el
+compilador marcaba los cuatro `vm` como parámetros inestables —`ViewModel`, `StateFlow` y
+`MutableStateFlow` vienen de librerías compiladas sin inferencia de estabilidad, algo que le
+pasa a toda app Android que pasa un ViewModel a un composable—.
+
+**No se anotó por rendimiento.** Las pantallas se llaman desde el `when` de `BancoApp`, que solo
+recompone al cambiar de pestaña: lo que se ahorra es una ejecución de función por tap, cuatro o
+cinco veces en una demo. Se anotó por **higiene de advertencias**: una lista que uno aprende a
+ignorar tapa la que sí importa.
+
+Dos cosas que **no** se hicieron, y son decisiones:
+
+- **No se anotó la interfaz `CoreFinanciero`.** Anotar una interfaz promete que *todas* sus
+  implementaciones son estables, y `FakeCoreFinanciero` tiene `var` públicos. Sería una promesa
+  falsa, y no hace falta: `@Stable` sobre la clase del ViewModel ya anula la inferencia.
+- **No se hoisteó el estado** a firmas `(state, onXxx)`. Es la respuesta canónica de Compose y
+  daría previews gratis, pero dejaría a Android como la única app con esa forma: en iOS la vista
+  crea su propio `@Observable`, y RN y Angular hacen lo mismo con hooks y signals. La
+  comparación lado a lado es la demo.
+
+Para regenerar el reporte y verificarlo, agregar temporalmente a `app/build.gradle.kts`:
+
+```kotlin
+composeCompiler {
+    reportsDestination = layout.buildDirectory.dir("compose_compiler")
+}
+```
+
+y correr `./gradlew :app:compileDebugKotlin --rerun-tasks`. Deja
+`app/build/compose_compiler/app-classes.txt` y `app-composables.txt`. Qué se debe ver: las cinco
+clases como `stable`, y las cuatro pantallas como `restartable skippable` con `stable vm`. **El
+bloque se quita después de mirar**: no está commiteado a propósito, para no pagar su costo en
+cada build.
+
 ### Detalles menores
 
 - El default `nextEncrypt` de `FakeCoreFinanciero` es un hex truncado de 8 caracteres, no el de

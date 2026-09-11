@@ -1,5 +1,5 @@
 {
-  "version": "1.0.0",
+  "version": "1.1.0",
   "idioma": "es",
   "_nota": "Mensajes de USUARIO para las pantallas de error de las cuatro apps: uno por cada nombre de error del contrato. Los mensajes NO los devuelve el core. Los #[error(\"...\")] de Rust no cruzan el FFI —uniffi arma el message desde los campos de la variante, y en Swift es el volcado de debug del enum—, así que sin este archivo las cuatro pantallas de error mostrarían textos distintos: es la única parte del sistema donde la paridad no la garantiza cases.json. Un segundo idioma es otro archivo, no un cambio al core. Se lee como UTF-8: a diferencia de cases.json, este archivo lleva acentos porque es texto de UI en español.",
   "_placeholders": "Los marcadores entre llaves ({code}, {id}, {available}, {required}, {field}) se interpolan CRUDOS, tal como los devuelve el core. Nada de NumberFormat ni Intl.NumberFormat sobre los montos: los formateadores de moneda de Android, iOS y el navegador no coinciden entre sí, y una diferencia ahí rompe la comparación carácter por carácter que es toda la tesis de la POC. El formateo de moneda vive en las pantallas de montos, no en los mensajes de error.",
@@ -11,7 +11,7 @@
     "MontoInvalido": "El monto ingresado no es válido.",
     "CuentaNoEncontrada": "No encontramos la cuenta {id}.",
     "MismaCuenta": "La cuenta de origen y la de destino son la misma.",
-    "SaldoInsuficiente": "Saldo insuficiente: tenés {available} y se necesitan {required}.",
+    "SaldoInsuficiente": "Saldo insuficiente: tienes {available} y se necesitan {required}.",
     "Cifrado": "No se pudo cifrar los datos de la tarjeta.",
     "FueraDeRango": "El valor de {field} está fuera del rango permitido."
   }

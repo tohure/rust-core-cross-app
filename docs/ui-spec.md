@@ -169,6 +169,11 @@ importan: valida por Luhn, cifra, y **descifra**.
 │  Luhn y cifrado ChaCha20-Poly1305   │
 ├─────────────────────────────────────┤
 │  Número       [ 4111111111111111 ]  │
+│  Puedes probar 4111111111111111     │  ← ayuda: sin esto nadie sabe qué tipear
+│  (Visa) o 5555555555554444          │
+│  (Mastercard). Un número inválido   │
+│  lo rechaza el core, no esta        │
+│  pantalla.                          │
 │                                     │
 │           [  Validar y cifrar  ]    │
 │                                     │
@@ -187,8 +192,8 @@ importan: valida por Luhn, cifra, y **descifra**.
 │                                     │
 │  ─── Descifrar un hex de otra ───   │
 │      plataforma                     │
-│  Pegá acá el hex que produjo la app │
-│  de iOS, React Native o Angular…    │
+│  Pega aquí el hex que produjo la    │
+│  app de iOS, React Native o Angular…│
 │  Hex cifrado  [ bcce3d351c2290… ]   │
 │           [  Descifrar  ]           │
 │  Número recuperado 5555555555554444 │
@@ -198,6 +203,14 @@ importan: valida por Luhn, cifra, y **descifra**.
 - Labels exactos: `Número`, `Validar y cifrar`, `Resultado`, `Marca`, `Enmascarado`,
   `Cifrado (hex)`, `Descifrado`, `Descifrar un hex de otra plataforma`, `Hex cifrado`,
   `Descifrar`, `Número recuperado`.
+- **El texto de ayuda bajo `Número` es obligatorio**, con estas dos líneas exactas:
+  `Puedes probar 4111111111111111 (Visa) o 5555555555554444 (Mastercard).` y
+  `Un número inválido lo rechaza el core, no esta pantalla.`
+  Sin él, la pantalla no dice qué espera: el campo acepta cualquier dígito pero el core
+  exige un número que pase Luhn, y quien hace la demo tiene que **adivinarlo frente a la
+  audiencia**. Con él, el rechazo deja de parecer un fallo del producto y pasa a ser parte
+  de lo que se está demostrando: tipear `41111` —que es el caso `tj-006` del contrato—
+  exhibe que **la validación también vive en el core**, no solo la criptografía.
 - **La fila `Descifrado` no es decorativa.** Sin ella la pantalla muestra un hex que un
   espectador **no puede distinguir de un hash**. Cifrar y volver a descifrar en el mismo gesto
   es lo único que prueba, mirando, que el core hace criptografía reversible.
@@ -230,23 +243,41 @@ real es otro problema, y no está acá.
 │                                     │
 │           [  Ejecutar  ]            │
 │                                     │
-│  ─── Resultado ──────────────────   │
-│  Core · p50            147.25 µs    │
-│  Core · p95            557.67 µs    │
-│  Nativa · p50            4.08 µs    │
-│  Nativa · p95           34.38 µs    │
+│  ─── Core (Rust · Decimal) ───────  │
+│  Tiempo típico (p50)   455.36 µs    │
+│  Peor caso (p95)       548.14 µs    │
 │                                     │
-│  ⚠ La baseline nativa diverge en    │
-│    centavos: existe para exhibirlo. │
+│  ─── Punto flotante nativo ───────  │
+│  Tiempo típico (p50)     3.74 µs    │
+│  Peor caso (p95)         9.52 µs    │
+│                                     │
+│  El core es más lento porque cada   │
+│  llamada cruza la frontera al       │
+│  código Rust.                       │
+│  ⚠ El punto flotante nativo es más  │
+│    rápido y da mal el resultado:    │
+│    existe para exhibirlo.           │
 └─────────────────────────────────────┘
 ```
 
-- Labels exactos: `Iteraciones`, `Ejecutar`, `Resultado`, `Core · p50`, `Core · p95`,
-  `Nativa · p50`, `Nativa · p95`, y la advertencia completa.
-- **Cuatro filas etiqueta–valor, no una tabla de dos ejes.** Se fijó así porque es lo que
-  produce el componente compartido `ResultRow(label, value)`, y una tabla 2D obligaría a un
-  componente nuevo solo para esta pantalla. Los números del wireframe son los medidos en el
-  emulador de Android; cada plataforma mostrará los suyos.
+- Labels exactos: `Iteraciones`, `Ejecutar`, `Core (Rust · Decimal)`,
+  `Punto flotante nativo`, `Tiempo típico (p50)`, `Peor caso (p95)`, y los dos párrafos
+  finales completos.
+- **Los nombres de las dos implementaciones son los mismos que usa la pantalla de
+  Aritmética**, y eso no es casual: antes esta pantalla decía `Core` y `Nativa` mientras
+  Aritmética decía `Core (Rust · Decimal)` y `Punto flotante nativo`. Quien mira la demo veía
+  cuatro conceptos donde hay dos. **Si se renombra uno, se renombra en las dos pantallas y en
+  las cuatro apps.**
+- **`Tiempo típico` y `Peor caso` dicen qué significan; el `(p50)` / `(p95)` entre paréntesis
+  conserva el término técnico.** `p50` solo no le dice nada a quien mira una demo, y quitarlo
+  del todo le restaría credibilidad frente a alguien que sí lo conoce. Van los dos.
+- **La frase "El core es más lento porque cada llamada cruza la frontera al código Rust" es
+  obligatoria.** Sin ella, un número más grande parece un defecto en vez del argumento que es.
+- **Filas etiqueta–valor agrupadas por `SectionDivider`, no una tabla de dos ejes.** Se fijó
+  así porque solo usa los componentes compartidos —`SectionDivider(title)` y
+  `ResultRow(label, value)`—, y una tabla 2D obligaría a un componente nuevo solo para esta
+  pantalla. Los números del wireframe son los medidos en un Pixel 6; cada plataforma y cada
+  aparato mostrará los suyos, y varían bastante.
 - **El core es más lento que la baseline, y está bien**: cruzar el FFI cuesta. Lo que la
   pantalla exhibe es que la baseline, siendo más rápida, **da mal el resultado**.
 - **Es la única pantalla donde las llamadas al core van fuera del hilo principal.** En el

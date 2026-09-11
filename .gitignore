@@ -15,6 +15,7 @@ __pycache__/
 /apps/android/app/src/main/java/uniffi/
 /apps/ios/CoreFinanciero.xcframework/
 /apps/ios/Generated/
+/apps/ios/ios-rust-test/Generated/
 /apps/react-native/cpp/
 /apps/react-native/src/generated/
 

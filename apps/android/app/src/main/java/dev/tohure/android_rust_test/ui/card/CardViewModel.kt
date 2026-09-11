@@ -1,5 +1,6 @@
 package dev.tohure.android_rust_test.ui.card
 
+import androidx.compose.runtime.Stable
 import androidx.lifecycle.ViewModel
 import dev.tohure.android_rust_test.adapter.ContractMessages
 import dev.tohure.android_rust_test.adapter.CoreFinanciero
@@ -9,6 +10,19 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import uniffi.core_financiero.DomainException
 
+/**
+ * `@Stable` es una **promesa al compilador**, y acá se cumple: la instancia se crea una sola
+ * vez con `remember` y nunca cambia, y lo único público que expone es `uiState`, que **es** el
+ * canal por el que Compose se entera de los cambios.
+ *
+ * Sin esto, la inferencia marca la clase como inestable —`ViewModel`, `StateFlow` y
+ * `MutableStateFlow` vienen de librerías compiladas sin inferencia de estabilidad— y la
+ * pantalla no se puede saltar en recomposición. **No se anota por performance:** las pantallas
+ * se llaman desde un `when` que solo recompone al cambiar de pestaña, así que lo que se ahorra
+ * es una ejecución de función por tap. Se anota por higiene: una lista de advertencias que uno
+ * aprende a ignorar tapa la que sí importa. Ver PENDING.md.
+ */
+@Stable
 class CardViewModel(
     private val core: CoreFinanciero,
     private val contract: ContractSource,

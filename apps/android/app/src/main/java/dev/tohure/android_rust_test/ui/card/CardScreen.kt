@@ -33,6 +33,16 @@ fun CardScreen(vm: CardViewModel, modifier: Modifier = Modifier) {
         Spacer(Modifier.height(16.dp))
 
         LabeledField("Número", state.number, vm::numberChanged, keyboardType = KeyboardType.Number)
+        Spacer(Modifier.height(4.dp))
+        // Sin esto la pantalla no dice qué espera: el campo acepta cualquier dígito pero el
+        // core exige un número que pase Luhn, y quien hace la demo tiene que adivinarlo
+        // frente a la audiencia. Texto normativo, igual en las cuatro apps: ver docs/ui-spec.md.
+        Text(
+            "Puedes probar 4111111111111111 (Visa) o 5555555555554444 (Mastercard).\n" +
+                "Un número inválido lo rechaza el core, no esta pantalla.",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
         Spacer(Modifier.height(12.dp))
         Button(vm::validateAndEncrypt, Modifier.fillMaxWidth()) { Text("Validar y cifrar") }
 
@@ -73,7 +83,7 @@ fun CardScreen(vm: CardViewModel, modifier: Modifier = Modifier) {
         // ── Descifrar un hex ajeno ────────────────────────────────────────────
         SectionDivider("Descifrar un hex de otra plataforma")
         Text(
-            "Pegá acá el hex que produjo la app de iOS, React Native o Angular. Sale el mismo " +
+            "Pega aquí el hex que produjo la app de iOS, React Native o Angular. Sale el mismo " +
                 "número, porque las cuatro usan el mismo core.",
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,

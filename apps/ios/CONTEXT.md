@@ -2,7 +2,7 @@
 
 App nativa iOS que consume `rust-core`. Espejo funcional de `apps/android`.
 
-Stack: Swift, SwiftUI, iOS 16+, XCFramework.
+Stack: Swift, SwiftUI, iOS 17+, XCFramework.
 
 ## Regla central
 
@@ -60,10 +60,10 @@ Dos detalles que ahorran una tarde:
   `SameAccount`, `InsufficientFunds`, `Encryption` y `OutOfRange` — con esa capitalización,
   que no es la convención de Swift pero es la que genera uniffi. `contracts/cases.json` los
   nombra en español (`"Longitud"`, `"DigitoControl"`, …) y **ese mapeo no cruza el FFI**:
-  hay que escribirlo, nueve líneas, **en el `XCTest` de contrato, no en producción**, con un
-  `switch` que cubra los nueve casos **sin `default`**, para que una décima variante rompa
-  la compilación en vez de pasar en verde. Ver
-  [rust-core/README.md](../../rust-core/README.md).
+  hay que escribirlo, nueve líneas, **en el test de contrato (Swift Testing), no en
+  producción**, con un `switch` que cubra los nueve casos **sin `default`**, para que una
+  décima variante rompa la compilación en vez de pasar en verde. Ver
+  [rust-core/FFI.md](../../rust-core/FFI.md).
 
 `validateCci` y `calculateItf` no tienen pantalla propia entre las cinco de la demo: hoy
 las consume el test de contrato. Si se decide darles pantalla, se agrega **en las cuatro apps a
@@ -71,14 +71,16 @@ la vez** — la paridad es la demo.
 
 ## Estructura
 
-CoreFinancieroPOC/
-├── CoreFinanciero.xcframework/   artefacto generado, no editar
-├── Generated/                     Swift generado por uniffi, no editar
-│                                  core_financiero.swift + include/{core_financieroFFI.h,
-│                                  module.modulemap}
-├── Adapter/CoreFinanciero.swift
-├── Format/MoneyFormatter.swift
-└── UI/  AritmeticaView.swift, TransferenciaView.swift, TarjetaView.swift, BenchmarkView.swift
+apps/ios/
+├── CoreFinanciero.xcframework/    artefacto generado, no editar
+├── Generated/include/             headers generados por uniffi, no editar
+│                                  core_financieroFFI.h + module.modulemap
+├── ios-rust-test.xcodeproj/
+└── ios-rust-test/                 carpeta de fuentes
+    ├── Generated/core_financiero.swift   Swift generado por uniffi, no editar
+    ├── Adapter/CoreFinanciero.swift
+    ├── Format/MoneyFormatter.swift
+    └── UI/  ArithmeticView.swift, TransferView.swift, CardView.swift, BenchmarkView.swift
 
 El XCFramework **debe** construirse pasando `-headers` con el `.h` y el `module.modulemap`
 que genera uniffi; solo con los `.a` Swift no ve ningún símbolo. Es el fallo de
@@ -98,7 +100,7 @@ xcodebuild -create-xcframework \
 > exige que el directorio de headers contenga un archivo llamado exactamente
 > `module.modulemap`. Con el nombre generado tal cual, el XCFramework **se construye sin
 > error** y después `import core_financieroFFI` no resuelve: el síntoma es "el XCFramework
-> no exporta nada", y se descubre tarde. Antes de correr `-create-xcframework`, armá el
+> no exporta nada", y se descubre tarde. Antes de correr `-create-xcframework`, arma el
 > directorio de headers —los mismos tres comandos que trae el bloque canónico de
 > [`rust-core/CONTEXT.md`](../../rust-core/CONTEXT.md), que es de donde conviene copiarlos—:
 >
@@ -153,7 +155,7 @@ Reglas:
    variante, así que el mapeo `DomainError` → nombre del contrato hace falta **en
    producción**, y el test de contrato reusa ese mismo mapeo en vez de escribir el suyo. Va
    exhaustivo: `switch` sin `default`. El porqué del archivo está en
-   [rust-core/README.md](../../rust-core/README.md) — "Los mensajes de error en
+   [rust-core/FFI.md](../../rust-core/FFI.md) — "Los mensajes de error en
    español NO cruzan el FFI".
 4. Llamadas síncronas. No las envuelvas en `Task` salvo en el benchmark.
 
@@ -169,8 +171,7 @@ private let montoValido = #"^\d{0,9}(\.\d{0,2})?$"#
 
 TextField("Monto", text: $monto)
     .keyboardType(.decimalPad)
-    // iOS 17+ usa la firma de dos parámetros: .onChange(of: monto) { _, nuevo in ... }
-    .onChange(of: monto) { nuevo in
+    .onChange(of: monto) { _, nuevo in
         if nuevo.range(of: montoValido, options: .regularExpression) == nil {
             monto = String(nuevo.dropLast())   // filtro de texto: se descarta la última tecla
         }
@@ -191,17 +192,47 @@ Tres cosas que no son opcionales:
    en la entrada (`ar-001` es `"0.1"`); los 2 decimales son normativos solo para la
    transferencia.
 
+### El otro filtro con tope: `Iteraciones` en el Benchmark
+
+`/^[0-9]{0,6}$/` — **hasta 6 dígitos**, igual que
+[`BenchmarkViewModel.kt:32`](../android/app/src/main/java/dev/tohure/android_rust_test/ui/benchmark/BenchmarkViewModel.kt)
+en Android. No está en `docs/ui-spec.md` porque no es un label: es el único tope de este
+lado que existe por una razón operativa y no por el contrato. Sin él, teclear `10000000`
+durante la demo dispara 2 × 10^7 llamadas al core en un `Task.detached` **sin forma de
+cancelarlas**, con el botón deshabilitado y el spinner girando, mientras Android rechaza la
+séptima tecla. Dos apps, un mismo spec, comportamiento distinto — y justo en la pantalla que
+existe para ponerlas lado a lado.
+
+El `guard n > 0` de `run()` **es load-bearing**, no defensa decorativa: `measure()` calcula
+el índice del percentil como `min(max(Int(Double(n) * p), 0), n - 1)`, que con `n == 0` da
+−1. Android no tiene ese guard y por eso `"0"` iteraciones lo hace crashear en
+`coerceIn(0, -1)`; ver `PENDING.md`.
+
 ## Formateo
 
+**No se usa `NumberFormatter` para pintar montos.** Su salida depende del ICU de la
+plataforma: puede meter un espacio duro (U+00A0) entre `S/` y el número, y el agrupamiento
+y el símbolo no tienen por qué coincidir carácter por carácter con lo que produce Kotlin en
+Android. La demo consiste en poner las cuatro pantallas lado a lado, así que
+`MoneyFormatter` implementa **el mismo algoritmo manual que `MoneyFormatter.kt`** de
+Android: separa el signo antes de agrupar, agrupa los miles a mano de a tres dígitos y no
+toca los decimales que entregó el core.
+
 ```swift
-let f = NumberFormatter()
-f.numberStyle = .currency
-f.locale = Locale(identifier: "es_PE")
+enum MoneyFormatter {
+    static func format(_ amount: String) -> String { ... }   // ver Format/MoneyFormatter.swift
+}
 ```
 
-Construye el `Decimal` desde el string del core con
-`Decimal(string:locale:)` usando locale POSIX, para que el punto decimal se
-interprete correctamente. Es el error más común en este archivo.
+Construye el `Decimal` desde el string del core con `Decimal(string:locale:)` usando locale
+POSIX, pero **solo para validar que la entrada es numérica**: nunca se reconstruye el monto
+a partir del `Decimal`, porque `Decimal` imprime sin ceros a la derecha (`1300.50` se
+describiría como `1300.5`) y rompería la paridad carácter por carácter. Los decimales que
+se pintan son los del string de entrada, tal como los entregó el core.
+
+Sigue valiendo, y es distinto, lo que ya decía este archivo sobre **leer**: nunca uses
+`NumberFormatter` para interpretar el campo de monto, porque devuelve `NSNumber`, o sea un
+`Double`.
 
 ## Arquitectura de UI
 
@@ -232,12 +263,12 @@ final class TransferViewModel {
 }
 ```
 
-- **`@Observable` (iOS 17+)** en vez de `ObservableObject` + `@Published`: menos ceremonia y
-  solo invalida las vistas que leen la propiedad que cambió. `ObservableObject` queda como
-  alternativa si hay que bajar el deployment target.
+- **`@Observable`** en vez de `ObservableObject` + `@Published`: menos ceremonia y
+  solo invalida las vistas que leen la propiedad que cambió. El deployment target es 17.0,
+  así que no hace falta ninguna alternativa.
 - **`@MainActor` sobre la clase**, como en el original.
 - **Las llamadas al core NO se envuelven en `Task`**, salvo en el benchmark. Son
-  microsegundos; `Task` acá solo agrega un salto de hilo y un frame de latencia.
+  microsegundos; `Task` aquí solo agrega un salto de hilo y un frame de latencia.
 - **El error es una propiedad del estado**, no un `throw` que sube a la vista. La vista lo
   pinta; quien traduce es el ViewModel, leyendo `contracts/messages.es.json`.
 - **Para comparar u ordenar montos en UI: `Decimal` de Foundation.** Nunca `Double`.
@@ -246,8 +277,8 @@ final class TransferViewModel {
 
 Las mismas diez reglas que
 [`apps/android/CONTEXT.md`](../android/CONTEXT.md) → "Cómo se escribe el ViewModel por
-dentro", en Swift. Se listan acá completas y no por referencia porque quien implemente iOS no
-va a leer el CONTEXT de Android — pero **si cambian allá, cambian acá**.
+dentro", en Swift. Se listan aquí completas y no por referencia porque quien implemente iOS no
+va a leer el CONTEXT de Android — pero **si cambian allí, cambian aquí**.
 
 ```swift
 @MainActor
@@ -287,7 +318,7 @@ final class TransferViewModel {
 
 1. **`private(set)`** sobre el estado: la vista lee, no escribe.
 2. **Un `struct` de estado**, no propiedades sueltas. `struct` en Swift ya es valor: el
-   `copy()` de Kotlin es gratis acá.
+   `copy()` de Kotlin es gratis aquí.
 3. **Funciones con nombre de dominio** —`transfer()`, `amountChanged(_:)`, `clearError()`—,
    no setters.
 4. **`isLoading = false` en una sola salida.** El bug clásico es el `catch` que se olvida de
@@ -303,17 +334,17 @@ final class TransferViewModel {
 10. **`// MARK: -`** agrupando secciones — el equivalente de los comentarios de sección de
     Kotlin, y además puebla el jump bar de Xcode.
 
-### Y cómo NO se escribe la capa de datos acá
+### Y cómo NO se escribe la capa de datos aquí
 
 Vale íntegra la tabla de
 [`apps/android/CONTEXT.md`](../android/CONTEXT.md) → "Y cómo NO se escribe la capa de datos
-acá": **sin protocolo de repositorio, sin mapeo a tipos propios, sin `Result` sellado
+aquí": **sin protocolo de repositorio, sin mapeo a tipos propios, sin `Result` sellado
 propio, sin capa reactiva y sin contenedor de DI.** El adapter reexporta los tipos de uniffi
 y las llamadas son síncronas.
 
 Lo único específico de Swift: **`async` no entra por la puerta de atrás.** `transfer()` es
 `async` arriba **solo** por el `Task.sleep` que simula la latencia; la llamada al core en sí
-es síncrona y no va envuelta en `Task`. Si te encontrás poniendo `await` sobre una función
+es síncrona y no va envuelta en `Task`. Si te encuentras poniendo `await` sobre una función
 del core, algo se desvió.
 
 ### Componentes compartidos
@@ -331,14 +362,14 @@ Benchmark**, y el pie con `coreVersion()` visible en las cuatro.
 
 **Los wireframes, los labels exactos y el orden de campos viven en
 [`docs/ui-spec.md`](../../docs/ui-spec.md)** — normativo para las cuatro apps. No se
-duplican acá: cuatro copias de la misma lista divergen, que es justo lo que la demo no puede
+duplican aquí: cuatro copias de la misma lista divergen, que es justo lo que la demo no puede
 permitirse. Cambiar un label obliga a cambiarlo en las cuatro apps y en ese archivo, en el
 mismo cambio.
 
 ## Pruebas
 
-`XCTest` que lee `contracts/cases.json` desde el bundle de test y compara
-strings exactos con `XCTAssertEqual`. Mismo archivo, mismos casos, mismos
+`Swift Testing` que lee `contracts/cases.json` desde el bundle de test y compara
+strings exactos con `#expect(a == b)`. Mismo archivo, mismos casos, mismos
 resultados que Android, RN y web.
 
 ## Prohibiciones

@@ -19,7 +19,7 @@ class ContractMessagesTest {
             "MontoInvalido" to "El monto ingresado no es válido.",
             "CuentaNoEncontrada" to "No encontramos la cuenta {id}.",
             "MismaCuenta" to "La cuenta de origen y la de destino son la misma.",
-            "SaldoInsuficiente" to "Saldo insuficiente: tenés {available} y se necesitan {required}.",
+            "SaldoInsuficiente" to "Saldo insuficiente: tienes {available} y se necesitan {required}.",
             "Cifrado" to "No se pudo cifrar los datos de la tarjeta.",
             "FueraDeRango" to "El valor de {field} está fuera del rango permitido.",
         ),
@@ -48,7 +48,7 @@ class ContractMessagesTest {
         // y el navegador no coinciden, y una diferencia rompe la comparación carácter por
         // carácter que es toda la tesis de la POC.
         assertEquals(
-            "Saldo insuficiente: tenés 1234.56 y se necesitan 2000.00.",
+            "Saldo insuficiente: tienes 1234.56 y se necesitan 2000.00.",
             messages.userMessage(DomainException.InsufficientFunds("1234.56", "2000.00")),
         )
         assertEquals(
