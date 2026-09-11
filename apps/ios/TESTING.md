@@ -112,34 +112,58 @@ pasando**. Eso es lo que probó que el hueco era real y no cosmético.
 
 ## Lo que esta suite NO prueba
 
-- **El slice de device.** Ver abajo: es el pendiente que bloquea el cierre de la fase.
+- **El slice de device, si se corre solo en simulador.** Esa corrida ya se hizo (ver abajo),
+  pero no es automática: cada vez que cambie el core hay que repetirla.
 - **Que la UI se comporte.** No hay XCUITest. Los filtros de texto, en particular, pueden dejar
   la tecla rechazada visible en el `TextField` sin que ningún test se entere; ver
   [PENDING.md](PENDING.md).
 - **Que `isLoading` llegue a ser `true`.** Solo se aserta que vuelve a `false`.
 
-## ⚠️ La corrida sobre hardware: **no ejecutada**
+## La corrida sobre hardware: ✅ ejecutada
 
 El simulador enlaza `aarch64-apple-ios-sim`. **El slice que se embarca es otro binario**
-—`aarch64-apple-ios`— y en toda la Fase 3 nunca se ejecutó. Esta sección se completa cuando
-haya aparato conectado; hasta entonces queda dicho que no corrió, porque no se marca en verde
-algo que no corrió.
+—`aarch64-apple-ios`—, compilado aparte, y hasta el cierre de la fase nunca se había
+ejecutado. Ya corrió:
 
 ```bash
-xcrun devicectl list devices          # tiene que figurar `connected`, no `unavailable`
+xcrun devicectl list devices          # tiene que figurar `available`, no `unavailable`
 cd apps/ios
 xcodebuild test -project ios-rust-test.xcodeproj -scheme ios-rust-test \
-  -destination "platform=iOS,name=Carlo’s iPhone"
+  -destination 'id=<identificador del aparato>' -allowProvisioningUpdates
 ```
 
-Esperado: **el mismo conteo y el mismo verde.** Si falla aquí y no en el simulador, el problema
-está en el slice de device del XCFramework.
+Resultado: **`Test run with 47 tests in 12 suites passed` · `** TEST SUCCEEDED **`** — el mismo
+conteo y el mismo verde que el simulador, sobre un **iPad Air (5.ª gen, `iPad13,16`) con
+iPadOS 26.6.1**. Con eso queda probado lo que ninguna corrida de simulador podía probar: que el
+`.a` del slice de device está enlazado, que sus símbolos resuelven, y que el `strip` del perfil
+release no se comió nada. El test de contrato pasa **28/28 en el aparato**.
 
-## ⚠️ El benchmark: **no medido**
+Si falla aquí y no en el simulador, el problema está en el slice de device del XCFramework:
+volver al Step 7 de la Task 1 y verificar que el `.xcframework` traiga los dos.
+
+### Las dos cosas que trabaron esa corrida, para que no cuesten dos veces
+
+1. **`error: No profiles for 'dev.tohure.ios-rust-test' were found`.** Los perfiles instalados
+   no incluían el aparato. Se resuelve pasando **`-allowProvisioningUpdates`**, que registra el
+   dispositivo y genera el perfil. Ojo: es una cuenta gratuita, así que **los perfiles vencen a
+   los 7 días** y hay que repetirlo.
+2. **`The Developer App Certificate is not trusted`.** La app se instala pero no lanza. Es un
+   paso **manual en el aparato**, una vez por certificado: *Ajustes → General → VPN y Gestión
+   de Dispositivos → APP DE DESARROLLADOR → `Apple Development: <cuenta>` → Confiar*.
+
+## ⚠️ El benchmark: **no medido, y por una razón**
 
 La pantalla funciona y sus tests pasan, pero **nadie tomó todavía el número en esta
-plataforma**, así que aquí no hay tabla que escribir. Android está medido en un Pixel 6 y
-descompuesto en [`../android/TESTING.md`](../android/TESTING.md):
+plataforma**, así que aquí no hay tabla que escribir.
+
+**No se midió en el iPad a propósito**, aunque el aparato estaba a mano. El iPad Air 5 lleva un
+**M1**, una CPU de clase escritorio; Android está medido en un Pixel 6. Comparar esos dos
+números mezclaría dos cosas distintas —el costo del puente y la diferencia de chip— y la
+pantalla existe para aislar la primera. Se mide en un **teléfono**, o el número no responde la
+pregunta que se le hizo.
+
+Android está medido en un Pixel 6 y descompuesto en
+[`../android/TESTING.md`](../android/TESTING.md):
 
 | | Android (Pixel 6) |
 |---|---|
@@ -153,6 +177,6 @@ eso**: enlaza el `.a` estáticamente y Swift llama la función de C directo. La 
 esté en otro orden de magnitud — **hipótesis, no resultado**, y se escribe como resultado
 recién cuando alguien la mida.
 
-Se mide **en el aparato, no en el simulador**: el simulador corre arm64 nativo de macOS, sin el
-scheduler ni el térmico del teléfono, y daría un número optimista. Android aprendió lo mismo:
+Se mide **en un teléfono, no en el simulador**: el simulador corre arm64 nativo de macOS, sin
+el scheduler ni el térmico del aparato, y daría un número optimista. Android aprendió lo mismo:
 su cifra de emulador —~150 µs— estaba inflada y la tabla de arriba es la corregida.

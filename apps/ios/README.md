@@ -6,9 +6,10 @@ otras tres apps de la POC (Android, React Native, Angular) consumen **sin reescr
 
 Lo que esta app hace con los datos es pedirlos y mostrarlos.
 
-**Estado:** funcional. Las cuatro pantallas andando y **47 tests en verde sobre el simulador**.
-La fase **no está cerrada**: la suite todavía no corrió sobre hardware real y el benchmark no
-está medido. Los dos pendientes, con su comando, están en [PENDING.md](PENDING.md).
+**Estado:** funcional. Las cuatro pantallas andando y **47 tests en verde**, en simulador y
+**también sobre hardware real** — o sea que el slice `aarch64-apple-ios`, el que se embarca,
+está probado y no solo compilado. Lo único que queda abierto es el número del benchmark, que se
+mide en un teléfono y no en el iPad por la razón que está en [PENDING.md](PENDING.md).
 
 | | |
 |---|---|
@@ -124,8 +125,17 @@ xcodebuild test -project ios-rust-test.xcodeproj -scheme ios-rust-test \
 
 Qué se debe ver: `** TEST SUCCEEDED **` y `Test run with 47 tests in 12 suites passed`.
 
-El desglose, qué prueba el test de contrato, sus cinco guardias y **qué no prueba** están en
-**[TESTING.md](TESTING.md)**.
+Y sobre un aparato conectado, que es lo que ejercita el slice que de verdad se embarca:
+
+```bash
+xcrun devicectl list devices          # tiene que figurar `available`
+xcodebuild test -project ios-rust-test.xcodeproj -scheme ios-rust-test \
+  -destination 'id=<identificador del aparato>' -allowProvisioningUpdates
+```
+
+Mismo conteo, mismo verde. La primera vez pide además **confiar el certificado en el aparato**;
+el mensaje de error exacto y el camino en Ajustes están en **[TESTING.md](TESTING.md)**, junto
+con el desglose de la suite, las cinco guardias del contrato y **qué no prueba**.
 
 ---
 
@@ -180,7 +190,9 @@ bloquearían la UI. En el resto son síncronas y de microsegundos.
 El core sale **más lento** que la baseline y está bien: cruzar el FFI cuesta. Lo que la pantalla
 exhibe es que la baseline, siendo más rápida, **da mal el resultado**.
 
-Los números de esta plataforma **todavía no están medidos**; ver [PENDING.md](PENDING.md).
+Los números de esta plataforma **todavía no están medidos**, y se miden en un teléfono: el
+iPad con el que se validó la app lleva un M1 y compararlo contra un Pixel 6 mezclaría el costo
+del puente con la diferencia de chip. Ver [PENDING.md](PENDING.md).
 
 ---
 

@@ -3,42 +3,21 @@
 Lo que esta app **no** hace, y la razón. Está separado del [README](README.md) a propósito: un
 README que mezcla "cómo se usa" con "qué falta" no sirve para ninguna de las dos cosas.
 
-Salvo el primero, nada de aquí bloquea la demo. Son decisiones tomadas, no olvidos.
+Nada de aquí bloquea la demo. Son decisiones tomadas, no olvidos.
 
-## Lo único que bloquea el cierre de la fase
+## Lo que falta medir
 
-### La suite nunca corrió sobre hardware real
+### El benchmark no tiene número en esta plataforma
 
-**Este es el pendiente que impide declarar la Fase 3 terminada**, y está primero por eso.
+La suite ya corrió sobre hardware real —47 tests en verde sobre un iPad Air 5; el detalle en
+[TESTING.md](TESTING.md)—, pero **la pantalla de Benchmark sigue sin un número medido**.
 
-Los 47 tests corren sobre el simulador, que enlaza el slice `aarch64-apple-ios-sim` del
-XCFramework. **El slice que se embarca es otro binario**: `aarch64-apple-ios`, compilado
-aparte, y en toda la fase nunca se ejecutó. Un fallo que solo aparezca ahí —un símbolo que el
-`strip` del perfil release se comió, un slice que quedó fuera del `.xcframework`— no lo
-detecta ninguna corrida de simulador.
+**No se midió en el iPad a propósito.** Ese aparato lleva un **M1**, una CPU de clase
+escritorio, y Android está medido en un Pixel 6. Comparar esos dos números mezclaría el costo
+del puente con la diferencia de chip, y la pantalla existe justamente para aislar lo primero.
+Se mide en un **teléfono**, o el número no responde la pregunta que se le hizo.
 
-El comando, para cuando haya aparato:
-
-```bash
-xcrun devicectl list devices          # el aparato tiene que figurar `connected`, no `unavailable`
-cd apps/ios
-xcodebuild test -project ios-rust-test.xcodeproj -scheme ios-rust-test \
-  -destination "platform=iOS,name=Carlo’s iPhone" 2>&1 | tail -25
-```
-
-Esperado: **el mismo conteo y el mismo verde que el simulador.** Si falla aquí y no allá, el
-problema está en el slice de device del XCFramework — volver al Step 7 de la Task 1 y
-verificar que el `.xcframework` traiga los dos.
-
-Estado al momento de escribir esto: el iPhone 13 Pro figura `paired` y con
-`developerModeStatus: enabled`, en iOS 18.6.2 —muy por encima del target 17.0— y Xcode ya
-tiene sus device support files. Lo único que falta es `tunnelState`, o sea la conexión.
-
-### Y con el aparato conectado, falta medir el benchmark
-
-La pantalla de Benchmark existe para responder una pregunta concreta y **todavía no tiene el
-número**. Android está medido en un Pixel 6 y descompuesto en
-[`../android/TESTING.md`](../android/TESTING.md):
+Contra qué se compara, de [`../android/TESTING.md`](../android/TESTING.md):
 
 | | Android (Pixel 6) |
 |---|---|
@@ -47,15 +26,22 @@ número**. Android está medido en un Pixel 6 y descompuesto en
 | baseline nativa | 3,7 µs |
 
 Ese piso de 172 µs **no es cómputo**: son `Structure` de JNA con reflexión de campos y memoria
-nativa por llamada, más un cruce extra para liberar el `RustBuffer` de la respuesta. **iOS no
-tiene nada de eso**: enlaza el `.a` estáticamente y Swift llama la función de C directo.
+nativa por llamada, más un cruce extra para liberar el `RustBuffer`. **iOS no tiene nada de
+eso**: enlaza el `.a` estáticamente y Swift llama la función de C directo. La hipótesis es que
+esté en otro orden de magnitud — **hipótesis, no resultado**, y se escribe como resultado
+recién cuando alguien la mida. Si se confirma es un punto fuerte de la demo; si no, es un
+hallazgo igual de valioso y hay que decirlo con el número a la vista.
 
-La hipótesis es que iOS esté en otro orden de magnitud. **Es una hipótesis, no un resultado**,
-y hasta que alguien la mida no se escribe como si lo fuera. Si se confirma es un punto fuerte
-de la demo; si no, es un hallazgo igual de valioso y hay que decirlo con el número a la vista.
+### Correr sobre hardware cuesta dos pasos cada semana
 
-**No se mide en simulador.** Correría arm64 nativo de macOS, sin el scheduler ni el térmico
-del aparato, y daría un número que parece una respuesta sin serlo.
+La cuenta de desarrollador es **gratuita**, así que los perfiles de aprovisionamiento **vencen
+a los 7 días**. Volver a correr en el aparato después de eso pide:
+
+1. `-allowProvisioningUpdates` en el `xcodebuild test`, que regenera el perfil.
+2. Confiar el certificado **en el aparato**: *Ajustes → General → VPN y Gestión de Dispositivos
+   → APP DE DESARROLLADOR → Confiar*. Solo hace falta la primera vez por certificado.
+
+Los mensajes de error exactos de los dos, en [TESTING.md](TESTING.md).
 
 ## Deuda técnica medible
 
@@ -64,7 +50,7 @@ del aparato, y daría un número que parece una respuesta sin serlo.
 Aquí **no hay dos suites**. Android separa tests de JVM (con `FakeCoreFinanciero`, sin poder
 cargar la `.so`) de tests instrumentados (que sí cruzan el FFI), y esa separación es forzada
 por la plataforma. En iOS los tres niveles —unitarios, de contrato y de ViewModel— corren en
-el mismo bundle sobre el simulador, porque no hay nada que separar: el core está enlazado
+el mismo bundle, porque no hay nada que separar: el core está enlazado
 estáticamente y disponible siempre.
 
 La consecuencia es que **nada obliga a que el seam exista**. En Android, un test de JVM que
