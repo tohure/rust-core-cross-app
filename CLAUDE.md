@@ -148,7 +148,8 @@ construyó, así que hay que regenerar los cuatro desde el mismo HEAD antes de l
 
 ## Estado actual y flujo de trabajo (SDD con superpowers)
 
-**Fases 0, 1 y 2 completadas. El núcleo existe, funciona, y Android lo consume.**
+**Fases 0, 1 y 2 completadas; la 3 implementada y a la espera de hardware.** El núcleo existe,
+funciona, y Android e iOS lo consumen.
 `rust-core/` tiene dos crates —`domain` (Rust puro, siete módulos) y `ffi` (paquete
 `core_financiero`, la fachada uniffi)— con ~1930 líneas de Rust, **67 tests en verde** y el
 **test de contrato pasando 28/28** contra `contracts/cases.json` **v2.3.0**. Los bindings Kotlin
@@ -159,8 +160,15 @@ tests en verde —25 de JVM y 15 instrumentados sobre dispositivo, de los cuales
 test de contrato—, las cuatro pantallas funcionando y el pie con `coreVersion()` visible en todas. Ver
 [apps/android/README.md](apps/android/README.md).
 
-Lo que **no** existe todavía: ni una línea de Swift o TypeScript. Lo que sigue es la Fase 3,
-`apps/ios`, espejo funcional de Android.
+`apps/ios/` está **implementado pero sin cerrar**: las cuatro pantallas andando y **47 tests en
+verde**, incluido el test de contrato 28/28. Falta lo que el plan pone como condición de cierre
+y todavía no se pudo hacer: **correr la suite sobre hardware real** —el slice
+`aarch64-apple-ios` es un binario distinto del de simulador y en toda la fase nunca se
+ejecutó— y **medir el benchmark** en el aparato. Los dos, con su comando, en
+[apps/ios/PENDING.md](apps/ios/PENDING.md). Ver [apps/ios/README.md](apps/ios/README.md).
+
+Lo que **no** existe todavía: ni una línea de TypeScript. Lo que sigue, una vez cerrada la
+Fase 3, es la Fase 4, `apps/react-native`.
 
 Este proyecto se desarrolla con **Spec-Driven Development** usando el plugin
 `superpowers`. El flujo por fase es:
@@ -226,7 +234,16 @@ El orden no es negociable: lo impone el grafo de dependencias de build de arriba
   probó lo que el test de contrato de Rust no podía: `System.loadLibrary`, la resolución de símbolos
   de JNA, y que el `strip` del perfil release no se comiera nada. Ver
   [apps/android/README.md](apps/android/README.md).
-- **Fase 3 — `apps/ios`.** Espejo funcional de Android.
+- **Fase 3 — `apps/ios`.** 🟡 **Implementada, sin cerrar.** Espejo funcional de Android: las
+  cuatro pantallas de [docs/ui-spec.md](docs/ui-spec.md) y **47 tests en verde sobre el
+  simulador**, de los cuales 10 son el test de contrato (5 guardias + 5 grupos parametrizados
+  que expanden a los 28 casos). A diferencia de Android **no hay dos suites**: el core se
+  enlaza estáticamente, así que los tres niveles corren en el mismo bundle — y por eso nada
+  obliga a que el seam de `CoreFinanciero` exista.
+  **No está terminada**, y la razón es la que el plan anticipó: la suite nunca corrió sobre el
+  slice `aarch64-apple-ios`, que es el que se embarca y es **otro binario**, y el benchmark no
+  está medido en el aparato. No se marca en verde algo que no corrió. Ver
+  [apps/ios/PENDING.md](apps/ios/PENDING.md).
 - **Fase 4 — `apps/react-native`.** Turbo Module vía `ubrn`. Desbloquea la fase 5.
 - **Fase 5 — `apps/web-angular`.** Consume el WASM producido en la fase 4.
 
@@ -298,7 +315,7 @@ y cada instalación se verifica antes de seguir.
 | 0 | `rustup` + stable + clippy + rustfmt — ✅ **hecho** (1.98.1) | `cargo --version` |
 | 1 | nada — ✅ **hecho** (crates puros, se testean en el host) | `cargo test --workspace` → 67 passed |
 | 2 | `cargo install cargo-ndk` + 3 targets Android — ✅ **hecho** (cargo-ndk 4.1.2, NDK 30.0.16248370) | `cargo ndk --version`; `./gradlew :app:connectedDebugAndroidTest` → 15 passed |
-| 3 | 2 targets iOS (`aarch64-apple-ios`, `-sim`) | `rustup target list --installed` |
+| 3 | 2 targets iOS (`aarch64-apple-ios`, `-sim`) — ✅ **hecho** (XCFramework con los dos slices) | `rustup target list --installed`; `xcodebuild test … -destination 'platform=iOS Simulator,name=iPhone 17 Pro'` → 47 passed |
 | 4 | `uniffi-bindgen-react-native` en `apps/react-native` | `npx ubrn --version` |
 | 5 | target `wasm32-unknown-unknown` + Angular CLI | `ng version` |
 
