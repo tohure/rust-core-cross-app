@@ -33,7 +33,10 @@ class ArithmeticViewModel(
         clearError()
     }
 
-    fun operationChanged(op: Operation) { _uiState.value = _uiState.value.copy(operation = op) }
+    fun operationChanged(op: Operation) {
+        _uiState.value = _uiState.value.copy(operation = op)
+        clearError()
+    }
 
     // ── Acciones ──────────────────────────────────────────────────────────────
 

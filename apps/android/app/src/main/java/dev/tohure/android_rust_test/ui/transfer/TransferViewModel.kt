@@ -88,6 +88,7 @@ class TransferViewModel(
                     )
                 }.onFailure { e ->
                     _uiState.value = _uiState.value.copy(
+                        result = null,
                         error = (e as? DomainException)?.let(messages::userMessage) ?: e.toString(),
                         isLoading = false,
                     )

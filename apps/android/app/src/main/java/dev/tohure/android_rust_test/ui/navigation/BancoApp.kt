@@ -49,6 +49,16 @@ sealed interface Tab {
 fun BancoApp(container: AppContainer) {
     var current: Tab by remember { mutableStateOf(Tab.Arithmetic) }
 
+    // Los cuatro se crean UNA vez, fuera del `when`. Dentro de una rama, Compose descarta el
+    // `remember` al salir de composición: cambiar de pestaña y volver reseteaba todo el estado
+    // de la pantalla —operandos, resultado, hex cifrado, números del benchmark—.
+    val arithmeticViewModel = remember { ArithmeticViewModel(container.core, container.messages) }
+    val transferViewModel = remember {
+        TransferViewModel(container.core, container.contract, container.messages)
+    }
+    val cardViewModel = remember { CardViewModel(container.core, container.contract, container.messages) }
+    val benchmarkViewModel = remember { BenchmarkViewModel(container.core) }
+
     Scaffold(
         modifier = Modifier.fillMaxSize(),
         bottomBar = {
@@ -71,14 +81,10 @@ fun BancoApp(container: AppContainer) {
     ) { padding ->
         Column(Modifier.padding(padding)) {
             when (current) {
-                Tab.Arithmetic -> ArithmeticScreen(
-                    remember { ArithmeticViewModel(container.core, container.messages) },
-                )
-                Tab.Transfer -> TransferScreen(
-                    remember { TransferViewModel(container.core, container.contract, container.messages) },
-                )
-                Tab.Card -> CardScreen(remember { CardViewModel(container.core, container.contract, container.messages) })
-                Tab.Benchmark -> BenchmarkScreen(remember { BenchmarkViewModel(container.core) })
+                Tab.Arithmetic -> ArithmeticScreen(arithmeticViewModel)
+                Tab.Transfer -> TransferScreen(transferViewModel)
+                Tab.Card -> CardScreen(cardViewModel)
+                Tab.Benchmark -> BenchmarkScreen(benchmarkViewModel)
             }
         }
     }

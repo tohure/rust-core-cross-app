@@ -14,6 +14,7 @@ import kotlinx.coroutines.test.setMain
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Before
 import org.junit.Test
@@ -115,6 +116,23 @@ class TransferViewModelTest {
         // El bug clásico: el catch se olvida de apagar el spinner y la pantalla queda
         // cargando para siempre.
         assertFalse(vm.uiState.value.isLoading)
+    }
+
+    @Test
+    fun aFailedTransferClearsThePreviousResult() = runTest {
+        val core = FakeCoreFinanciero()
+        val vm = TransferViewModel(core, FakeContract(), messages())
+        vm.transfer()
+        advanceUntilIdle()
+        assertNotNull("precondición: la primera transferencia dejó un resultado", vm.uiState.value.result)
+
+        // Un fallo no puede dejar el comprobante anterior en pantalla debajo del error: parece
+        // que la segunda transferencia surtió efecto parcial.
+        core.failNextTransfer(DomainException.InsufficientFunds("50.00", "100.01"))
+        vm.transfer()
+        advanceUntilIdle()
+        assertNull(vm.uiState.value.result)
+        assertNotNull(vm.uiState.value.error)
     }
 
     @Test
