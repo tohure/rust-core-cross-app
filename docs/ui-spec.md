@@ -197,16 +197,25 @@ flotante nativo**, y existe justamente para eso.
 │                                     │
 │           [  Ejecutar  ]            │
 │                                     │
-│              p50        p95         │
-│  Core        0.8 µs     1.2 µs      │
-│  Nativa      0.3 µs     0.5 µs      │
+│  ─── Resultado ──────────────────   │
+│  Core · p50            147.25 µs    │
+│  Core · p95            557.67 µs    │
+│  Nativa · p50            4.08 µs    │
+│  Nativa · p95           34.38 µs    │
 │                                     │
 │  ⚠ La baseline nativa diverge en    │
 │    centavos: existe para exhibirlo. │
 └─────────────────────────────────────┘
 ```
 
-- Labels exactos: `Iteraciones`, `Ejecutar`, `p50`, `p95`, `Core`, `Nativa`.
+- Labels exactos: `Iteraciones`, `Ejecutar`, `Resultado`, `Core · p50`, `Core · p95`,
+  `Nativa · p50`, `Nativa · p95`, y la advertencia completa.
+- **Cuatro filas etiqueta–valor, no una tabla de dos ejes.** Se fijó así porque es lo que
+  produce el componente compartido `ResultRow(label, value)`, y una tabla 2D obligaría a un
+  componente nuevo solo para esta pantalla. Los números del wireframe son los medidos en el
+  emulador de Android; cada plataforma mostrará los suyos.
+- **El core es más lento que la baseline, y está bien**: cruzar el FFI cuesta. Lo que la
+  pantalla exhibe es que la baseline, siendo más rápida, **da mal el resultado**.
 - **Es la única pantalla donde las llamadas al core van fuera del hilo principal.** En el
   resto son síncronas y de microsegundos: meterlas en corrutinas/tasks es ruido.
 - La implementación "nativa" del benchmark es **la única excepción permitida** a la regla de
