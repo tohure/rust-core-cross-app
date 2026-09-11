@@ -87,11 +87,18 @@ android:
 
 ## Construir y generar para Android
 
+**El flag `-r`/`--release` no es opcional para este proyecto.** La pantalla de Benchmark
+compara el core contra una baseline de punto flotante nativo, y es el centro de la demo:
+medir un core compilado en debug lo haría ver mucho más lento de lo que realmente es y
+distorsionaría justo la comparación que la POC existe para mostrar. Además el perfil de
+release (`opt-level = "z"`, `lto = true`, `codegen-units = 1`, `strip = true`) es deliberado
+en todo el proyecto, y el tamaño del binario es criterio de la demo.
+
 ```bash
 cd apps/react-native
 export PATH="$HOME/.cargo/bin:$PATH"
 export ANDROID_NDK_HOME="$HOME/Library/Android/sdk/ndk/30.0.16248370"
-pnpm exec ubrn build android --and-generate
+pnpm exec ubrn build android --release --and-generate
 ```
 
 **La primera vez, esto compila `ubrn` mismo con cargo** antes de poder generar nada — el CLI
@@ -101,50 +108,61 @@ propia herramienta se ve entremezclada con la del crate `core_financiero` en la 
 un paso aparte.
 
 Salida real (recortada — compila el workspace de `ubrn` y luego, para cada uno de los tres
-ABI, `core_financiero` y `domain`):
+ABI, `core_financiero` y `domain`, en perfil `release`):
 
 ```
 Running cd ".../apps/react-native/../../rust-core/crates/ffi" && \
   CARGO_TARGET_AARCH64_LINUX_ANDROID_RUSTFLAGS="-C link-arg=-Wl,-z,max-page-size=16384" \
   "cargo" "ndk" "--manifest-path" ".../crates/ffi/Cargo.toml" \
-  "--target" "arm64-v8a" "--platform" "23" "--" "build"
+  "--target" "arm64-v8a" "--platform" "23" "--" "build" "--release"
     Building arm64-v8a (aarch64-linux-android)
    Compiling proc-macro2 v1.0.107
    ...
    Compiling core_financiero v1.0.0 (.../rust-core/crates/ffi)
    Compiling domain v1.0.0 (.../rust-core/crates/domain)
    Compiling uniffi_bindgen v0.31.2
-    Finished `dev` profile [unoptimized + debuginfo] target(s) in 26.57s
-Running ... "--target" "armeabi-v7a" ...
+    Finished `release` profile [optimized] target(s) in ...
+Running ... "--target" "armeabi-v7a" ... "--release"
     Building armeabi-v7a (armv7-linux-androideabi)
    ...
-Running ... "--target" "x86_64" ...
+Running ... "--target" "x86_64" ... "--release"
     Building x86_64 (x86_64-linux-android)
    ...
-    Finished `dev` profile [unoptimized + debuginfo] target(s) in 21.37s
+    Finished `release` profile [optimized] target(s) in 52.99s
 -- Copying into jniLibs directory
 rm -Rf .../apps/react-native/android/src/main/jniLibs
-cp .../rust-core/target/x86_64-linux-android/debug/libcore_financiero.a  .../jniLibs/x86_64/libcore_financiero.a
-cp .../rust-core/target/aarch64-linux-android/debug/libcore_financiero.a .../jniLibs/arm64-v8a/libcore_financiero.a
-cp .../rust-core/target/armv7-linux-androideabi/debug/libcore_financiero.a .../jniLibs/armeabi-v7a/libcore_financiero.a
-Generating bindings and turbo module from lib file .../target/aarch64-linux-android/debug/libcore_financiero.a
+cp .../rust-core/target/aarch64-linux-android/release/libcore_financiero.a .../jniLibs/arm64-v8a/libcore_financiero.a
+cp .../rust-core/target/x86_64-linux-android/release/libcore_financiero.a  .../jniLibs/x86_64/libcore_financiero.a
+cp .../rust-core/target/armv7-linux-androideabi/release/libcore_financiero.a .../jniLibs/armeabi-v7a/libcore_financiero.a
+Generating bindings and turbo module from lib file .../target/aarch64-linux-android/release/libcore_financiero.a
 Skipping formatting C++. Is clang-format installed?
 ```
 
-Exit code `0`. Sin `error`, sin `warning`, sin `panic` en las 270 líneas de log (verificado
-con `grep -inE "error|warning|panic"`).
+Exit code `0`. Sin `error`, sin `warning`, sin `panic` en el log completo (verificado con
+`grep -inE "error|warning|panic"`).
 
-Tiempo total observado: **≈1 min 30 s** (compiló tres ABI desde cero, sin caché compartido
-entre ellos — cada uno recompila sus dependencias porque el target de Rust cambia).
+Tamaños reales de lo que copia a `jniLibs/` (el `.a` que se enlaza estáticamente dentro del
+`.so` del Turbo Module — ver más abajo):
 
-**Nota importante para Fases posteriores: esto es un build de *desarrollo* (`dev` profile,
-`unoptimized + debuginfo`), no el de release.** El comando exacto del Step 2 no lleva
-`-r`/`--release`, y `ubrn build android` sin ese flag construye en modo debug por defecto
-(`pnpm exec ubrn build android --help` lo confirma: `-r, --release  Build a release build`,
-opcional). Los tres `.a` resultantes rondan los **250 MB cada uno** — nada que ver con los
-~66 MB del `.a` de release con LTO que documenta `rust-core/BUILD.md`. Cuando llegue el build
-real para dispositivo/demo, hace falta agregar `--release` (o `--profile release`) a este
-mismo comando.
+```
+arm64-v8a/libcore_financiero.a     86 414 486 bytes  (~82 MB)
+armeabi-v7a/libcore_financiero.a   76 781 550 bytes  (~73 MB)
+x86_64/libcore_financiero.a        81 190 196 bytes  (~77 MB)
+```
+
+Bastante más chicos que los ~250 MB por ABI del build en `dev` profile (el error que se
+corrigió acá), y del mismo orden que los ~66 MB del `.a` de release con LTO que documenta
+`rust-core/BUILD.md` para el host. Cargo también deja un `.so` (cdylib) en
+`rust-core/target/<triple>/release/`, mucho más chico —524 KB / 320 KB / 576 KB por ABI,
+comparable al `.dylib` del host—, pero **no es el que `ubrn` usa**: el pipeline de Android
+de `ubrn` enlaza el `.a` (staticlib) dentro de su propio `libbanco-core-financiero.so`, vía
+CMake, en vez de cargar el cdylib suelto como hace `apps/android` con JNA.
+
+**Un intento anterior sin `--release` construyó en perfil `dev` (`unoptimized + debuginfo`,
+~250 MB por `.a`) y quedó documentado acá como advertencia**: `ubrn build android` sin el
+flag construye en debug por defecto (`pnpm exec ubrn build android --help` lo confirma:
+`-r, --release  Build a release build`, opcional, y `-p, --profile <PROFILE>` para un perfil
+específico). El comando de arriba, con `--release`, es el que hay que usar siempre.
 
 ## Qué se debe ver después
 
@@ -165,9 +183,17 @@ coincide con lo que el CONTEXT venía prediciendo.
 `ubrn --and-generate` no solo escribe `src/generated/`: también reescribe por completo
 `android/CMakeLists.txt` (enlaza estáticamente el `.a` de cada ABI dentro de un único
 `.so` de Turbo Module, en vez de cargarlo suelto con JNA como hace `apps/android`), y crea
-`android/build.gradle`, `android/cpp-adapter.cpp`, `android/src/main/java/.../CoreFinancieroModule.kt`
-y `.../CoreFinancieroPackage.kt`, `src/index.tsx` y `src/NativeCoreFinanciero.ts`. Todo eso es
-artefacto — no se edita a mano.
+`android/build.gradle`, `android/cpp-adapter.cpp`, todo `android/src/`
+(`CoreFinancieroModule.kt`, `CoreFinancieroPackage.kt`, el `AndroidManifest.xml` y los
+`jniLibs/*.a`) y `src/NativeCoreFinanciero.ts`. Todo eso es artefacto generado — está en
+`.gitignore` (no se comitea) y **nunca se edita a mano**: si algo ahí sale mal, se corrige en
+`rust-core` o en `ubrn.config.yaml` y se vuelve a correr este mismo comando.
+
+**`src/index.tsx` es la única excepción**, y a propósito no está en `.gitignore` ni se
+commitea todavía: `ubrn` lo generó en esta primera corrida como reexport automático
+(instala el crate en el runtime JSI y reexporta `src/generated/core_financiero`), pero una
+tarea siguiente lo convierte en un archivo nuestro, escrito a mano — no lo toques hasta que
+esa tarea defina cómo queda la configuración de `ubrn.config.yaml` para eso.
 
 ## Limpiar
 

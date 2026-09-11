@@ -20,8 +20,14 @@ __pycache__/
 /apps/react-native/src/generated/
 /apps/react-native/src/generated-napi/
 /apps/react-native/src/generated-wasm/
-/apps/react-native/android/src/main/java/
-/apps/react-native/android/src/main/jniLibs/
+/apps/react-native/android/build.gradle
+/apps/react-native/android/cpp-adapter.cpp
+/apps/react-native/android/CMakeLists.txt
+/apps/react-native/android/src/
+/apps/react-native/src/NativeCoreFinanciero.ts
+/apps/react-native/src/bindings.tsx
+# src/index.tsx NO va acá: a partir de la Task 8 es un archivo nuestro, escrito a
+# mano, que envuelve el bindings.tsx generado. Se commitea, no se ignora.
 
 # Node
 node_modules/
