@@ -2,7 +2,7 @@
 
 App nativa iOS que consume `rust-core`. Espejo funcional de `apps/android`.
 
-Stack: Swift, SwiftUI, iOS 16+, XCFramework.
+Stack: Swift, SwiftUI, iOS 17+, XCFramework.
 
 ## Regla central
 
@@ -60,9 +60,9 @@ Dos detalles que ahorran una tarde:
   `SameAccount`, `InsufficientFunds`, `Encryption` y `OutOfRange` — con esa capitalización,
   que no es la convención de Swift pero es la que genera uniffi. `contracts/cases.json` los
   nombra en español (`"Longitud"`, `"DigitoControl"`, …) y **ese mapeo no cruza el FFI**:
-  hay que escribirlo, nueve líneas, **en el `XCTest` de contrato, no en producción**, con un
-  `switch` que cubra los nueve casos **sin `default`**, para que una décima variante rompa
-  la compilación en vez de pasar en verde. Ver
+  hay que escribirlo, nueve líneas, **en el test de contrato (Swift Testing), no en
+  producción**, con un `switch` que cubra los nueve casos **sin `default`**, para que una
+  décima variante rompa la compilación en vez de pasar en verde. Ver
   [rust-core/FFI.md](../../rust-core/FFI.md).
 
 `validateCci` y `calculateItf` no tienen pantalla propia entre las cinco de la demo: hoy
@@ -71,14 +71,16 @@ la vez** — la paridad es la demo.
 
 ## Estructura
 
-CoreFinancieroPOC/
-├── CoreFinanciero.xcframework/   artefacto generado, no editar
-├── Generated/                     Swift generado por uniffi, no editar
-│                                  core_financiero.swift + include/{core_financieroFFI.h,
-│                                  module.modulemap}
-├── Adapter/CoreFinanciero.swift
-├── Format/MoneyFormatter.swift
-└── UI/  AritmeticaView.swift, TransferenciaView.swift, TarjetaView.swift, BenchmarkView.swift
+apps/ios/
+├── CoreFinanciero.xcframework/    artefacto generado, no editar
+├── Generated/include/             headers generados por uniffi, no editar
+│                                  core_financieroFFI.h + module.modulemap
+├── ios-rust-test.xcodeproj/
+└── ios-rust-test/                 carpeta de fuentes
+    ├── Generated/core_financiero.swift   Swift generado por uniffi, no editar
+    ├── Adapter/CoreFinanciero.swift
+    ├── Format/MoneyFormatter.swift
+    └── UI/  ArithmeticView.swift, TransferView.swift, CardView.swift, BenchmarkView.swift
 
 El XCFramework **debe** construirse pasando `-headers` con el `.h` y el `module.modulemap`
 que genera uniffi; solo con los `.a` Swift no ve ningún símbolo. Es el fallo de
@@ -169,8 +171,7 @@ private let montoValido = #"^\d{0,9}(\.\d{0,2})?$"#
 
 TextField("Monto", text: $monto)
     .keyboardType(.decimalPad)
-    // iOS 17+ usa la firma de dos parámetros: .onChange(of: monto) { _, nuevo in ... }
-    .onChange(of: monto) { nuevo in
+    .onChange(of: monto) { _, nuevo in
         if nuevo.range(of: montoValido, options: .regularExpression) == nil {
             monto = String(nuevo.dropLast())   // filtro de texto: se descarta la última tecla
         }
@@ -232,9 +233,9 @@ final class TransferViewModel {
 }
 ```
 
-- **`@Observable` (iOS 17+)** en vez de `ObservableObject` + `@Published`: menos ceremonia y
-  solo invalida las vistas que leen la propiedad que cambió. `ObservableObject` queda como
-  alternativa si hay que bajar el deployment target.
+- **`@Observable`** en vez de `ObservableObject` + `@Published`: menos ceremonia y
+  solo invalida las vistas que leen la propiedad que cambió. El deployment target es 17.0,
+  así que no hace falta ninguna alternativa.
 - **`@MainActor` sobre la clase**, como en el original.
 - **Las llamadas al core NO se envuelven en `Task`**, salvo en el benchmark. Son
   microsegundos; `Task` aquí solo agrega un salto de hilo y un frame de latencia.
@@ -337,8 +338,8 @@ mismo cambio.
 
 ## Pruebas
 
-`XCTest` que lee `contracts/cases.json` desde el bundle de test y compara
-strings exactos con `XCTAssertEqual`. Mismo archivo, mismos casos, mismos
+`Swift Testing` que lee `contracts/cases.json` desde el bundle de test y compara
+strings exactos con `#expect(a == b)`. Mismo archivo, mismos casos, mismos
 resultados que Android, RN y web.
 
 ## Prohibiciones
