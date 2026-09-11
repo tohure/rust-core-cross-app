@@ -98,7 +98,7 @@ xcodebuild -create-xcframework \
 > exige que el directorio de headers contenga un archivo llamado exactamente
 > `module.modulemap`. Con el nombre generado tal cual, el XCFramework **se construye sin
 > error** y después `import core_financieroFFI` no resuelve: el síntoma es "el XCFramework
-> no exporta nada", y se descubre tarde. Antes de correr `-create-xcframework`, armá el
+> no exporta nada", y se descubre tarde. Antes de correr `-create-xcframework`, arma el
 > directorio de headers —los mismos tres comandos que trae el bloque canónico de
 > [`rust-core/CONTEXT.md`](../../rust-core/CONTEXT.md), que es de donde conviene copiarlos—:
 >
@@ -237,7 +237,7 @@ final class TransferViewModel {
   alternativa si hay que bajar el deployment target.
 - **`@MainActor` sobre la clase**, como en el original.
 - **Las llamadas al core NO se envuelven en `Task`**, salvo en el benchmark. Son
-  microsegundos; `Task` acá solo agrega un salto de hilo y un frame de latencia.
+  microsegundos; `Task` aquí solo agrega un salto de hilo y un frame de latencia.
 - **El error es una propiedad del estado**, no un `throw` que sube a la vista. La vista lo
   pinta; quien traduce es el ViewModel, leyendo `contracts/messages.es.json`.
 - **Para comparar u ordenar montos en UI: `Decimal` de Foundation.** Nunca `Double`.
@@ -246,8 +246,8 @@ final class TransferViewModel {
 
 Las mismas diez reglas que
 [`apps/android/CONTEXT.md`](../android/CONTEXT.md) → "Cómo se escribe el ViewModel por
-dentro", en Swift. Se listan acá completas y no por referencia porque quien implemente iOS no
-va a leer el CONTEXT de Android — pero **si cambian allá, cambian acá**.
+dentro", en Swift. Se listan aquí completas y no por referencia porque quien implemente iOS no
+va a leer el CONTEXT de Android — pero **si cambian allí, cambian aquí**.
 
 ```swift
 @MainActor
@@ -287,7 +287,7 @@ final class TransferViewModel {
 
 1. **`private(set)`** sobre el estado: la vista lee, no escribe.
 2. **Un `struct` de estado**, no propiedades sueltas. `struct` en Swift ya es valor: el
-   `copy()` de Kotlin es gratis acá.
+   `copy()` de Kotlin es gratis aquí.
 3. **Funciones con nombre de dominio** —`transfer()`, `amountChanged(_:)`, `clearError()`—,
    no setters.
 4. **`isLoading = false` en una sola salida.** El bug clásico es el `catch` que se olvida de
@@ -303,17 +303,17 @@ final class TransferViewModel {
 10. **`// MARK: -`** agrupando secciones — el equivalente de los comentarios de sección de
     Kotlin, y además puebla el jump bar de Xcode.
 
-### Y cómo NO se escribe la capa de datos acá
+### Y cómo NO se escribe la capa de datos aquí
 
 Vale íntegra la tabla de
 [`apps/android/CONTEXT.md`](../android/CONTEXT.md) → "Y cómo NO se escribe la capa de datos
-acá": **sin protocolo de repositorio, sin mapeo a tipos propios, sin `Result` sellado
+aquí": **sin protocolo de repositorio, sin mapeo a tipos propios, sin `Result` sellado
 propio, sin capa reactiva y sin contenedor de DI.** El adapter reexporta los tipos de uniffi
 y las llamadas son síncronas.
 
 Lo único específico de Swift: **`async` no entra por la puerta de atrás.** `transfer()` es
 `async` arriba **solo** por el `Task.sleep` que simula la latencia; la llamada al core en sí
-es síncrona y no va envuelta en `Task`. Si te encontrás poniendo `await` sobre una función
+es síncrona y no va envuelta en `Task`. Si te encuentras poniendo `await` sobre una función
 del core, algo se desvió.
 
 ### Componentes compartidos
@@ -331,7 +331,7 @@ Benchmark**, y el pie con `coreVersion()` visible en las cuatro.
 
 **Los wireframes, los labels exactos y el orden de campos viven en
 [`docs/ui-spec.md`](../../docs/ui-spec.md)** — normativo para las cuatro apps. No se
-duplican acá: cuatro copias de la misma lista divergen, que es justo lo que la demo no puede
+duplican aquí: cuatro copias de la misma lista divergen, que es justo lo que la demo no puede
 permitirse. Cambiar un label obliga a cambiarlo en las cuatro apps y en ese archivo, en el
 mismo cambio.
 

@@ -318,7 +318,7 @@ class TransferViewModel(private val core: CoreFinanciero) : ViewModel() {
 10. **Comentarios de sección** (`// ── Acciones ───`) agrupando funciones relacionadas. Con
     ocho o diez acciones por pantalla, es la diferencia entre navegar el archivo y buscarlo.
 
-### Y cómo NO se escribe la capa de datos acá
+### Y cómo NO se escribe la capa de datos aquí
 
 TanayenAI tiene `domain/repository` (interfaces) + `data/repository` (impls con SQLDelight),
 `suspend fun` con `withContext(Dispatchers.Default)` adentro, y un `toDomain()` que mapea los
