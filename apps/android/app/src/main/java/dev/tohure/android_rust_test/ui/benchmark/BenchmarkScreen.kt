@@ -31,15 +31,29 @@ fun BenchmarkScreen(vm: BenchmarkViewModel, modifier: Modifier = Modifier) {
         Spacer(Modifier.height(12.dp))
         Button(vm::run, Modifier.fillMaxWidth(), enabled = !state.isRunning) { Text("Ejecutar") }
 
-        SectionDivider("Resultado")
-        ResultRow("Core · p50", state.coreP50, mono = true)
-        ResultRow("Core · p95", state.coreP95, mono = true)
-        ResultRow("Nativa · p50", state.nativeP50, mono = true)
-        ResultRow("Nativa · p95", state.nativeP95, mono = true)
+        // Los nombres de las dos implementaciones son LOS MISMOS que usa la pantalla de
+        // Aritmética. Antes acá decían `Core` y `Nativa`, y allá `Core (Rust · Decimal)` y
+        // `Punto flotante nativo`: quien miraba la demo veía cuatro conceptos donde hay dos.
+        // Labels normativos, iguales en las cuatro apps: ver docs/ui-spec.md.
+        SectionDivider("Core (Rust · Decimal)")
+        ResultRow("Tiempo típico (p50)", state.coreP50, mono = true)
+        ResultRow("Peor caso (p95)", state.coreP95, mono = true)
+
+        SectionDivider("Punto flotante nativo")
+        ResultRow("Tiempo típico (p50)", state.nativeP50, mono = true)
+        ResultRow("Peor caso (p95)", state.nativeP95, mono = true)
 
         Spacer(Modifier.height(16.dp))
+        // Sin esta frase, un número más grande parece un defecto en vez del argumento que es.
         Text(
-            "⚠ La baseline nativa diverge en centavos: existe para exhibirlo.",
+            "El core es más lento porque cada llamada cruza la frontera al código Rust.",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Spacer(Modifier.height(4.dp))
+        Text(
+            "⚠ El punto flotante nativo es más rápido y da mal el resultado: existe para " +
+                "exhibirlo.",
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.error,
         )

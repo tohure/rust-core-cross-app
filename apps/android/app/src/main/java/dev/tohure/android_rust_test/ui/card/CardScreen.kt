@@ -38,7 +38,7 @@ fun CardScreen(vm: CardViewModel, modifier: Modifier = Modifier) {
         // core exige un número que pase Luhn, y quien hace la demo tiene que adivinarlo
         // frente a la audiencia. Texto normativo, igual en las cuatro apps: ver docs/ui-spec.md.
         Text(
-            "Probá 4111111111111111 (Visa) o 5555555555554444 (Mastercard).\n" +
+            "Puedes probar 4111111111111111 (Visa) o 5555555555554444 (Mastercard).\n" +
                 "Un número inválido lo rechaza el core, no esta pantalla.",
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,

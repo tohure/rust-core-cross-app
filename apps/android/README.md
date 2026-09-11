@@ -96,7 +96,7 @@ vacío, la librería nativa no cargó — andá a [BUILD.md](BUILD.md).
 
 ### Aritmética — por qué el `Double` no sirve para dinero
 
-Escribí `0.1` y `0.2`, tocá **Calcular**. Dos tarjetas:
+Escribí `0.1` y `0.2`, toca **Calcular**. Dos tarjetas:
 
 ```
 Punto flotante nativo     0.30000000000000004     ← Double de Kotlin
@@ -120,12 +120,12 @@ Saldos              S/ 4,899.99   ·   S/ 1,300.50
 La app **espera** antes de pintar el resultado, para que parezca una llamada de red. **No hay
 red**: el núcleo devuelve cuántos milisegundos simular.
 
-Probá a romperlo: un monto mayor al saldo, origen igual a destino, o `100.123` — el campo no te
+Puedes probar a romperlo: un monto mayor al saldo, origen igual a destino, o `100.123` — el campo no te
 deja escribir el tercer decimal, y aunque pudieras, el núcleo lo rechaza.
 
 ### Tarjeta — cifrado, y que se note que es cifrado
 
-Escribí `4111111111111111` y tocá **Validar y cifrar**:
+Escribí `4111111111111111` y toca **Validar y cifrar**:
 
 ```
 Marca               Visa
