@@ -110,7 +110,7 @@ xcodebuild build -project ios-rust-test.xcodeproj -scheme ios-rust-test \
 Y para abrirla en el simulador, lo más simple es `open ios-rust-test.xcodeproj` y ⌘R.
 
 Qué se debe ver: cuatro pestañas —**Aritmética, Transferencia, Tarjeta, Benchmark**— y al pie
-de **las cuatro** el string `core 1.0.0+57d8fa4`.
+de **las cuatro** el string `1.0.0+57d8fa4` — **sin prefijo**, tal como lo devuelve el core.
 
 **Ese pie no es decorativo.** Es la prueba en pantalla de que las cuatro apps corren el mismo
 build, y no es automático: cada artefacto congela el SHA del momento en que se construyó. Antes

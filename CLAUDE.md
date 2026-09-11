@@ -271,8 +271,14 @@ que toca** — el comando exacto, qué hace, y qué se debe ver cuando funciona.
 recomendación que vive solo en una conversación no existe: quien la ejecute dentro de seis
 meses es otra persona, o vos sin el contexto de hoy.
 
-Cuando existan al menos dos apps se agrega `docs/demo-runbook.md`: el guion de poner las
-cuatro pantallas lado a lado. Hasta entonces no hay guion real que escribir.
+**[docs/demo-runbook.md](docs/demo-runbook.md)** es el guion de poner las pantallas lado a
+lado: qué se tipea en cada acto, qué strings tienen que coincidir carácter por carácter, y las
+preguntas que la audiencia va a hacer. Se escribió con Android e iOS; cuando existan React
+Native y Angular se extiende, no se reescribe.
+
+Su primer paso no es opcional: **verificar que el pie de `core_version()` muestre el mismo
+string en todas las apps**. Si no coinciden, alguien regeneró un artefacto y no los otros, y la
+comparación deja de valer aunque las pantallas se vean bien.
 
 Fuera de alcance para esta POC (no lo agregues): Re.Pack / Module Federation, cliente
 HTTP, SQLite, runtime async, optimización de performance antes de que exista el benchmark.

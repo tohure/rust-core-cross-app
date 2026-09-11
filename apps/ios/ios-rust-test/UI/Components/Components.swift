@@ -71,16 +71,20 @@ struct SectionDivider: View {
 
 /// El pie con `coreVersion()`, **visible en las cuatro pantallas**.
 ///
-/// Muestra el string tal como lo devuelve el core, **sin reformatear**: lleva el SHA del
-/// commit con el que se compiló el núcleo, y cuatro pantallas con el mismo string es la
-/// prueba de que las cuatro apps corren el mismo build.
+/// Muestra el string tal como lo devuelve el core, **sin reformatear ni prefijar**: lleva
+/// el SHA del commit con el que se compiló el núcleo, y cuatro pantallas con el mismo
+/// string es la prueba de que las cuatro apps corren el mismo build.
+///
+/// Esto antes anteponía `"core "`, contra la regla de `docs/ui-spec.md` y contra su propio
+/// comentario. Android pinta `version` pelado, así que los dos pies **no eran el mismo
+/// string** ni con builds idénticos — que es justo lo único que este pie existe para probar.
 ///
 /// El `#available` de aquí es el único de toda la app: es la regla de contención de la spec.
 struct CoreVersionFooter: View {
     let version: String
 
     var body: some View {
-        Text("core \(version)")
+        Text(version)
             .font(.caption2.monospaced())
             .foregroundStyle(Palette.onSurfaceMuted)
             .frame(maxWidth: .infinity)
