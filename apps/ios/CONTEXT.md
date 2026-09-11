@@ -194,15 +194,29 @@ Tres cosas que no son opcionales:
 
 ## Formateo
 
+**No se usa `NumberFormatter` para pintar montos.** Su salida depende del ICU de la
+plataforma: puede meter un espacio duro (U+00A0) entre `S/` y el número, y el agrupamiento
+y el símbolo no tienen por qué coincidir carácter por carácter con lo que produce Kotlin en
+Android. La demo consiste en poner las cuatro pantallas lado a lado, así que
+`MoneyFormatter` implementa **el mismo algoritmo manual que `MoneyFormatter.kt`** de
+Android: separa el signo antes de agrupar, agrupa los miles a mano de a tres dígitos y no
+toca los decimales que entregó el core.
+
 ```swift
-let f = NumberFormatter()
-f.numberStyle = .currency
-f.locale = Locale(identifier: "es_PE")
+enum MoneyFormatter {
+    static func format(_ amount: String) -> String { ... }   // ver Format/MoneyFormatter.swift
+}
 ```
 
-Construye el `Decimal` desde el string del core con
-`Decimal(string:locale:)` usando locale POSIX, para que el punto decimal se
-interprete correctamente. Es el error más común en este archivo.
+Construye el `Decimal` desde el string del core con `Decimal(string:locale:)` usando locale
+POSIX, pero **solo para validar que la entrada es numérica**: nunca se reconstruye el monto
+a partir del `Decimal`, porque `Decimal` imprime sin ceros a la derecha (`1300.50` se
+describiría como `1300.5`) y rompería la paridad carácter por carácter. Los decimales que
+se pintan son los del string de entrada, tal como los entregó el core.
+
+Sigue valiendo, y es distinto, lo que ya decía este archivo sobre **leer**: nunca uses
+`NumberFormatter` para interpretar el campo de monto, porque devuelve `NSNumber`, o sea un
+`Double`.
 
 ## Arquitectura de UI
 
