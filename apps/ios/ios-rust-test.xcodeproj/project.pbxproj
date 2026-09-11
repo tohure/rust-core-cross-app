@@ -6,6 +6,10 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		C0DE000000000000000000F2 /* CoreFinanciero.xcframework in Frameworks */ = {isa = PBXBuildFile; fileRef = C0DE000000000000000000F1 /* CoreFinanciero.xcframework */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXContainerItemProxy section */
 		DD83238D3053A1B00038F99E /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -24,6 +28,7 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		C0DE000000000000000000F1 /* CoreFinanciero.xcframework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcframework; path = CoreFinanciero.xcframework; sourceTree = "<group>"; };
 		DD83237F3053A1AF0038F99E /* ios-rust-test.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "ios-rust-test.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		DD83238C3053A1B00038F99E /* ios-rust-testTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "ios-rust-testTests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
 		DD8323963053A1B00038F99E /* ios-rust-testUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "ios-rust-testUITests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -52,6 +57,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				C0DE000000000000000000F2 /* CoreFinanciero.xcframework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -78,6 +84,7 @@
 				DD8323813053A1AF0038F99E /* ios-rust-test */,
 				DD83238F3053A1B00038F99E /* ios-rust-testTests */,
 				DD8323993053A1B00038F99E /* ios-rust-testUITests */,
+				C0DE000000000000000000F1 /* CoreFinanciero.xcframework */,
 				DD8323803053A1AF0038F99E /* Products */,
 			);
 			sourceTree = "<group>";
