@@ -118,7 +118,7 @@ flotante nativo**, y existe justamente para eso.
 └─────────────────────────────────────┘
 ```
 
-- Labels exactos: `Operando A`, `Operando B`, `Sumar`, `Restar`,
+- Labels exactos: `Operando A`, `Operando B`, `Sumar`, `Restar`, `Calcular`,
   `Punto flotante nativo`, `Core (Rust · Decimal)`.
 - **Sin límite de 2 decimales acá.** El contrato acepta escala libre en la entrada.
 - Los seis casos de `aritmetica` divergen bajo IEEE-754; si alguno deja de diverger, deja de
@@ -131,20 +131,20 @@ flotante nativo**, y existe justamente para eso.
 │  Transferencia                      │
 │  Dos cuentas en memoria             │
 ├─────────────────────────────────────┤
-│  Origen       [ ACC-001      ▾ ]    │
-│  Destino      [ ACC-002      ▾ ]    │
-│  Monto        [ 1500.00        ]    │  ← máx 2 decimales (filtro de texto)
+│  Origen       [ 00219100123456789047 ▾ ]│
+│  Destino      [ 01122000987654321065 ▾ ]│
+│  Monto        [ 100.00         ]    │  ← máx 2 decimales (filtro de texto)
 │                                     │
 │           [  Transferir  ]          │
 │                                     │
 │  ─── Resultado ──────────────────   │
-│  Comisión ITF        S/ 0.08        │
-│  Total debitado      S/ 1,500.08    │
-│  Comprobante         TRF-...        │
+│  Comisión ITF        S/ 0.01        │
+│  Total debitado      S/ 100.01      │
+│  Comprobante         TRF-9047-1065-10000 │
 │                                     │
 │  ─── Saldos ─────────────────────   │
-│  ACC-001  Ana Torres  S/ 8,499.92   │
-│  ACC-002  Luis Paz    S/ 6,500.00   │
+│  00219100123456789047  Ana Quispe  S/ 4,899.99 │
+│  01122000987654321065  Luis Ramos  S/ 1,300.50 │
 └─────────────────────────────────────┘
 ```
 
@@ -171,7 +171,7 @@ flotante nativo**, y existe justamente para eso.
 │                                     │
 │  ─── Resultado ──────────────────   │
 │  Marca               Visa           │
-│  Enmascarado         **** 1111      │
+│  Enmascarado         4111 **** **** 1111 │
 │  Cifrado (hex)                      │
 │  ┌───────────────────────────────┐  │
 │  │ 9a3f...  (monoespaciado,      │  │  ← debe ser idéntico en las 4
@@ -233,9 +233,9 @@ comparables:
 | `SectionDivider(title)` | los separadores `─── Resultado ───` |
 | `CoreVersionFooter()` | el pie |
 
-Convención de firma, tomada de la práctica de Compose y aplicable a las cuatro: **los
-parámetros de disposición van al final y el caller decide el posicionamiento**. El
-componente aporta tipografía y espaciado internos; el padding posicional lo pone quien lo
+Convención de firma, tomada de la práctica de Compose y aplicable a las cuatro: **`modifier`
+es el primer parámetro opcional, con los opcionales propios del componente después**.
+El componente aporta tipografía y espaciado internos; el padding posicional lo pone quien lo
 usa (`modifier` en Compose, el equivalente en cada plataforma). Así el mismo componente
 sirve dentro de una lista y dentro de una tarjeta sin variantes.
 
