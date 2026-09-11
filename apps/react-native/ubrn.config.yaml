@@ -1,0 +1,8 @@
+rust:
+  directory: ../../rust-core
+  manifestPath: crates/ffi/Cargo.toml
+bindings:
+  cpp: cpp/bindings
+  ts: src/generated
+android:
+  targets: [arm64-v8a, armeabi-v7a, x86_64]
