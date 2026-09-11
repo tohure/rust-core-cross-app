@@ -12,6 +12,7 @@ composeBom = "2026.09.00"
 # compila y revienta en runtime al primer llamado al core.
 jna = "5.14.0"
 coroutinesTest = "1.10.2"
+collectionsImmutable = "0.5.0"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -32,6 +33,7 @@ jna = { group = "net.java.dev.jna", name = "jna", version.ref = "jna" }
 # collectAsStateWithLifecycle: no lo trae lifecycle-runtime-ktx, es un artefacto aparte.
 androidx-lifecycle-runtime-compose = { group = "androidx.lifecycle", name = "lifecycle-runtime-compose", version.ref = "lifecycleRuntimeKtx" }
 kotlinx-coroutines-test = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-test", version.ref = "coroutinesTest" }
+kotlinx-collections-immutable = { group = "org.jetbrains.kotlinx", name = "kotlinx-collections-immutable", version.ref = "collectionsImmutable" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

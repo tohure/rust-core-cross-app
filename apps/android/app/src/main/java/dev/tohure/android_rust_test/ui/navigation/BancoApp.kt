@@ -17,6 +17,8 @@ import dev.tohure.android_rust_test.AppContainer
 import dev.tohure.android_rust_test.ui.arithmetic.ArithmeticScreen
 import dev.tohure.android_rust_test.ui.arithmetic.ArithmeticViewModel
 import dev.tohure.android_rust_test.ui.components.CoreVersionFooter
+import dev.tohure.android_rust_test.ui.transfer.TransferScreen
+import dev.tohure.android_rust_test.ui.transfer.TransferViewModel
 
 /**
  * Cuatro pestañas, sin librería de navegación.
@@ -68,7 +70,9 @@ fun BancoApp(container: AppContainer) {
                 Tab.Arithmetic -> ArithmeticScreen(
                     remember { ArithmeticViewModel(container.core, container.messages) },
                 )
-                Tab.Transfer -> Text("Transferencia")  // Task 10
+                Tab.Transfer -> TransferScreen(
+                    remember { TransferViewModel(container.core, container.contract, container.messages) },
+                )
                 Tab.Card -> Text("Tarjeta")            // Task 11
                 Tab.Benchmark -> Text("Benchmark")     // Task 12
             }
