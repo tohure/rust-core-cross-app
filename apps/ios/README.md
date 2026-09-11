@@ -8,8 +8,9 @@ Lo que esta app hace con los datos es pedirlos y mostrarlos.
 
 **Estado:** funcional. Las cuatro pantallas andando y **47 tests en verde**, en simulador y
 **también sobre hardware real** — o sea que el slice `aarch64-apple-ios`, el que se embarca,
-está probado y no solo compilado. Lo único que queda abierto es el número del benchmark, que se
-mide en un teléfono y no en el iPad por la razón que está en [PENDING.md](PENDING.md).
+está probado y no solo compilado. El benchmark ya tiene número —el cruce del FFI cuesta **521×**
+menos que en Android—, aunque medido en un iPad y pendiente de repetirse en un teléfono; ver
+[PENDING.md](PENDING.md).
 
 | | |
 |---|---|
@@ -190,9 +191,13 @@ bloquearían la UI. En el resto son síncronas y de microsegundos.
 El core sale **más lento** que la baseline y está bien: cruzar el FFI cuesta. Lo que la pantalla
 exhibe es que la baseline, siendo más rápida, **da mal el resultado**.
 
-Los números de esta plataforma **todavía no están medidos**, y se miden en un teléfono: el
-iPad con el que se validó la app lleva un M1 y compararlo contra un Pixel 6 mezclaría el costo
-del puente con la diferencia de chip. Ver [PENDING.md](PENDING.md).
+Medido: el piso del cruce cuesta **0,33 µs** aquí contra **172 µs** en Android, o sea **521
+veces menos** — iOS enlaza el `.a` estáticamente mientras Android pasa por JNA. La tabla
+completa está en [TESTING.md](TESTING.md).
+
+**Es provisional**: se tomó en un iPad Air 5 con M1 y no en un teléfono, porque no había
+ninguno con iOS 17+. La brecha es demasiado grande para que la explique el chip, pero las
+cifras exactas hay que repetirlas en un iPhone; ver [PENDING.md](PENDING.md).
 
 ---
 

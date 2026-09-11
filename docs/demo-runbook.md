@@ -221,25 +221,36 @@ Alguien va a preguntar cuánto cuesta. Esta pantalla contesta con números en ve
 Cruzar el FFI cuesta. Lo que la pantalla exhibe es que la alternativa rápida **da mal el
 resultado** — es la misma aritmética en `Double` del Acto 1.
 
-Medido en un Pixel 6, con el desglose en [apps/android/TESTING.md](../apps/android/TESTING.md):
+| Llamada | iOS (iPad Air 5) | Android (Pixel 6) |
+|---|---|---|
+| `coreVersion()` — piso del cruce | **0,33 µs** | 172 µs |
+| `add("0.1","0.2")` | **1,58 µs** | 444 µs |
+| baseline nativa | 0,38 µs | 3,7 µs |
 
-| | Android (Pixel 6) |
-|---|---|
-| `coreVersion()` — piso del cruce | 172 µs |
-| `add("0.1","0.2")` | 444 µs |
-| baseline nativa | 3,7 µs |
+Desgloses en [apps/ios/TESTING.md](../apps/ios/TESTING.md) y
+[apps/android/TESTING.md](../apps/android/TESTING.md).
 
-**El número que importa es el piso: 172 µs para una función sin argumentos y sin cómputo.** O
-sea que el costo es *marshalling*, no Rust. Si cada `String` cuesta ~150 µs, entonces
-`172 + 2×150 ≈ 472` contra los 444 medidos: **la aritmética decimal cae dentro del ruido.**
+**El número que importa es el piso**, porque es una función sin argumentos y sin cómputo: lo
+único que mide es cruzar. En Android son 172 µs; en iOS, 0,33. **El mismo núcleo, y el puente
+elegido cuesta 500 veces más.**
 
-Y 444 µs es el 2,7 % de un frame a 60 Hz, con una o dos llamadas por interacción.
+Android paga JNA —`Structure` con reflexión de campos y memoria nativa por llamada, más un
+cruce extra para liberar el buffer de la respuesta—. iOS enlaza el `.a` estáticamente y Swift
+llama la función de C directo. **La diferencia no está en Rust: está en cómo cada plataforma
+llega hasta él.**
 
-> **iOS todavía no tiene su número**, y conviene decirlo así en vez de improvisar uno. La
-> hipótesis es que esté en otro orden de magnitud, porque Android paga JNA —`Structure` con
-> reflexión de campos y memoria nativa por llamada, más un cruce extra para liberar el buffer de
-> la respuesta— mientras iOS enlaza el `.a` estáticamente y Swift llama la función de C directo.
-> **Hipótesis, no resultado.** El estado y la razón por la que falta están en
+Y en cada una manda un costo distinto. En Android, cada `String` suma ~150 µs, así que
+`172 + 2×150 ≈ 472` contra los 444 medidos: **la aritmética decimal cae dentro del ruido.** En
+iOS el cruce es casi gratis, así que lo que se mide ya es el cálculo real — `add` cuesta 4,2×
+la baseline nativa, contra 120× en Android.
+
+**Por si preguntan si es lento:** los 444 µs de Android son el 2,7 % de un frame a 60 Hz, con
+una o dos llamadas por interacción.
+
+> **Decir la salvedad antes de que la encuentren.** El número de iOS está tomado en un **iPad
+> Air 5 con M1**, no en un teléfono, porque no había ninguno con iOS 17+ a mano. Entre un M1 y
+> un Pixel 6 hay 2× o 3×, no 500×, así que la conclusión se sostiene — pero las cifras exactas
+> son provisionales y hay que repetirlas en un iPhone. Está anotado en
 > [apps/ios/PENDING.md](../apps/ios/PENDING.md).
 
 ---

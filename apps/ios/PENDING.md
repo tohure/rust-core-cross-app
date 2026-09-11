@@ -7,30 +7,34 @@ Nada de aquí bloquea la demo. Son decisiones tomadas, no olvidos.
 
 ## Lo que falta medir
 
-### El benchmark no tiene número en esta plataforma
+### El benchmark está medido en un iPad, y hay que repetirlo en un iPhone
 
-La suite ya corrió sobre hardware real —47 tests en verde sobre un iPad Air 5; el detalle en
-[TESTING.md](TESTING.md)—, pero **la pantalla de Benchmark sigue sin un número medido**.
+**Es el pendiente con fecha de vencimiento de esta app.** El número existe y es contundente,
+pero se tomó en un aparato que no es comparable con el de Android.
 
-**No se midió en el iPad a propósito.** Ese aparato lleva un **M1**, una CPU de clase
-escritorio, y Android está medido en un Pixel 6. Comparar esos dos números mezclaría el costo
-del puente con la diferencia de chip, y la pantalla existe justamente para aislar lo primero.
-Se mide en un **teléfono**, o el número no responde la pregunta que se le hizo.
+Medido en un **iPad Air (5.ª gen, M1)** con iPadOS 26.6.1, n = 1000, artefacto
+`1.0.0+b719da3`. Android está medido en un **Pixel 6**, o sea un teléfono:
 
-Contra qué se compara, de [`../android/TESTING.md`](../android/TESTING.md):
+| Llamada | iOS (iPad Air 5, M1) | Android (Pixel 6) |
+|---|---|---|
+| `coreVersion()` — piso del cruce | **0,33 µs** | 172 µs |
+| `add("0.1","0.2")` | **1,58 µs** | 444 µs |
+| baseline nativa | **0,38 µs** | 3,7 µs |
 
-| | Android (Pixel 6) |
-|---|---|
-| `coreVersion()` — piso del cruce | 172 µs |
-| `add("0.1","0.2")` | 444 µs |
-| baseline nativa | 3,7 µs |
+**Qué hay que hacer:** repetir la medición en un iPhone con **iOS 17 o superior** y reemplazar
+la tabla de [TESTING.md](TESTING.md), que hoy está marcada como provisional. El procedimiento
+—el test temporal, el comando y el aparato— está ahí documentado.
 
-Ese piso de 172 µs **no es cómputo**: son `Structure` de JNA con reflexión de campos y memoria
-nativa por llamada, más un cruce extra para liberar el `RustBuffer`. **iOS no tiene nada de
-eso**: enlaza el `.a` estáticamente y Swift llama la función de C directo. La hipótesis es que
-esté en otro orden de magnitud — **hipótesis, no resultado**, y se escribe como resultado
-recién cuando alguien la mida. Si se confirma es un punto fuerte de la demo; si no, es un
-hallazgo igual de valioso y hay que decirlo con el número a la vista.
+**Por qué no se hizo ya:** no hay un teléfono disponible que llegue al deployment target. El
+iPhone que hay está en **iOS 16.5**, por debajo de 17.0, así que la app ni siquiera instala. Y
+bajar el target no es una salida: `@Observable` **es** iOS 17, así que bajarlo significa
+reescribir los cuatro ViewModels a `ObservableObject`.
+
+**Qué tan mal está el número mientras tanto.** La brecha del piso del cruce es de **521×**, y
+entre un M1 y un Pixel 6 hay 2× o 3×, no 521×. Aunque se castigara al número de iOS
+multiplicándolo por diez, seguiría siendo dos órdenes de magnitud más barato. O sea: **la
+conclusión no debería moverse; las cifras exactas sí.** Por eso la tabla se publica con la
+salvedad escrita al lado en vez de guardarse — pero no se cita como definitiva.
 
 ### Correr sobre hardware cuesta dos pasos cada semana
 
