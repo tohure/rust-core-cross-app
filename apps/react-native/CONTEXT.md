@@ -75,40 +75,67 @@ la vez** — la paridad es la demo.
 
 `ubrn.config.yaml` en la raíz del proyecto:
 
-```yaml
-rust:
-  directory: ../../rust-core
-  manifestPath: crates/ffi/Cargo.toml
-bindings:
-  cpp: cpp/bindings
-  ts: src/generated
-android:
-  targets: [arm64-v8a, armeabi-v7a, x86_64]
-web:
-  wasmCrateName: core_financiero    # requerido por `ubrn build web`
-```
+    rust:
+      directory: ../../rust-core
+      manifestPath: crates/ffi/Cargo.toml
+    bindings:
+      cpp: cpp/bindings
+      ts: src/generated
+    android:
+      targets: [arm64-v8a, armeabi-v7a, x86_64]
 
-`ubrn build web` delega en `wasm-bindgen`/`wasm-pack` — es el mismo pipeline que muestra
-el diagrama de arquitectura, no uno alterno.
+El WASM se produce con el flavour **`wasm2`**, que compila el crate una sola vez para
+`wasm32-unknown-unknown` y lee la metadata de uniffi del propio `.wasm`. No genera crate shim y
+su salida es neutral respecto del entorno: el mismo bundle sirve para Node, navegador y React
+Native. Requisitos que `ubrn build wasm2` valida por adelantado: que el crate produzca `cdylib`,
+que enlace `uniffi-runtime-wasm`, y que declare `uniffi_core` con el feature `single-threaded`.
 
 Scripts en `package.json`:
 
-```json
-"ubrn:android": "ubrn build android --and-generate",
-"ubrn:ios": "ubrn build ios --and-generate && (cd ios && pod install)",
-"ubrn:web": "ubrn build web --and-generate",
-"ubrn:clean": "rm -rf cpp/ src/generated/ android/src/main/java"
-```
+    "ubrn:android": "ubrn build android --and-generate",
+    "ubrn:ios": "ubrn build ios --and-generate && (cd example/ios && pod install)",
+    "ubrn:wasm": "ubrn build wasm2 --and-generate",
+    "ubrn:clean": "rm -rf cpp/ src/generated src/generated-napi src/generated-wasm"
+
+Dependencias que el código generado necesita, y que no son opcionales:
+
+| Paquete | Para qué |
+|---|---|
+| `uniffi-bindgen-react-native` | el CLI `ubrn` **y** el runtime C++/JSI contra el que compila el turbo module. Dependencia regular, no de desarrollo |
+| `@ubjs/core` | el runtime TypeScript —converters de FFI, `RustBuffer`, polyfills— que importa todo lo generado, en los tres flavours |
+| `@ubjs/node` | el addon N-API que carga el `cdylib` para el test de contrato del host |
 
 `src/generated/` es artefacto: nunca lo edites ni lo comitees modificado.
 
 ## Estructura
 
-src/
-├── generated/     bindings TS + JSI generados, NO EDITAR
-├── adapter/       core.ts, único punto de contacto con el core
-├── screens/       Aritmetica, Transferencia, Tarjeta, Benchmark
-└── format/        money.ts
+Este proyecto es **una librería con una app de demo adentro**, no una app suelta. `ubrn` genera
+archivos de librería —`codegenConfig` en `package.json`, un podspec, un `android/build.gradle`,
+un `CMakeLists.txt` y un `index.tsx` que es *el entrypoint de la librería*—, y ésa es además la
+frontera que la Fase 5 necesita: Angular consume un paquete instalable, no una app.
+
+    apps/react-native/            el paquete
+    ├── src/
+    │   ├── generated/            bindings JSI · NO EDITAR
+    │   ├── generated-napi/       bindings N-API · NO EDITAR
+    │   ├── generated-wasm/       bindings wasm2 + .wasm · NO EDITAR
+    │   └── index.tsx             entrypoint: las nueve funciones
+    ├── __tests__/                contrato N-API · contrato WASM · guardias
+    ├── __benchmarks__/baseline.ts
+    └── example/                  LA APP DE LA DEMO
+        └── src/
+            ├── adapter/ contract/ format/
+            ├── ui/components/
+            ├── screens/          arithmetic · transfer · card · benchmark
+            └── benchmark/        NativeBaseline.ts
+
+**Son tres directorios generados y no uno**, porque son tres flavours del mismo core. Mezclarlos
+sería el modo de fallar más caro de esta fase: un test en verde contra bindings que no son los
+que la app embarca.
+
+`example/` **nunca importa uniffi**: importa el paquete. Ése es el mismo desacople que la
+evaluación técnica de Android pide para `:app` frente a `:core-financiero`, conseguido por
+frontera de paquete en vez de módulo Gradle.
 
 ## Cómo consumir el core
 

@@ -327,7 +327,7 @@ y cada instalación se verifica antes de seguir.
 | 1 | nada — ✅ **hecho** (crates puros, se testean en el host) | `cargo test --workspace` → 67 passed |
 | 2 | `cargo install cargo-ndk` + 3 targets Android — ✅ **hecho** (cargo-ndk 4.1.2, NDK 30.0.16248370) | `cargo ndk --version`; `./gradlew :app:connectedDebugAndroidTest` → 15 passed |
 | 3 | 2 targets iOS (`aarch64-apple-ios`, `-sim`) — ✅ **hecho** (XCFramework con los dos slices) | `rustup target list --installed`; `xcodebuild test …` → **47 passed en simulador y en aparato** |
-| 4 | `uniffi-bindgen-react-native` en `apps/react-native` | `npx ubrn --version` |
+| 4 | `uniffi-bindgen-react-native` 0.31.0-5 en `apps/react-native` (trae el CLI `ubrn`, que se compila con cargo al primer uso) | desde `apps/react-native/`: `pnpm exec ubrn --version` |
 | 5 | target `wasm32-unknown-unknown` + Angular CLI | `ng version` |
 
 Los comandos exactos están en el plan de cada fase.
