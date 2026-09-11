@@ -92,8 +92,8 @@ Reglas derivadas, válidas en los cinco proyectos:
    regex, ninguna fórmula de cuota, ninguna tasa. Si estás escribiendo aritmética
    sobre montos en Kotlin, Swift o TS, estás haciendo lo contrario de lo que la POC
    demuestra. Única excepción permitida: los archivos `baseline` del benchmark
-   (`__benchmarks__/baseline.ts`, `features/benchmark/baseline.ts`, la baseline
-   Kotlin en `androidTest`), que existen justamente para exhibir la divergencia de
+   (`__benchmarks__/baseline.ts`, `features/benchmark/baseline.ts`, `ui/benchmark/NativeBaseline.kt`
+   en Android), que existen justamente para exhibir la divergencia de
    centavos y deben llevar un comentario que lo diga.
 3. **Ninguna librería de decimales en las apps** (`decimal.js`, `big.js`, etc.).
    Necesitarla es señal de que el cálculo está en el lugar equivocado. Para comparar
