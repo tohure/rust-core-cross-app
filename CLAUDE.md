@@ -148,16 +148,19 @@ construyó, así que hay que regenerar los cuatro desde el mismo HEAD antes de l
 
 ## Estado actual y flujo de trabajo (SDD con superpowers)
 
-**Fases 0 y 1 completadas. El núcleo existe y funciona; no hay todavía ninguna app.**
+**Fases 0, 1 y 2 completadas. El núcleo existe, funciona, y Android lo consume.**
 `rust-core/` tiene dos crates —`domain` (Rust puro, siete módulos) y `ffi` (paquete
 `core_financiero`, la fachada uniffi)— con ~1930 líneas de Rust, **67 tests en verde** y el
 **test golden pasando 28/28** contra `contracts/cases.json` **v2.3.0**. Los bindings Kotlin
 y Swift se generaron y se verificó que las nueve funciones cruzan la frontera.
 
-Lo que **no** existe todavía: ni una línea de Kotlin, Swift o TypeScript. Lo que sigue
-—Fase 2, `apps/android`— es el primer consumidor real, y el primero que va a ejercitar el
-borde FFI de verdad: el golden de Rust llama a las funciones como funciones Rust ordinarias,
-así que nada cruzó JNI ni el ABI de C todavía.
+`apps/android/` es el primer consumidor real y **ya ejercita el borde FFI de verdad**: 35
+tests en verde —20 de JVM y 15 instrumentados sobre dispositivo, de los cuales 9 son el
+golden—, las cuatro pantallas funcionando y el pie con `coreVersion()` visible en todas. Ver
+[apps/android/README.md](apps/android/README.md).
+
+Lo que **no** existe todavía: ni una línea de Swift o TypeScript. Lo que sigue es la Fase 3,
+`apps/ios`, espejo funcional de Android.
 
 Este proyecto se desarrolla con **Spec-Driven Development** usando el plugin
 `superpowers`. El flujo por fase es:
@@ -216,10 +219,12 @@ El orden no es negociable: lo impone el grafo de dependencias de build de arriba
   dejaba de valer.
   Fue la única fase donde se decidió lógica de negocio. Ver
   [rust-core/README.md](rust-core/README.md).
-- **Fase 2 — `apps/android`.** Primer consumidor: valida el pipeline uniffi + el test
-  golden en una plataforma real. **Toolchain y pipeline ya verificados**: las tres `.so` y
-  los bindings Kotlin están en el APK y las nueve funciones cruzaron; falta el adapter, los
-  ViewModels, las cinco pantallas y el golden de `androidTest/`. Ver
+- **Fase 2 — `apps/android`.** ✅ **Completada.** Primer consumidor real: validó el pipeline
+  uniffi y el golden sobre un dispositivo. Entregó **35 tests en verde** —20 de JVM con
+  `FakeCoreFinanciero` y 15 instrumentados que sí cruzan el FFI, de los cuales 9 son el
+  golden— y las cuatro pantallas de [docs/ui-spec.md](docs/ui-spec.md). Fue la fase que
+  probó lo que el golden de Rust no podía: `System.loadLibrary`, la resolución de símbolos
+  de JNA, y que el `strip` del perfil release no se comiera nada. Ver
   [apps/android/README.md](apps/android/README.md).
 - **Fase 3 — `apps/ios`.** Espejo funcional de Android.
 - **Fase 4 — `apps/react-native`.** Turbo Module vía `ubrn`. Desbloquea la fase 5.
@@ -292,7 +297,7 @@ y cada instalación se verifica antes de seguir.
 |---|---|---|
 | 0 | `rustup` + stable + clippy + rustfmt — ✅ **hecho** (1.98.1) | `cargo --version` |
 | 1 | nada — ✅ **hecho** (crates puros, se testean en el host) | `cargo test --workspace` → 67 passed |
-| 2 | `cargo install cargo-ndk` + 3 targets Android — ✅ **hecho** (cargo-ndk 4.1.2, NDK 30.0.16248370) | `cargo ndk --version` |
+| 2 | `cargo install cargo-ndk` + 3 targets Android — ✅ **hecho** (cargo-ndk 4.1.2, NDK 30.0.16248370) | `cargo ndk --version`; `./gradlew :app:connectedDebugAndroidTest` → 15 passed |
 | 3 | 2 targets iOS (`aarch64-apple-ios`, `-sim`) | `rustup target list --installed` |
 | 4 | `uniffi-bindgen-react-native` en `apps/react-native` | `npx ubrn --version` |
 | 5 | target `wasm32-unknown-unknown` + Angular CLI | `ng version` |

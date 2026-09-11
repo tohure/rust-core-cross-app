@@ -2,10 +2,9 @@
 
 Primer consumidor de `rust-core`. Kotlin + Jetpack Compose, vía uniffi.
 
-**Estado: toolchain y pipeline verificados. La app todavía no existe.** El proyecto base
-compila, las tres `.so` del core y los bindings Kotlin están dentro del APK, y las nueve
-funciones cruzaron la frontera. Lo que falta es la Fase 2 propiamente: adapter, ViewModels,
-las cinco pantallas y el test golden de `androidTest/`.
+**Estado: Fase 2 completada.** **35 tests en verde** —20 unitarios de JVM y 15 instrumentados
+sobre dispositivo, de los cuales 9 son el golden— contra `contracts/cases.json` v2.3.0, 28 casos.
+Las cuatro pantallas funcionan y el pie con `coreVersion()` es visible en todas.
 
 Todos los comandos de este README **se ejecutaron tal como están escritos** y la salida que
 sigue a cada uno es la que devolvieron. Ninguno está deducido del CONTEXT.
@@ -32,11 +31,9 @@ flowchart TD
     contrato[("contracts/<br/>cases.json<br/>messages.es.json")]
     contrato -.->|"golden de androidTest/"| adapter
 
-    classDef pend fill:#fff3cd,stroke:#856404,color:#856404
-    class adapter,vm,screens pend
 ```
 
-En amarillo, lo que **todavía no existe**. Todo lo demás está construido y verificado.
+Todo el grafo está construido y verificado sobre un dispositivo.
 
 Dos cosas que el diagrama hace visibles y que cuestan una tarde si se descubren tarde:
 
@@ -265,13 +262,118 @@ android skills add android-cli testing-setup agp-9-upgrade edge-to-edge --projec
 **Wear OS**, no de Compose para teléfono —duplica a `wear-compose-m3`— y no sirve acá. No
 hay skill de Compose Material3 para teléfono en el catálogo.
 
-## Lo que falta (Fase 2)
+## Correr los tests
 
-1. Adapter `CoreFinanciero.kt` — la única clase que llama al core.
-2. ViewModels y `UiState` por pantalla, según [CONTEXT.md](CONTEXT.md) → "Arquitectura de UI".
-3. Las cinco pantallas de [`docs/ui-spec.md`](../../docs/ui-spec.md).
-4. **El test golden de `androidTest/`**, que lee `contracts/cases.json` y compara con
-   `assertEquals` sobre strings. Es el primer test de toda la POC que cruza el **borde FFI
-   real**: el golden de `rust-core` llama a las funciones como funciones Rust ordinarias, así
-   que no prueba JNA, ni `System.loadLibrary`, ni los símbolos que el `strip` podría haberse
-   comido. Eso lo prueba recién este.
+Dos suites, y la distinción importa: una corre en la JVM y la otra **sobre un dispositivo**.
+
+```bash
+# JVM — rápidos, sin emulador. Usan FakeCoreFinanciero: NO cruzan el FFI.
+./gradlew :app:testDebugUnitTest
+```
+
+Qué se debe ver — `BUILD SUCCESSFUL` y **20 tests, 0 failures**, en siete clases:
+
+| Clase | Tests |
+|---|---|
+| `format.MoneyFormatterTest` | 3 |
+| `adapter.ContractMessagesTest` | 3 |
+| `adapter.UniffiCoreFinancieroContractTest` | 2 |
+| `ui.arithmetic.ArithmeticViewModelTest` | 4 |
+| `ui.transfer.TransferViewModelTest` | 5 |
+| `ui.card.CardViewModelTest` | 2 |
+| `ui.benchmark.NativeBaselineTest` | 1 |
+
+```bash
+# Instrumentados — necesitan un emulador o dispositivo conectado. Estos SÍ cruzan el FFI.
+adb devices                              # debe listar uno como `device`
+./gradlew :app:connectedDebugAndroidTest
+```
+
+Qué se debe ver — `BUILD SUCCESSFUL` y **15 tests, 0 failures**:
+
+| Clase | Tests | Qué prueba |
+|---|---|---|
+| `CoreSmokeTest` | 2 | que la `.so` carga y JNA resuelve símbolos |
+| `ContractAssetsTest` | 2 | que los dos JSON del contrato llegaron a los dos APK |
+| `contract.AssetSourcesTest` | 2 | que los seams leen los assets reales |
+| **`GoldenTest`** | **9** | **los 28 casos del contrato, más sus guardias** |
+
+Para acotar una corrida instrumentada a una clase, **`--tests` no sirve** —ese flag es de la
+tarea de unit tests JVM y AGP 9 lo rechaza acá—. El equivalente que funciona:
+
+```bash
+./gradlew :app:connectedDebugAndroidTest \
+  -Pandroid.testInstrumentationRunnerArguments.class=dev.tohure.android_rust_test.GoldenTest
+```
+
+### El golden es el entregable, no un test de apoyo
+
+`GoldenTest` es el espejo Kotlin de `rust-core/crates/ffi/tests/golden.rs`. Compara con
+`assertEquals` **sobre `String`**, nunca con tolerancia numérica. Que pase **es** la
+demostración de la POC en esta plataforma.
+
+Lleva las mismas guardias que el de Rust, y por el mismo motivo: un `for` sobre cero elementos
+no aserta nada. Verificadas **por mutación**, no por lectura:
+
+| Mutación en `contracts/cases.json` | Qué falló |
+|---|---|
+| `"cci": []` | `theContractHasTheExpectedNumberOfCases` y `goldenCci`, por su contador |
+| un campo extra en el `esperado` de `tj-001` | `goldenCard`, nombrando el campo que sobra |
+| se borra la entrada `"Cifrado"` de `messages.es.json` | `theMessagesAssetCoversTheNineErrorVariants`, nombrando la variante |
+
+Es además el primer test de toda la POC que cruza el **borde FFI real**: el golden de
+`rust-core` llama a las nueve funciones como funciones Rust ordinarias, así que no prueba JNA,
+ni `System.loadLibrary`, ni los símbolos que el `strip` pudo comerse. Eso lo prueba recién este.
+
+## Correr la demo
+
+```bash
+./gradlew :app:installDebug
+adb shell am start -n dev.tohure.android_rust_test/.MainActivity
+```
+
+Cuatro pestañas, y el pie con `coreVersion()` visible en todas — es la prueba **en pantalla**
+de que las cuatro apps de la demo corren el mismo build. Lo verificado sobre el emulador
+Pixel_9_Pro (arm64, android-36.1), leyendo la pantalla con `uiautomator dump`:
+
+| Pantalla | Qué muestra |
+|---|---|
+| **Aritmética** | con `0.1` y `0.2`: `Punto flotante nativo` → `0.30000000000000004`, `Core (Rust · Decimal)` → `0.30` |
+| **Transferencia** | con `100.00`: ITF `S/ 0.01`, total `S/ 100.01`, comprobante `TRF-9047-1065-10000`, saldos `S/ 4,899.99` y `S/ 1,300.50` — el caso `tr-001` del contrato, carácter por carácter |
+| **Tarjeta** | con `4111111111111111`: `Visa`, `4111 **** **** 1111`, y el hex `bdca39311826947186b20ec2a92c3f521aacff902e37d519bcd2754fc7c7c0dd` — idéntico al `cifrado_hex` de `tj-001` |
+| **Benchmark** | 1000 iteraciones: Core p50 `147.25 µs` / p95 `557.67 µs`; Nativa p50 `4.08 µs` / p95 `34.38 µs` |
+| **Pie** | `1.0.0+a0a40a5` en las cuatro |
+
+### Lo que dice el benchmark, y lo que no
+
+Cruzar el FFI cuesta **~150 µs por llamada** en este emulador, contra ~4 µs de una suma en
+`Double`. JNA es reflexivo y tiene sobrecosto real; un emulador además es lento.
+
+**No invalida la guía de llamar al core de forma síncrona**: 150 µs es un sexto de un frame a
+60 fps, y cada interacción hace una o dos llamadas. Pero el número conviene tenerlo escrito, en
+vez de repetir "microsegundos" sin medirlo.
+
+Lo que el benchmark **sí** exhibe es lo otro: `NativeBaseline` es más rápido y **da mal el
+resultado**. Su test aserta que *diverge* del core; si alguna vez deja de fallar contra `0.30`,
+deja de servir para la demo.
+
+## Dos trampas de AGP 9 que costaron tiempo
+
+Documentadas porque se descubrieron ejecutando, no leyendo:
+
+1. **`srcDir` del SourceSet API no acepta un `Provider<Directory>`.** Falla con
+   `You cannot add Provider instances to the Android SourceSet API`. Se resuelve con
+   `.get().asFile`, manteniendo el `Provider` crudo en el `into()` del `Copy` para no romper la
+   configuration cache.
+2. **`--tests` no filtra tests instrumentados** (ver arriba).
+
+## Lo que esta fase NO entrega
+
+- **`abiFilters`**: el APK de debug pesa ~32 MB porque JNA trae `libjnidispatch.so` para seis
+  ABIs, incluidos `mips` y `mips64`, muertos desde 2017. Se recorta con tres líneas, pero el
+  tamaño del binario es criterio de la demo y corresponde medirlo antes y después, no a ciegas.
+- **Un test instrumentado de `UniffiCoreFinanciero`**: nada verifica hoy que su `runCatching`
+  convierta una excepción del core en `Result.failure` contra la `.so` real. El golden llama a
+  las funciones de uniffi directamente, sin pasar por el adapter.
+- **`rememberSaveable` para la pestaña activa**: al rotar vuelve a Aritmética.
+- Persistencia, red, animaciones, tablet/foldable, e i18n más allá del español.
