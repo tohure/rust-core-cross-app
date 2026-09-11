@@ -19,8 +19,20 @@ class ArithmeticViewModel(
 
     // Sin límite de decimales acá: el contrato acepta escala libre en la entrada de
     // aritmética (`ar-001` es "0.1"). Los 2 decimales son normativos solo para transferencia.
-    fun operandAChanged(value: String) { _uiState.value = _uiState.value.copy(operandA = value) }
-    fun operandBChanged(value: String) { _uiState.value = _uiState.value.copy(operandB = value) }
+    //
+    // Editar un operando CONSUME el error anterior. Sin esto, `clearError()` queda como
+    // código muerto que aparenta cobertura, y el mensaje viejo se queda en pantalla al lado
+    // de operandos nuevos — que es peor que no mostrarlo.
+    fun operandAChanged(value: String) {
+        _uiState.value = _uiState.value.copy(operandA = value)
+        clearError()
+    }
+
+    fun operandBChanged(value: String) {
+        _uiState.value = _uiState.value.copy(operandB = value)
+        clearError()
+    }
+
     fun operationChanged(op: Operation) { _uiState.value = _uiState.value.copy(operation = op) }
 
     // ── Acciones ──────────────────────────────────────────────────────────────

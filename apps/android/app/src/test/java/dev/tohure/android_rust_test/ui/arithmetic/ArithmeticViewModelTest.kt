@@ -49,13 +49,16 @@ class ArithmeticViewModelTest {
     }
 
     @Test
-    fun clearErrorConsumesTheError() = runTest {
+    fun editingAnOperandConsumesThePreviousError() = runTest {
         val core = FakeCoreFinanciero()
         core.failNextAdd(DomainException.InvalidAmount("vacío"))
         val vm = ArithmeticViewModel(core, messages())
         vm.compute()
-        vm.clearError()
-        // Sin esta acción el mensaje reaparece al rotar la pantalla, porque sigue en el estado.
+        assertEquals("El monto ingresado no es válido.", vm.uiState.value.error)
+
+        // Editar la entrada consume el error: sin esto el mensaje viejo queda en pantalla
+        // al lado de operandos nuevos.
+        vm.operandAChanged("0.5")
         assertNull(vm.uiState.value.error)
     }
 }
