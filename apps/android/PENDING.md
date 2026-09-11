@@ -39,6 +39,33 @@ regresiones. Se cierra con un test instrumentado chico.
 crean con `remember` en vez de `viewModel()`. Rotar la pantalla vuelve a Aritmética y limpia
 todo. No afecta la demo, que se hace sin rotar.
 
+### Optimizar el cruce del FFI: se evaluó con mediciones y no hay nada que hacer
+
+**La pregunta ya se hizo y ya se contestó con números, no con opiniones.** Si vuelve a
+aparecer, esto es lo que se midió en un Pixel 6 (el detalle y el método están en
+[TESTING.md](TESTING.md)):
+
+| Idea | Veredicto |
+|---|---|
+| **Pasar de JNA a JNI** | **No aplica: ya estás en JNI.** uniffi 0.32 genera *direct mapping* (`Native.register` + `external fun`), o sea métodos nativos enlazados de verdad. No hay despacho reflexivo por llamada que eliminar |
+| **Subir `opt-level` de `"z"` a `3`** | **Descartado por medición.** `coreVersion()` —sin argumentos y sin parseo— cuesta 172 µs y `add` cuesta 444: si cada `String` vale ~150 µs, el cómputo de Rust cae dentro del ruido. Comprimir el binario o no da igual, así que la prioridad de tamaño se sostiene |
+| **`java.lang.foreign` (Panama)** | **No existe en Android.** ART no implementa la FFM API |
+| **Menos cruces por interacción** | **Es el único lever real… y ya está aplicado.** Cada pantalla hace una o dos llamadas. El Benchmark cruza N veces *a propósito*, que es su razón de ser |
+| **Menos argumentos `String` por llamada** | Un `Record` de uniffi viaja como **un** `RustBuffer`, mientras que N `String` sueltos son N. La API ya usa `Record` donde hay varios campos (`TransferRequest`). Cambiar `add(a, b)` sería tocar el contrato y las cuatro apps para ahorrar microsegundos en algo que no es ruta caliente |
+| **Calentar el puente al arrancar** | Innecesario: el pie llama `coreVersion()` en la primera composición, así que la librería ya está cargada antes de que el usuario toque nada |
+
+El piso de 172 µs vive en **código generado que no se edita**: `RustBuffer` y
+`UniffiRustCallStatus` son `Structure` de JNA —con reflexión de campos y memoria nativa por
+llamada— y devolver un `String` cuesta un cruce extra para liberar el buffer. Bajar eso es
+trabajo *upstream* en uniffi, no en esta app.
+
+**Y no hace falta:** 444 µs es el 2,7% de un frame a 60 Hz, con una o dos llamadas por
+interacción.
+
+Lo único que quedó sin verificar es si un APK de **release** cambia algo; se midió con el de
+debug (el `.so` sí es release). No debería, porque el camino del binding no lleva
+instrumentación de debug.
+
 ### El `@Immutable` de los `UiState` se apoya en disciplina, no en el compilador
 
 Los tipos que genera uniffi son `data class` con propiedades **`var`**:

@@ -145,8 +145,13 @@ comparten clave, nonce y algoritmo desde el mismo núcleo.
 ### Benchmark — cuánto cuesta cruzar la frontera
 
 Mide el núcleo contra una suma en `Double`, N veces. El núcleo es **más lento** —cruzar el FFI
-por JNA cuesta ~150 µs por llamada— y esa es exactamente la comparación honesta: la alternativa
-nativa es más rápida **y da mal el resultado**. Ver [TESTING.md](TESTING.md).
+cuesta ~444 µs por llamada en un Pixel 6, contra ~3,7 µs de la suma nativa— y esa es exactamente
+la comparación honesta: la alternativa nativa es más rápida **y da mal el resultado**.
+
+Los números que te salgan dependen del aparato, y bastante: en el emulador de un Mac con Apple
+Silicon el core baja a ~150 µs, porque esos cores son más rápidos que los de un teléfono. La
+descomposición de a dónde se va ese tiempo —y por qué **no** se puede optimizar— está en
+[TESTING.md](TESTING.md) y [PENDING.md](PENDING.md).
 
 ---
 

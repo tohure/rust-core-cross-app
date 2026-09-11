@@ -3376,6 +3376,18 @@ dos están en pantalla a la vez."
 
 > **Es la única pantalla donde las llamadas al core van fuera del hilo principal.** En el resto son síncronas y de microsegundos: meterlas en un `Task` ahí sería ruido.
 
+> **Contra qué comparar, y por qué esta pantalla puede ser el mejor momento de la demo.** Los números de Android están medidos en un Pixel 6 y descompuestos en [`apps/android/TESTING.md`](../../../apps/android/TESTING.md):
+>
+> | | Android (Pixel 6) |
+> |---|---|
+> | `coreVersion()` — piso del cruce | 172 µs |
+> | `add("0.1","0.2")` | 444 µs |
+> | baseline nativa | 3,7 µs |
+>
+> Ese piso de 172 µs **no es cómputo**: son `Structure` de JNA con reflexión de campos y memoria nativa por llamada, más un cruce extra para liberar el `RustBuffer` de la respuesta. **iOS no tiene nada de eso**: enlaza el `.a` estáticamente y Swift llama la función de C directo.
+>
+> **Hipótesis a verificar, no a asumir: iOS debería estar en otro orden de magnitud.** Anotar el número real en `TESTING.md` cuando se mida, se confirme o no. Si se confirma, es un punto fuerte para la demo —el mismo núcleo, y el puente elegido cuesta 10× o 20×—; si no se confirma, es un hallazgo igual de valioso y hay que decirlo con el número a la vista.
+
 - [ ] **Step 1: Escribir los tests, y verlos fallar**
 
 Crear `apps/ios/ios-rust-testTests/BenchmarkViewModelTest.swift`:
