@@ -217,7 +217,8 @@ el `message` a partir de los campos de la variante (en Kotlin, `Length` sale com
 `field=cci, expected=20, received=18`) y devuelve **el string vacío** para las variantes sin
 campos, como `CheckDigit`. En Swift el texto es `String(reflecting: self)`, o sea el volcado
 de debug del enum, distinto del de Kotlin. Verificado sobre los bindings generados; el
-detalle y los comandos están en [rust-core/README.md](../rust-core/README.md).
+detalle está en [rust-core/FFI.md](../rust-core/FFI.md) y los comandos en
+[rust-core/BUILD.md](../rust-core/BUILD.md).
 
 Consecuencia: sin este archivo, la POC probaría que las cuatro apps producen los mismos
 montos y los mismos nombres de error, pero **las cuatro pantallas de error mostrarían textos

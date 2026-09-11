@@ -160,7 +160,7 @@ hacia `contracts/cases.json` es `DomainError::contract_name()`, que devuelve `"M
 para `SameAccount` y así con las nueve. **Ese método es Rust y no cruza el FFI:** en Kotlin
 y Swift el enum generado trae solo los nombres en inglés, así que cada app necesita escribir
 ese mapeo de nueve líneas **en su test de contrato**, no en producción. Si diverge, el test de contrato de
-esa app falla contra el contrato. Ver `rust-core/README.md`.
+esa app falla contra el contrato. Ver [FFI.md](FFI.md).
 
 `core_version()` devuelve versión del crate + SHA corto de git, inyectados en
 compilación por `build.rs` vía `env!`. Un semver escrito a mano no probaría nada: las

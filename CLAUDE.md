@@ -188,7 +188,7 @@ Documentos vigentes:
 - Plan Fase 0: [docs/superpowers/plans/2026-09-08-phase-0-toolchain-and-contract.md](docs/superpowers/plans/2026-09-08-phase-0-toolchain-and-contract.md)
 - Spec Fase 1: [docs/superpowers/specs/2026-09-08-phase-1-rust-core-design.md](docs/superpowers/specs/2026-09-08-phase-1-rust-core-design.md) — decisiones D1-D6 del núcleo
 - Plan Fase 1: [docs/superpowers/plans/2026-09-08-phase-1-rust-core.md](docs/superpowers/plans/2026-09-08-phase-1-rust-core.md) — trece tareas, todas completas; su "Estado de ejecución" lista las seis desviaciones respecto del plan original
-- **Cierre de la Fase 1:** [rust-core/README.md](rust-core/README.md) — los comandos efectivamente ejecutados, el diagrama, qué prueba y qué no prueba el test de contrato, y las dos cosas que **no** cruzan el FFI (el mapeo variante → nombre del contrato y los mensajes de error en español)
+- **Cierre de la Fase 1:** [rust-core/README.md](rust-core/README.md) — qué es y cómo está organizado, con el diagrama. La doc del núcleo está partida en un archivo por pregunta: [BUILD.md](rust-core/BUILD.md) (toolchain, compilación y bindings), [TESTING.md](rust-core/TESTING.md) (qué prueba y qué **no** prueba el test de contrato, y sus siete guardias), [FFI.md](rust-core/FFI.md) (**las dos cosas que no cruzan el FFI**: el mapeo variante → nombre del contrato y los mensajes de error en español) y [PENDING.md](rust-core/PENDING.md)
 - Ledger de ejecución de la Fase 1: `.superpowers/sdd/2026-09-08-phase-1-rust-core/progress.md` — las rulings tarea por tarea y la evidencia de cada review
 
 ## Fases de desarrollo

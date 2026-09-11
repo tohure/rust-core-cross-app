@@ -62,7 +62,7 @@ y **ese mapeo no cruza el FFI**: hay que escribir las nueve líneas **en el spec
 en producción**. En TypeScript la exhaustividad no la da el compilador sola: se consigue
 con un `default` que asigne a `never` (`const _exhaustive: never = e.tag`), para que una
 décima variante rompa `tsc` en vez de pasar en verde. Ver
-[rust-core/README.md](../../rust-core/README.md).
+[rust-core/FFI.md](../../rust-core/FFI.md).
 
 ## Consumir el paquete WASM
 
@@ -123,7 +123,7 @@ lee igual que `cases.json`. Está indexado por el **nombre del contrato**
 `e.tag` → nombre del contrato hace falta **en producción**, y el test de contrato reusa ese
 mismo mapeo en vez de escribir el suyo. Va exhaustivo, con el `default` que
 asigna a `never`. El porqué del archivo está en
-[rust-core/README.md](../../rust-core/README.md) — "Los mensajes de error en
+[rust-core/FFI.md](../../rust-core/FFI.md) — "Los mensajes de error en
 español NO cruzan el FFI".
 
 ## Configuración del build
@@ -141,7 +141,8 @@ Nota sobre el pánico, que en esta app no es teoría: `wasm32-unknown-unknown` i
 `panic = "abort"`, así que **acá no existe la red del `catch_unwind` de uniffi** que sí
 tienen Android e iOS. Un pánico del core no vuelve como error: es un trap que deja la
 instancia del módulo inutilizable y obliga a recargar la página. Ver
-[rust-core/README.md](../../rust-core/README.md).
+[rust-core/PENDING.md](../../rust-core/PENDING.md) — "En wasm no hay red de
+`catch_unwind`, y no se puede arreglar desde acá".
 
 ## Estructura
 

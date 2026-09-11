@@ -72,7 +72,7 @@ Dos detalles que ahorran una tarde:
   variante rompa la compilación en vez de pasar en verde. Va en producción porque
   `contracts/messages.es.json` indexa los mensajes de usuario por el nombre del contrato, así
   que la pantalla de error lo necesita igual que el test de contrato; se escribe una vez y el test de contrato
-  reusa ese mismo. Ver [rust-core/README.md](../../rust-core/README.md).
+  reusa ese mismo. Ver [rust-core/FFI.md](../../rust-core/FFI.md).
 
 `validateCci` y `calculateItf` no tienen pantalla propia entre las cinco de la demo: hoy
 las consume el test de contrato. Si se decide darles pantalla, se agrega **en las cuatro apps a
@@ -147,7 +147,7 @@ Reglas de la capa adapter:
    `DomainException` → nombre del contrato hace falta **en producción**, y el
    test de contrato reusa ese mismo mapeo en vez de escribir el suyo. Va exhaustivo: `when`
    como expresión, sin `else`. El porqué del archivo está en
-   [rust-core/README.md](../../rust-core/README.md) — "Los mensajes de error en
+   [rust-core/FFI.md](../../rust-core/FFI.md) — "Los mensajes de error en
    español NO cruzan el FFI".
 4. Las llamadas al core son síncronas y rápidas (microsegundos). No las metas
    en corrutinas ni en `Dispatchers.IO`, excepto en la pantalla de benchmark.

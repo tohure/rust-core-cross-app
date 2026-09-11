@@ -63,7 +63,7 @@ Dos detalles que ahorran una tarde:
   hay que escribirlo, nueve líneas, **en el `XCTest` de contrato, no en producción**, con un
   `switch` que cubra los nueve casos **sin `default`**, para que una décima variante rompa
   la compilación en vez de pasar en verde. Ver
-  [rust-core/README.md](../../rust-core/README.md).
+  [rust-core/FFI.md](../../rust-core/FFI.md).
 
 `validateCci` y `calculateItf` no tienen pantalla propia entre las cinco de la demo: hoy
 las consume el test de contrato. Si se decide darles pantalla, se agrega **en las cuatro apps a
@@ -153,7 +153,7 @@ Reglas:
    variante, así que el mapeo `DomainError` → nombre del contrato hace falta **en
    producción**, y el test de contrato reusa ese mismo mapeo en vez de escribir el suyo. Va
    exhaustivo: `switch` sin `default`. El porqué del archivo está en
-   [rust-core/README.md](../../rust-core/README.md) — "Los mensajes de error en
+   [rust-core/FFI.md](../../rust-core/FFI.md) — "Los mensajes de error en
    español NO cruzan el FFI".
 4. Llamadas síncronas. No las envuelvas en `Task` salvo en el benchmark.
 

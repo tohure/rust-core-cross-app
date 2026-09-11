@@ -65,7 +65,7 @@ y **ese mapeo no cruza el FFI**: hay que escribir las nueve líneas **en el test
 Jest, no en producción**. En TypeScript la exhaustividad no la da el compilador sola: se
 consigue con un `default` que asigne a `never` (`const _exhaustive: never = e.tag`), para
 que una décima variante rompa `tsc` en vez de pasar en verde. Ver
-[rust-core/README.md](../../rust-core/README.md).
+[rust-core/FFI.md](../../rust-core/FFI.md).
 
 `validateCci` y `calculateItf` no tienen pantalla propia entre las cinco de la demo: hoy
 las consume el test de contrato. Si se decide darles pantalla, se agrega **en las cuatro apps a
@@ -159,7 +159,7 @@ lee igual que `cases.json`. Está indexado por el **nombre del contrato**
 `e.tag` → nombre del contrato hace falta **en producción**, y el test de contrato reusa ese
 mismo mapeo en vez de escribir el suyo. Va exhaustivo, con el `default` que
 asigna a `never`. El porqué del archivo está en
-[rust-core/README.md](../../rust-core/README.md) — "Los mensajes de error en
+[rust-core/FFI.md](../../rust-core/FFI.md) — "Los mensajes de error en
 español NO cruzan el FFI".
 
 ## El campo de monto acepta 2 decimales como máximo
