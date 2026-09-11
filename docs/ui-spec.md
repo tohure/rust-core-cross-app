@@ -169,6 +169,10 @@ importan: valida por Luhn, cifra, y **descifra**.
 │  Luhn y cifrado ChaCha20-Poly1305   │
 ├─────────────────────────────────────┤
 │  Número       [ 4111111111111111 ]  │
+│  Probá 4111111111111111 (Visa) o    │  ← ayuda: sin esto nadie sabe qué tipear
+│  5555555555554444 (Mastercard).     │
+│  Un número inválido lo rechaza el   │
+│  core, no esta pantalla.            │
 │                                     │
 │           [  Validar y cifrar  ]    │
 │                                     │
@@ -198,6 +202,14 @@ importan: valida por Luhn, cifra, y **descifra**.
 - Labels exactos: `Número`, `Validar y cifrar`, `Resultado`, `Marca`, `Enmascarado`,
   `Cifrado (hex)`, `Descifrado`, `Descifrar un hex de otra plataforma`, `Hex cifrado`,
   `Descifrar`, `Número recuperado`.
+- **El texto de ayuda bajo `Número` es obligatorio**, con estas dos líneas exactas:
+  `Probá 4111111111111111 (Visa) o 5555555555554444 (Mastercard).` y
+  `Un número inválido lo rechaza el core, no esta pantalla.`
+  Sin él, la pantalla no dice qué espera: el campo acepta cualquier dígito pero el core
+  exige un número que pase Luhn, y quien hace la demo tiene que **adivinarlo frente a la
+  audiencia**. Con él, el rechazo deja de parecer un fallo del producto y pasa a ser parte
+  de lo que se está demostrando: tipear `41111` —que es el caso `tj-006` del contrato—
+  exhibe que **la validación también vive en el core**, no solo la criptografía.
 - **La fila `Descifrado` no es decorativa.** Sin ella la pantalla muestra un hex que un
   espectador **no puede distinguir de un hash**. Cifrar y volver a descifrar en el mismo gesto
   es lo único que prueba, mirando, que el core hace criptografía reversible.

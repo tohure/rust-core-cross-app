@@ -338,6 +338,18 @@ una en su propio commit, separada de la implementación:**
 4. **`apps/ios/CONTEXT.md` muestra la firma vieja de `.onChange(of:)`** como principal y la nueva
    como comentario. Con target 17.0 es al revés.
 5. **El `.claude/settings.json` del repo no declara `swift-lsp`** (D6).
+6. **La pantalla de Tarjeta no dice qué espera.** Encontrado probando la app de Android: el
+   campo `Número` acepta cualquier dígito, pero el core exige un número que pase Luhn, así
+   que quien hace la demo tiene que **adivinarlo frente a la audiencia** —y el rechazo
+   parece un fallo del producto en vez de una función—. Se agrega un texto de ayuda
+   obligatorio con dos líneas exactas, normativas en `docs/ui-spec.md` y por lo tanto
+   iguales en las cuatro apps. **No se afloja la validación:** `encrypt` acepta cualquier
+   cadena, pero esta pantalla hace **tres** cosas —valida por Luhn, cifra y descifra— y
+   sacarle el filtro borraría un tercio de lo que demuestra. Con la ayuda puesta, tipear
+   `41111` pasa a ser parte del show: es el caso `tj-006` del contrato, y exhibe que la
+   validación también vive en el core. Se corrige en `docs/ui-spec.md` y en
+   `apps/android/` —hoy la única app que existe, y por eso el momento más barato— y las
+   tres apps siguientes nacen con ella.
 
 ## Fuera de alcance
 

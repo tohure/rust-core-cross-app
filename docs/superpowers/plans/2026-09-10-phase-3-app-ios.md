@@ -3259,6 +3259,20 @@ struct CardView: View {
                 monospaced: true
             )
 
+            // Sin esto la pantalla no dice qué espera: el campo acepta cualquier dígito pero
+            // el core exige un número que pase Luhn, y quien hace la demo tiene que
+            // adivinarlo frente a la audiencia. Texto normativo, igual en las cuatro apps:
+            // ver docs/ui-spec.md.
+            Text(
+                """
+                Probá 4111111111111111 (Visa) o 5555555555554444 (Mastercard).
+                Un número inválido lo rechaza el core, no esta pantalla.
+                """
+            )
+            .font(.caption)
+            .foregroundStyle(Palette.onSurfaceMuted)
+            .frame(maxWidth: .infinity, alignment: .leading)
+
             Button("Validar y cifrar") { viewModel.validateAndEncrypt() }
                 .buttonStyle(.borderedProminent)
                 .tint(Palette.brand)
