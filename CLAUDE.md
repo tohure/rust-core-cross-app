@@ -154,18 +154,20 @@ construyó, así que hay que regenerar los cuatro desde el mismo HEAD antes de l
 **test de contrato pasando 28/28** contra `contracts/cases.json` **v2.3.0**. Los bindings Kotlin
 y Swift se generaron y se verificó que las nueve funciones cruzan la frontera.
 
-`apps/android/` es el primer consumidor real y **ya ejercita el borde FFI de verdad**: 40
-tests en verde —25 de JVM y 15 instrumentados sobre dispositivo, de los cuales 9 son el
+`apps/android/` es el primer consumidor real y **ya ejercita el borde FFI de verdad**: 43
+tests en verde —28 de JVM y 15 instrumentados sobre dispositivo, de los cuales 9 son el
 test de contrato—, las cuatro pantallas funcionando y el pie con `coreVersion()` visible en todas. Ver
 [apps/android/README.md](apps/android/README.md).
 
 `apps/ios/` es el segundo consumidor: las cuatro pantallas andando y **47 tests en verde**,
 incluido el test de contrato 28/28, **verificados también sobre hardware real** —o sea sobre el
 slice `aarch64-apple-ios`, que es el que se embarca y es un binario distinto del de simulador—.
-Queda abierto el número del benchmark, que se mide en un teléfono y no en el iPad con el que se
-validó la app: ese lleva un M1 y compararlo contra el Pixel 6 de Android mezclaría el costo del
-puente con la diferencia de chip. Ver [apps/ios/README.md](apps/ios/README.md) y
-[apps/ios/PENDING.md](apps/ios/PENDING.md).
+El benchmark ya tiene número, y confirma la hipótesis por goleada: el piso del cruce cuesta
+**0,33 µs en iOS contra 172 µs en Android**, o sea **521×** menos, porque iOS enlaza el `.a`
+estáticamente mientras Android paga JNA. Está medido en un iPad M1 y no en un teléfono, así que
+las cifras exactas son provisionales —la brecha es demasiado grande para que la explique el
+chip, pero hay que repetirlo en un iPhone con iOS 17+—. Ver
+[apps/ios/README.md](apps/ios/README.md) y [apps/ios/PENDING.md](apps/ios/PENDING.md).
 
 Lo que **no** existe todavía: ni una línea de TypeScript. Lo que sigue es la Fase 4,
 `apps/react-native`.
@@ -228,7 +230,7 @@ El orden no es negociable: lo impone el grafo de dependencias de build de arriba
   Fue la única fase donde se decidió lógica de negocio. Ver
   [rust-core/README.md](rust-core/README.md).
 - **Fase 2 — `apps/android`.** ✅ **Completada.** Primer consumidor real: validó el pipeline
-  uniffi y el test de contrato sobre un dispositivo. Entregó **40 tests en verde** —25 de JVM con
+  uniffi y el test de contrato sobre un dispositivo. Entregó **43 tests en verde** —28 de JVM con
   `FakeCoreFinanciero` y 15 instrumentados que sí cruzan el FFI, de los cuales 9 son el
   test de contrato— y las cuatro pantallas de [docs/ui-spec.md](docs/ui-spec.md). Fue la fase que
   probó lo que el test de contrato de Rust no podía: `System.loadLibrary`, la resolución de símbolos
@@ -243,8 +245,10 @@ El orden no es negociable: lo impone el grafo de dependencias de build de arriba
   A diferencia de Android **no hay dos suites**: el core se enlaza estáticamente, así que los
   tres niveles corren en el mismo bundle — y por eso nada obliga a que el seam de
   `CoreFinanciero` exista, cosa que allá sí fuerza la plataforma.
-  Queda abierto el número del benchmark: se mide en un teléfono, no en el iPad con el que se
-  validó la app. Ver [apps/ios/PENDING.md](apps/ios/PENDING.md).
+  El benchmark quedó medido y el resultado es el más contundente de la POC: **el piso del cruce
+  cuesta 0,33 µs contra los 172 µs de Android, 521× menos.** El mismo núcleo; lo que cambia es
+  el puente. Provisional hasta repetirlo en un iPhone —está medido en un iPad M1—, pero la
+  brecha no la explica el chip. Ver [apps/ios/PENDING.md](apps/ios/PENDING.md).
 - **Fase 4 — `apps/react-native`.** Turbo Module vía `ubrn`. Desbloquea la fase 5.
 - **Fase 5 — `apps/web-angular`.** Consume el WASM producido en la fase 4.
 
@@ -271,8 +275,14 @@ que toca** — el comando exacto, qué hace, y qué se debe ver cuando funciona.
 recomendación que vive solo en una conversación no existe: quien la ejecute dentro de seis
 meses es otra persona, o vos sin el contexto de hoy.
 
-Cuando existan al menos dos apps se agrega `docs/demo-runbook.md`: el guion de poner las
-cuatro pantallas lado a lado. Hasta entonces no hay guion real que escribir.
+**[docs/demo-runbook.md](docs/demo-runbook.md)** es el guion de poner las pantallas lado a
+lado: qué se tipea en cada acto, qué strings tienen que coincidir carácter por carácter, y las
+preguntas que la audiencia va a hacer. Se escribió con Android e iOS; cuando existan React
+Native y Angular se extiende, no se reescribe.
+
+Su primer paso no es opcional: **verificar que el pie de `core_version()` muestre el mismo
+string en todas las apps**. Si no coinciden, alguien regeneró un artefacto y no los otros, y la
+comparación deja de valer aunque las pantallas se vean bien.
 
 Fuera de alcance para esta POC (no lo agregues): Re.Pack / Module Federation, cliente
 HTTP, SQLite, runtime async, optimización de performance antes de que exista el benchmark.

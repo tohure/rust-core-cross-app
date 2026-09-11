@@ -21,7 +21,7 @@ Dos suites, y la distinción importa: una corre en la JVM y la otra **sobre un d
 ./gradlew :app:testDebugUnitTest
 ```
 
-Qué se debe ver — `BUILD SUCCESSFUL` y **25 tests, 0 failures**, en siete clases:
+Qué se debe ver — `BUILD SUCCESSFUL` y **28 tests, 0 failures**, en ocho clases:
 
 | Clase | Tests |
 |---|---|
@@ -32,6 +32,7 @@ Qué se debe ver — `BUILD SUCCESSFUL` y **25 tests, 0 failures**, en siete cla
 | `ui.transfer.TransferViewModelTest` | 6 |
 | `ui.card.CardViewModelTest` | 6 |
 | `ui.benchmark.NativeBaselineTest` | 1 |
+| `ui.benchmark.BenchmarkViewModelTest` | 3 |
 
 ```bash
 # Instrumentados — necesitan un emulador o dispositivo conectado. Estos SÍ cruzan el FFI.

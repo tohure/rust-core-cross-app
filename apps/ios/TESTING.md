@@ -151,32 +151,81 @@ volver al Step 7 de la Task 1 y verificar que el `.xcframework` traiga los dos.
    paso **manual en el aparato**, una vez por certificado: *Ajustes → General → VPN y Gestión
    de Dispositivos → APP DE DESARROLLADOR → `Apple Development: <cuenta>` → Confiar*.
 
-## ⚠️ El benchmark: **no medido, y por una razón**
+## El benchmark: medido, con una salvedad que importa
 
-La pantalla funciona y sus tests pasan, pero **nadie tomó todavía el número en esta
-plataforma**, así que aquí no hay tabla que escribir.
+**Medido en un iPad Air (5.ª gen, M1) con iPadOS 26.6.1**, n = 1000, contra el artefacto
+`1.0.0+b719da3`. Android está medido en un **Pixel 6**, un teléfono. **No son aparatos
+comparables**, y más abajo está por qué la conclusión se sostiene igual.
 
-**No se midió en el iPad a propósito**, aunque el aparato estaba a mano. El iPad Air 5 lleva un
-**M1**, una CPU de clase escritorio; Android está medido en un Pixel 6. Comparar esos dos
-números mezclaría dos cosas distintas —el costo del puente y la diferencia de chip— y la
-pantalla existe para aislar la primera. Se mide en un **teléfono**, o el número no responde la
-pregunta que se le hizo.
+| Llamada | iOS (iPad Air 5, M1) | Android (Pixel 6) | Relación |
+|---|---|---|---|
+| `coreVersion()` — piso del cruce | **0,33 µs** | 172 µs | **521×** |
+| `validateCard("41111")` | **7,08 µs** | 327 µs | 46× |
+| `add("0.1","0.2")` | **1,58 µs** | 444 µs | **281×** |
+| baseline nativa en `Double` | **0,38 µs** | 3,7 µs | 10× |
 
-Android está medido en un Pixel 6 y descompuesto en
-[`../android/TESTING.md`](../android/TESTING.md):
+### La hipótesis se confirma, y no por poco
 
-| | Android (Pixel 6) |
-|---|---|
-| `coreVersion()` — piso del cruce | 172 µs |
-| `add("0.1","0.2")` | 444 µs |
-| baseline nativa | 3,7 µs |
+El piso del cruce —una función sin argumentos, sin parseo, que devuelve un `&'static str`—
+cuesta **0,33 µs en iOS contra 172 µs en Android: 521 veces menos.**
 
-Ese piso de 172 µs **no es cómputo**: son `Structure` de JNA con reflexión de campos y memoria
-nativa por llamada, más un cruce extra para liberar el `RustBuffer`. **iOS no tiene nada de
-eso**: enlaza el `.a` estáticamente y Swift llama la función de C directo. La hipótesis es que
-esté en otro orden de magnitud — **hipótesis, no resultado**, y se escribe como resultado
-recién cuando alguien la mida.
+**Entre un M1 y un Pixel 6 hay un factor de 2× o 3×, no de 521×.** Por eso la salvedad del
+aparato no alcanza a explicar la brecha: aunque el número de iOS se multiplicara por diez para
+castigarlo por correr en un chip de escritorio, seguiría siendo dos órdenes de magnitud más
+barato. **La diferencia es el puente, no la CPU**, que es exactamente lo que la pantalla existe
+para aislar.
 
-Se mide **en un teléfono, no en el simulador**: el simulador corre arm64 nativo de macOS, sin
-el scheduler ni el térmico del aparato, y daría un número optimista. Android aprendió lo mismo:
-su cifra de emulador —~150 µs— estaba inflada y la tabla de arriba es la corregida.
+Y se entiende por qué: Android paga JNA —`Structure` con reflexión de campos y memoria nativa
+por llamada, más un cruce extra para liberar el `RustBuffer` de la respuesta—, mientras iOS
+enlaza el `.a` estáticamente y Swift llama la función de C directo.
+
+### Lo que sale de comparar las dos columnas con cuidado
+
+**En cada plataforma manda un costo distinto, y no es el mismo.**
+
+En Android el costo es *marshalling*: el piso son 172 µs y cada `String` suma ~150 µs, así que
+`add` con dos argumentos da 444 y **la aritmética decimal cae dentro del ruido**.
+
+En iOS no: el piso es 0,33 µs, o sea prácticamente gratis, y ahí el que manda es el trabajo
+real. `add` cuesta 1,58 µs —apenas **4,2×** la baseline nativa, contra 120× en Android— porque
+lo que se está midiendo ya es casi todo `rust_decimal` y no el cruce.
+
+El caso que más lo delata es `validateCard("41111")`, que **lanza** un error de longitud:
+7,08 µs, **cuatro veces más caro que un `add` exitoso**. En Android pasa al revés (327 contra
+444), porque allá lo que domina es la cantidad de argumentos. **En iOS lo caro es el camino de
+error**, no los datos que cruzan.
+
+### ⚠️ Falta re-medir en un iPhone
+
+Esta tabla queda **provisional**. Hay que repetirla en un teléfono con iOS 17 o superior para
+tener una comparación pareja contra el Pixel 6; ver [PENDING.md](PENDING.md). La conclusión
+principal no debería moverse —la brecha es demasiado grande—, pero las cifras exactas sí.
+
+### Cómo se tomó, para poder repetirlo
+
+No se leyó de la pantalla: se corrió un test temporal en el bundle de tests, sobre el aparato,
+usando el mismo reloj y la misma forma que `BenchmarkViewModel.measure()` —muestras en enteros
+de nanosegundos, percentiles sobre el array ordenado—. El archivo se borró después de medir;
+esto es lo que hacía:
+
+```swift
+private func measure(_ n: Int, _ body: () -> Void) -> (p50: String, p95: String) {
+    var samples: [Int64] = []
+    samples.reserveCapacity(n)
+    for _ in 0..<n {
+        let start = ContinuousClock.now
+        body()
+        let e = (ContinuousClock.now - start).components
+        samples.append(e.seconds * 1_000_000_000 + e.attoseconds / 1_000_000_000)
+    }
+    samples.sort()
+    func at(_ p: Double) -> String {
+        let index = min(max(Int(Double(n) * p), 0), n - 1)
+        return String(format: "%.2f µs", Double(samples[index]) / 1000)
+    }
+    return (at(0.50), at(0.95))
+}
+```
+
+Se corrió con `-only-testing:ios-rust-testTests/DeviceBenchmark` contra el `id` del aparato.
+**No se mide en simulador**: corre arm64 nativo de macOS y da un número aún más optimista.
