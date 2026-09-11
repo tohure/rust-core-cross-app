@@ -41,6 +41,57 @@ llamado `core` hace que el `--extern core` que cargo pasa al compilar `ffi` tape
 de la stdlib, y `#[derive(thiserror::Error)]` deja de compilar con `cannot find 'fmt' in
 'core'`. Se verificó con un workspace de prueba antes de elegir el nombre.
 
+## Qué es el FFI, y por qué esta POC gira alrededor de él
+
+**FFI** es *Foreign Function Interface*: el mecanismo por el que código escrito en un lenguaje
+llama a código escrito en otro. Es **el** concepto de este proyecto — sin él no hay POC.
+
+El problema que resuelve es concreto. Rust, Kotlin, Swift y JavaScript no se entienden entre sí:
+representan los tipos distinto, manejan la memoria distinto y pasan los argumentos distinto. Un
+`String` de Rust y un `String` de Kotlin no tienen nada que ver en memoria.
+
+La salida universal es la **ABI de C**: el formato binario de llamada que casi todos los
+lenguajes saben hablar. Así que este crate no expone funciones "de Rust" — expone funciones
+**con forma de C**, y cada lenguaje anfitrión las llama con su propio mecanismo. Por eso la
+palabra "frontera" aparece tanto en esta documentación y es literal: de un lado hay
+`rust_decimal::Decimal`, `Result` y enums con datos; del otro, punteros, enteros y bytes.
+
+**Qué hace uniffi.** Escribir ese borde a mano es tedioso y peligroso —hay que decidir quién
+libera cada string, cómo se codifica el texto, qué pasa con un error—. uniffi lo genera de los
+dos lados: de los `#[uniffi::export]` de `crates/ffi` produce la capa C en Rust *y* los bindings
+en Kotlin, Swift y TypeScript. Por eso esos bindings son artefactos generados que **nunca se
+editan a mano**: si algo está mal ahí, se arregla en Rust y se regenera.
+
+**El mismo núcleo cruza de cuatro maneras distintas**, y eso no es cosmético — cada puente tiene
+su costo y sus trampas:
+
+| App | Cómo cruza | Qué le cuesta |
+|---|---|---|
+| Android | `.so` + **JNA** con *direct mapping* | ~444 µs por llamada en un Pixel 6, casi todo marshalling |
+| iOS | `.a` enlazado **estáticamente** en un XCFramework | sin JNA de por medio; a medir en la Fase 3 |
+| React Native | C++ / JSI, vía `ubrn` | fase 4 |
+| Web | **WebAssembly** | fase 5 — y ahí **no hay red de `catch_unwind`** |
+
+Ese último punto explica una regla que parece caprichosa: **`panic = "abort"` está prohibido**.
+uniffi envuelve cada llamada en un `catch_unwind`, así que un pánico de Rust vuelve como error
+del FFI en vez de matar la app. Con `abort` esa red se desactiva — y en wasm el target la
+**impone**, así que la app Angular no va a tenerla.
+
+**Y por qué todo es `String` en la frontera.** Cuanto más simple el tipo que cruza, menos puede
+romperse en la traducción. `Decimal` no existe en Kotlin, ni en Swift, ni en JavaScript;
+convertirlo a `Double` para cruzar destruiría exactamente la precisión que este crate existe
+para garantizar. Así que el cálculo se hace con `Decimal` **adentro** y cruza un `String` con la
+escala ya correcta. De los cinco `Record` que cruzan, el único campo que no es `String` es
+`simulated_latency_ms: u32`.
+
+Dos cosas **no** cruzan, y cada app tiene que reimplementarlas: los mensajes de error en español
+y el mapeo de variante a nombre del contrato. Eso tiene archivo propio — **[FFI.md](FFI.md)**, de
+lectura obligatoria antes de escribir una app consumidora.
+
+Un último detalle que explica el orden de las fases: **el test de contrato de este crate no
+cruza el FFI.** Llama a las nueve funciones como funciones Rust normales. El primer test de toda
+la POC que atravesó el borde de verdad fue el instrumentado de Android.
+
 ## Dónde está cada cosa
 
 Este README contesta **qué es y cómo está organizado**. Lo demás vive en un archivo por
