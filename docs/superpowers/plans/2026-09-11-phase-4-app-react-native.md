@@ -1230,7 +1230,7 @@ export function contractName(e: unknown): string {
   // Se discrimina por la PRESENCIA de `tag`, no con `DomainError.instanceOf(e)`. Ver el
   // comentario de abajo: `instanceOf` compara contra la clase de su propio módulo y rompe
   // en dos sitios que esta fase necesita.
-  const tag = (e as { tag: DomainErrorTag }).tag;
+  const tag = (e as { tag: DomainError_Tags }).tag;
   switch (tag) {
     case DomainError_Tags.Length: return 'Longitud';
     case DomainError_Tags.CheckDigit: return 'DigitoControl';
@@ -1251,14 +1251,21 @@ export function contractName(e: unknown): string {
 
 **Dos cosas del código de arriba que no son estilo y no se cambian:**
 
-1. **`DomainErrorTag` es el tipo del companion**, no `unknown`. Con el discriminante tipado
+1. **El cast va al tipo del companion, no a `unknown`.** Con el discriminante tipado
    `unknown`, TypeScript **no puede angostar por exclusión de casos hasta `never`** —esa
    operación sólo existe sobre una unión finita—, así que el `default` fallaría a compilar
    **siempre**, con las nueve cubiertas o sin ellas. Una guardia que falla siempre no distingue
    "está completo" de "falta una variante", que es lo único que tiene que hacer. Verificado con
    `tsc --strict`: con `unknown` da `TS2322: Type 'unknown' is not assignable to type 'never'`
-   aun con los nueve `case` puestos. Toma el nombre real del tipo de `src/generated/` (Task 7
-   Step 6) — si el companion no expone un tipo, decláralo como la unión de los nueve valores.
+   aun con los nueve `case` puestos; con el tipo del companion compila limpio, y al comentar un
+   `case` da el error **específico** nombrando la variante que falta.
+
+   **Cuál es ese tipo depende de lo que haya generado `ubrn`, y hay que mirarlo** (Task 7
+   Step 6). Si `DomainError_Tags` es un `enum` de TypeScript, sirve tal cual como tipo y el cast
+   es `{ tag: DomainError_Tags }`. Si en cambio es un objeto constante
+   —`export const DomainError_Tags = { … } as const`—, **no** es un tipo y hay que escribir
+   `{ tag: (typeof DomainError_Tags)[keyof typeof DomainError_Tags] }`. Las dos formas angostan
+   igual; lo que no sirve es `unknown`.
 2. **Por qué NO `DomainError.instanceOf(e)`, aunque el binding lo ofrezca.** Compara contra la
    clase **de su propio módulo**, y eso falla en dos sitios que esta fase necesita: los tests de
    los hooks lanzan dobles de prueba —objetos planos con `tag`, que no son instancias de nada
