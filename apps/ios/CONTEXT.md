@@ -192,6 +192,22 @@ Tres cosas que no son opcionales:
    en la entrada (`ar-001` es `"0.1"`); los 2 decimales son normativos solo para la
    transferencia.
 
+### El otro filtro con tope: `Iteraciones` en el Benchmark
+
+`/^[0-9]{0,6}$/` — **hasta 6 dígitos**, igual que
+[`BenchmarkViewModel.kt:32`](../android/app/src/main/java/dev/tohure/android_rust_test/ui/benchmark/BenchmarkViewModel.kt)
+en Android. No está en `docs/ui-spec.md` porque no es un label: es el único tope de este
+lado que existe por una razón operativa y no por el contrato. Sin él, teclear `10000000`
+durante la demo dispara 2 × 10^7 llamadas al core en un `Task.detached` **sin forma de
+cancelarlas**, con el botón deshabilitado y el spinner girando, mientras Android rechaza la
+séptima tecla. Dos apps, un mismo spec, comportamiento distinto — y justo en la pantalla que
+existe para ponerlas lado a lado.
+
+El `guard n > 0` de `run()` **es load-bearing**, no defensa decorativa: `measure()` calcula
+el índice del percentil como `min(max(Int(Double(n) * p), 0), n - 1)`, que con `n == 0` da
+−1. Android no tiene ese guard y por eso `"0"` iteraciones lo hace crashear en
+`coerceIn(0, -1)`; ver `PENDING.md`.
+
 ## Formateo
 
 **No se usa `NumberFormatter` para pintar montos.** Su salida depende del ICU de la

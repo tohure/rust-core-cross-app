@@ -1,4 +1,9 @@
-/// ⚠️ **EL ÚNICO ARCHIVO DE ESTA APP QUE PUEDE MENCIONAR `Double`.**
+/// ⚠️ **EL ÚNICO ARCHIVO DE ESTA APP QUE PUEDE APLICAR `Double` A UN MONTO.**
+///
+/// La regla del proyecto es sobre **montos**, no sobre la palabra `Double`:
+/// `BenchmarkViewModel.measure()` también la nombra, pero sobre duraciones medidas y solo
+/// al formatear microsegundos —ahí no hay dinero, y las muestras se acumulan como enteros
+/// de nanosegundos justamente para que no lo parezca—. Dinero en punto flotante: solo aquí.
 ///
 /// Es la única excepción permitida a "cero lógica de negocio fuera de `rust-core`", y
 /// existe **para exhibir la divergencia de centavos del punto flotante**, no para calcular
