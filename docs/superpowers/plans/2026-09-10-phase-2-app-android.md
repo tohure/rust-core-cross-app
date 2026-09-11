@@ -1950,8 +1950,18 @@ class ArithmeticViewModel(
 
     // Sin límite de decimales acá: el contrato acepta escala libre en la entrada de
     // aritmética (`ar-001` es "0.1"). Los 2 decimales son normativos solo para transferencia.
-    fun operandAChanged(value: String) { _uiState.value = _uiState.value.copy(operandA = value) }
-    fun operandBChanged(value: String) { _uiState.value = _uiState.value.copy(operandB = value) }
+    // Editar un operando CONSUME el error anterior. Sin esto, `clearError()` queda como
+    // código muerto que aparenta cobertura, y el mensaje viejo se queda en pantalla al lado
+    // de operandos nuevos — que es peor que no mostrarlo.
+    fun operandAChanged(value: String) {
+        _uiState.value = _uiState.value.copy(operandA = value)
+        clearError()
+    }
+
+    fun operandBChanged(value: String) {
+        _uiState.value = _uiState.value.copy(operandB = value)
+        clearError()
+    }
     fun operationChanged(op: Operation) { _uiState.value = _uiState.value.copy(operation = op) }
 
     // ── Acciones ──────────────────────────────────────────────────────────────
@@ -2355,8 +2365,17 @@ class TransferViewModel(
 
     // ── Entrada del usuario ───────────────────────────────────────────────────
 
-    fun originChanged(value: String) { _uiState.value = _uiState.value.copy(origin = value) }
-    fun destinationChanged(value: String) { _uiState.value = _uiState.value.copy(destination = value) }
+    // Editar un campo CONSUME el error anterior — ver el comentario equivalente en
+    // ArithmeticViewModel.
+    fun originChanged(value: String) {
+        _uiState.value = _uiState.value.copy(origin = value)
+        clearError()
+    }
+
+    fun destinationChanged(value: String) {
+        _uiState.value = _uiState.value.copy(destination = value)
+        clearError()
+    }
 
     /**
      * El core ya rechaza un monto con más de 2 decimales (`tr-007`, `MontoInvalido`), pero
@@ -2367,6 +2386,7 @@ class TransferViewModel(
     fun amountChanged(value: String) {
         if (!AMOUNT.matches(value)) return
         _uiState.value = _uiState.value.copy(amount = value)
+        clearError()
     }
 
     // ── Acciones ──────────────────────────────────────────────────────────────
@@ -2643,6 +2663,7 @@ class CardViewModel(
         // Solo dígitos: filtro de texto. Luhn lo valida el core, no esta app.
         if (!value.all(Char::isDigit)) return
         _uiState.value = _uiState.value.copy(number = value)
+        clearError()
     }
 
     // ── Acciones ──────────────────────────────────────────────────────────────
@@ -3024,6 +3045,11 @@ En `docs/ui-spec.md`, reemplazar en los wireframes:
 | `ACC-001`, `ACC-002` | `00219100123456789047`, `01122000987654321065` |
 | `Ana Torres`, `Luis Paz` | `Ana Quispe`, `Luis Ramos` |
 | `**** 1111` | `4111 **** **** 1111` |
+
+Y falta un label que la implementación sí necesita: el wireframe de Aritmética no muestra ningún
+botón, pero la pantalla necesita uno para disparar el cálculo. Agregar **`Calcular`** a la lista
+de labels exactos de esa pantalla — si no, cada app inventa el suyo y la comparación lado a lado
+deja de ser limpia.
 
 ```bash
 git add docs/ui-spec.md
