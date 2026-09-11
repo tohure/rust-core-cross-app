@@ -61,8 +61,10 @@ type ValidCard = { brand: string; masked: string };
 
 **Los identificadores están en inglés; los nombres del contrato, en español.**
 `contracts/cases.json` nombra los errores `"Longitud"`, `"DigitoControl"`, `"MismaCuenta"`…
-y **ese mapeo no cruza el FFI**: hay que escribir las nueve líneas **en el test de contrato de
-Jest, no en producción**. En TypeScript la exhaustividad no la da el compilador sola: se
+y **ese mapeo no cruza el FFI**: hay que escribir las nueve líneas **en producción**, en la
+librería, y el test de contrato **reusa esa misma función** en vez de escribir su copia — así se
+verifica contra `cases.json` el mapeo que la UI usa de verdad. En TypeScript la exhaustividad no
+la da el compilador sola: se
 consigue con un `default` que asigne a `never` (`const _exhaustive: never = e.tag`), para
 que una décima variante rompa `tsc` en vez de pasar en verde. Ver
 [rust-core/FFI.md](../../rust-core/FFI.md).
@@ -139,11 +141,13 @@ frontera de paquete en vez de módulo Gradle.
 
 ## Cómo consumir el core
 
+El adapter de la app vive en `example/src/adapter/core.ts` y consume **el paquete**:
+
 ```ts
 import {
   add, subtract, calculateItf, validateCci, validateCard,
   encrypt, decrypt, executeTransfer, coreVersion,
-} from "../generated/core_financiero";
+} from "@banco/core-financiero";
 
 export const core = {
   add, subtract, calculateItf, validateCci, validateCard,
@@ -151,30 +155,42 @@ export const core = {
 };
 ```
 
+**No importa desde `src/generated/`, y ésa es la frontera entera.** El único archivo que toca lo
+generado es `src/index.tsx`, el entrypoint de la librería, que reexporta las nueve funciones. Así
+`example/` no sabe que debajo hay uniffi, y el nombre del archivo generado —que lo decide `ubrn`
+a partir del crate, y hay que **confirmarlo en la primera generación**— deja de ser asunto de la
+app.
+
 El adapter **no traduce los nombres del core**: los reexporta. Una segunda nomenclatura en
 TypeScript es una capa que hay que mantener sincronizada a mano y que se desincroniza en la
-primera regeneración de bindings. (El nombre del archivo generado sale del crate:
-confirmá `src/generated/core_financiero.ts` en la primera generación.)
+primera regeneración de bindings.
 
 Los errores llegan como excepciones tipadas. Captúralas en la pantalla y
 mapea a mensaje de usuario ahí, no en el adapter. ubrn genera para el enum una clase
-`DomainError` con un companion `DomainError_Tags`, y como las subclases de `Error` no
-responden bien a `instanceof`, se discrimina así:
+`DomainError` con un companion `DomainError_Tags`. La discriminación va **por la presencia de
+`tag`**, no por identidad de clase:
 
 ```ts
-import { DomainError, DomainError_Tags } from "../generated/core_financiero";
+import { DomainError_Tags } from "@banco/core-financiero";
 
 try {
   const r = core.executeTransfer(accounts, request);
 } catch (e) {
-  if (DomainError.instanceOf(e)) {
-    switch (e.tag) {
-      case DomainError_Tags.InvalidAmount: /* e.inner trae los campos */ break;
-      // … las nueve, y un default que asigne a `never`
-    }
+  switch ((e as { tag?: unknown }).tag) {
+    case DomainError_Tags.InvalidAmount: /* e.inner trae los campos */ break;
+    // … las nueve, y un default que asigne a `never`
   }
 }
 ```
+
+**Por qué no `DomainError.instanceOf(e)`, aunque el binding lo ofrezca.** Compara contra la clase
+**de su propio módulo**, y eso falla en los dos sitios donde esta fase lo necesita: los tests de
+las pantallas lanzan dobles de prueba —objetos planos con `tag`, que no son instancias de nada—,
+y el test de contrato por WASM recibe errores del módulo wasm, que **no son instancias de la
+clase del módulo JSI**. En los dos casos devuelve `false` y el mapeo se rompe entero. Discriminar
+por `tag` funciona en los tres flavours y con dobles. Lo que **no** cambia es el `switch`: sigue
+exhaustivo y sigue llevando el `default` que asigna a `never`, que es lo que hace que una décima
+variante rompa `tsc` en vez de pasar en verde.
 
 **El `message` del binding es diagnóstico, nunca texto de usuario**: uniffi no
 usa los `#[error("...")]` en español del core, arma el mensaje con los campos de
