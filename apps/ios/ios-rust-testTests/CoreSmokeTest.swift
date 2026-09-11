@@ -1,3 +1,4 @@
+import Foundation
 import Testing
 @testable import ios_rust_test
 
@@ -41,4 +42,23 @@ struct UniffiCoreFinancieroTest {
             Issue.record("lanzó algo que no es DomainError: \(error)")
         }
     }
+}
+
+/// Verifica que `AppContainer` arme bien antes de que existan las pantallas que lo usan.
+@Suite("El cableado de la app")
+struct AppContainerTest {
+    @Test("arma con el bundle de test y trae las dos cuentas del contrato")
+    func buildsAndReadsTheContract() throws {
+        let container = try AppContainer(bundle: Bundle(for: BundleToken.self))
+        let accounts = container.contract.initialAccounts()
+        #expect(accounts.count == 2)
+        #expect(accounts[0].id == "00219100123456789047")
+        #expect(accounts[0].holder == "Ana Quispe")
+        #expect(accounts[0].balance == "5000.00")
+        #expect(accounts[1].id == "01122000987654321065")
+        #expect(container.contract.demoNonceHex() == "000102030405060708090a0b")
+        #expect(!container.core.coreVersion().isEmpty)
+    }
+
+    private final class BundleToken {}
 }
