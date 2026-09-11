@@ -963,6 +963,27 @@ git rev-parse --short HEAD
 
 Ese SHA tiene que ser el que aparece en pantalla, y **el mismo que muestran Android e iOS** si se regeneraron desde este HEAD.
 
+- [ ] **Step 4b: Medir el APK y confirmar que el `.a` NO se empaquetó**
+
+`ubrn` deja en `android/src/main/jniLibs/` el **staticlib** de Rust —`libcore_financiero.a`, de
+**76 a 86 MB por ABI**—, no un `.so`. CMake lo enlaza dentro del `.so` del turbo module, así que
+es un insumo de build, no un artefacto de runtime. Pero `jniLibs/` es exactamente el directorio
+que Gradle empaqueta, así que hay que **verlo**, no suponerlo:
+
+```bash
+cd apps/react-native/example/android
+APK=$(find . -name "*.apk" | head -1)
+ls -lh "$APK"
+unzip -l "$APK" | grep -E "\.a$|\.so$"
+```
+
+Qué se debe ver: **ningún `.a`** en el listado, y sí los `.so` —el del turbo module y los de
+React Native—. Si aparece un `.a`, el APK pesa cientos de megas y hay que excluirlo por
+`packagingOptions` antes de seguir.
+
+Para comparar: el APK de debug de Android pesa 32 MB, y eso ya está anotado como deuda en
+`apps/android/PENDING.md`.
+
 - [ ] **Step 5: Documentar el gate en `BUILD.md`**
 
 Añadir a `apps/react-native/BUILD.md` una sección `## El smoke JSI` con: el comando del Step 3, el string que hay que ver, y **la razón de que sea manual** — que React Native no tiene corredor de tests en dispositivo y que un e2e con Detox está fuera de alcance.
