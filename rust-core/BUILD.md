@@ -206,7 +206,7 @@ Los comandos de exportación completos, con su salida real, están en
 
 ### El modulemap de Swift no se llama `module.modulemap`
 
-uniffi 0.32 nombra el modulemap según el crate: genera **`core_financieroFFI.modulemap`**.
+uniffi 0.31 nombra el modulemap según el crate: genera **`core_financieroFFI.modulemap`**.
 Pero `xcodebuild -create-xcframework -headers <dir>` exige que el directorio de headers
 contenga un archivo llamado **`module.modulemap`**. Con el nombre generado tal cual, el
 XCFramework se construye sin error y después `import core_financieroFFI` no resuelve — el
