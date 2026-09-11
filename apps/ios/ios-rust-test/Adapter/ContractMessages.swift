@@ -7,7 +7,7 @@ extension DomainError {
     /// generado trae solo los nombres en inglés.
     ///
     /// El `switch` va **exhaustivo y sin `default`**. Es deliberado: agregar una décima
-    /// variante al core tiene que romper la compilación acá —un fallo ruidoso y ubicado—
+    /// variante al core tiene que romper la compilación aquí —un fallo ruidoso y ubicado—
     /// en vez de caer en un `"Desconocido"` que compila, pasa en verde, y se descubre el
     /// día de la demo cuando esta app muestra un error que las otras tres no.
     var contractName: String {
@@ -47,7 +47,7 @@ struct ContractMessages {
     }
 
     /// Reemplaza `{code}`, `{id}`, `{available}`, `{required}` y `{field}` por los campos de
-    /// la variante, **crudos**. Nada de `NumberFormatter` acá: los formateadores de Android,
+    /// la variante, **crudos**. Nada de `NumberFormatter` aquí: los formateadores de Android,
     /// iOS y el navegador no coinciden entre sí, y una diferencia rompe la comparación
     /// carácter por carácter que es toda la tesis. El formateo vive en las pantallas.
     ///
