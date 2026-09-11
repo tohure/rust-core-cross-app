@@ -38,12 +38,23 @@ enum MoneyFormatter {
     /// esto: es un parser de *prefijo* que acepta basura arrastrada (`"12abc"` → 12,
     /// `"12   "` → 12), y eso rompía la paridad con Android, que sí rechaza esos strings.
     ///
-    /// Verificado contra `MoneyFormatter.kt` real, corriendo ambos lados con la misma lista
-    /// de entradas (ver `MoneyFormatterTest.swift`): ceros a la izquierda se cancelan
-    /// (`"007.50"` → `7.50`), un punto sin dígitos después es válido y sin parte decimal
-    /// (`"100."` → `100`), un punto sin dígitos antes es válido con parte entera "0"
-    /// (`".5"` → `0.5`), y la notación científica desplaza el punto decimal
-    /// (`"1e3"` → `1000`).
+    /// Verificado contra `MoneyFormatter.kt` real, corriendo ambos lados con las 34 entradas
+    /// que se probaron en la Task 7 (ver `MoneyFormatterTest.swift` y el reporte de esa
+    /// tarea): ceros a la izquierda se cancelan (`"007.50"` → `7.50`), un punto sin dígitos
+    /// después es válido y sin parte decimal (`"100."` → `100`), un punto sin dígitos antes
+    /// es válido con parte entera "0" (`".5"` → `0.5`), y la notación científica desplaza el
+    /// punto decimal (`"1e3"` → `1000`).
+    ///
+    /// **Dos huecos conocidos, fuera de esas 34 entradas — ninguno alcanzable desde los
+    /// llamadores actuales**, que solo pasan salida canónica del core, nunca texto libre
+    /// tecleado por el usuario:
+    /// - Un coeficiente cero con escala negativa no colapsa a un `"0"` pelado como en Java:
+    ///   `"0e1"` da `"S/ 00"`, `"0e5"` da `"S/ 000,000"` y `"00e3"` da `"S/ 0,000"`; Kotlin
+    ///   da `"S/ 0"` en los tres, porque `BigDecimal` colapsa un coeficiente cero con escala
+    ///   negativa a `"0"` pelado.
+    /// - Un exponente enorme pero parseable como `Int` de Swift —`"1e2147483648"`— dispara
+    ///   un `String(repeating:count:)` del tamaño de ese exponente. Kotlin usa un exponente
+    ///   de 32 bits y lanza en ese mismo caso, devolviendo la entrada intacta.
     private static func parse(_ input: String) -> ParsedAmount? {
         let chars = Array(input)
         let n = chars.count
