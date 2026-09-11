@@ -69,7 +69,7 @@ la da el compilador sola: se
 consigue con un `default` que asigne a `never` (`const _exhaustive: never = e.tag`), para
 que una décima variante rompa `tsc` en vez de pasar en verde.
 
-**El cast va al tipo del companion, `{ tag: DomainError_Tags }`, y no a `unknown`.** Con el
+**El cast va al tipo `DomainError` —la unión de las nueve variantes— y no a `unknown`.** Con el
 discriminante tipado `unknown`, TypeScript no puede angostar por exclusión de casos hasta `never`
 —esa operación sólo existe sobre una unión finita—, así que la asignación del `default` fallaría
 **siempre**, con las nueve variantes cubiertas o sin ellas. Una guardia que falla siempre no
@@ -214,11 +214,13 @@ guardia funciona. Con `unknown` **no**: TypeScript sólo angosta por exclusión 
 unión finita, así que la asignación a `never` fallaría siempre —con las nueve cubiertas o sin
 ellas—, y una guardia que falla siempre no distingue "está completo" de "falta una variante".
 
-**Por qué no `DomainError.instanceOf(e)`, aunque el binding lo ofrezca.** Compara contra la clase
-**de su propio módulo**, y eso falla en los dos sitios donde esta fase lo necesita: los tests de
-las pantallas lanzan dobles de prueba —objetos planos con `tag`, que no son instancias de nada—,
-y el test de contrato por WASM recibe errores del módulo wasm, que **no son instancias de la
-clase del módulo JSI**. En los dos casos devuelve `false` y el mapeo se rompe entero. Discriminar
+**Por qué no `DomainError.instanceOf(e)`, aunque el binding lo ofrezca.** No hace un `instanceof`
+de JavaScript —no podría, porque no hay una única clase—: compara una **marca de tipo** que el
+propio módulo pone en el objeto, `obj[uniffiTypeNameSymbol] === 'DomainError'`, con el símbolo
+importado **de su propia copia** de `@ubjs/core`. Eso falla en los dos sitios donde esta fase lo
+necesita: los tests de las pantallas lanzan dobles de prueba —objetos planos con `tag`, sin esa
+marca—, y el test de contrato por WASM recibe errores de **otro módulo**, con **otra
+copia del símbolo**. En los dos casos devuelve `false` y el mapeo se rompe entero. Discriminar
 por `tag` funciona en los tres flavours y con dobles. Lo que **no** cambia es el `switch`: sigue
 exhaustivo y sigue llevando el `default` que asigna a `never`, que es lo que hace que una décima
 variante rompa `tsc` en vez de pasar en verde.
