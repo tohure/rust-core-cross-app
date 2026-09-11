@@ -87,6 +87,7 @@
 				DD83237B3053A1AF0038F99E /* Sources */,
 				DD83237C3053A1AF0038F99E /* Frameworks */,
 				DD83237D3053A1AF0038F99E /* Resources */,
+				C0DE000000000000000000F3 /* Copiar los contratos al bundle */,
 			);
 			buildRules = (
 			);
@@ -109,6 +110,7 @@
 				DD8323883053A1B00038F99E /* Sources */,
 				DD8323893053A1B00038F99E /* Frameworks */,
 				DD83238A3053A1B00038F99E /* Resources */,
+				C0DE000000000000000000F4 /* Copiar los contratos al bundle */,
 			);
 			buildRules = (
 			);
@@ -180,6 +182,45 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXResourcesBuildPhase section */
+
+/* Begin PBXShellScriptBuildPhase section */
+		C0DE000000000000000000F3 /* Copiar los contratos al bundle */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputPaths = (
+				"$(SRCROOT)/../../contracts/cases.json",
+				"$(SRCROOT)/../../contracts/messages.es.json",
+			);
+			name = "Copiar los contratos al bundle";
+			outputPaths = (
+				"$(TARGET_BUILD_DIR)/$(UNLOCALIZED_RESOURCES_FOLDER_PATH)/cases.json",
+				"$(TARGET_BUILD_DIR)/$(UNLOCALIZED_RESOURCES_FOLDER_PATH)/messages.es.json",
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "set -eu\nDST=\"$TARGET_BUILD_DIR/$UNLOCALIZED_RESOURCES_FOLDER_PATH\"\nmkdir -p \"$DST\"\ncp \"$SRCROOT/../../contracts/cases.json\" \"$DST/\"\ncp \"$SRCROOT/../../contracts/messages.es.json\" \"$DST/\"\n";
+		};
+		C0DE000000000000000000F4 /* Copiar los contratos al bundle */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputPaths = (
+				"$(SRCROOT)/../../contracts/cases.json",
+				"$(SRCROOT)/../../contracts/messages.es.json",
+			);
+			name = "Copiar los contratos al bundle";
+			outputPaths = (
+				"$(TARGET_BUILD_DIR)/$(UNLOCALIZED_RESOURCES_FOLDER_PATH)/cases.json",
+				"$(TARGET_BUILD_DIR)/$(UNLOCALIZED_RESOURCES_FOLDER_PATH)/messages.es.json",
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "set -eu\nDST=\"$TARGET_BUILD_DIR/$UNLOCALIZED_RESOURCES_FOLDER_PATH\"\nmkdir -p \"$DST\"\ncp \"$SRCROOT/../../contracts/cases.json\" \"$DST/\"\ncp \"$SRCROOT/../../contracts/messages.es.json\" \"$DST/\"\n";
+		};
+/* End PBXShellScriptBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
 		DD83237B3053A1AF0038F99E /* Sources */ = {
