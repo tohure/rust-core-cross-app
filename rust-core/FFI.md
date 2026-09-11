@@ -140,7 +140,7 @@ test de contrato —`the_messages_file_covers_the_nine_error_variants`— y el p
 | `InvalidAmount` | `El monto ingresado no es válido.` |
 | `AccountNotFound` | `No encontramos la cuenta {id}.` |
 | `SameAccount` | `La cuenta de origen y la de destino son la misma.` |
-| `InsufficientFunds` | `Saldo insuficiente: tenés {available} y se necesitan {required}.` |
+| `InsufficientFunds` | `Saldo insuficiente: tienes {available} y se necesitan {required}.` |
 | `Encryption` | `No se pudo cifrar los datos de la tarjeta.` |
 | `OutOfRange` | `El valor de {field} está fuera del rango permitido.` |
 

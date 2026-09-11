@@ -257,7 +257,7 @@ fn the_messages_file_has_the_expected_shape() {
     const KNOWN: [&str; 5] = ["version", "idioma", "_nota", "_placeholders", "_fuente"];
 
     let m = messages();
-    assert_eq!(field(&m, "version"), "1.0.0");
+    assert_eq!(field(&m, "version"), "1.1.0");
     assert_eq!(field(&m, "idioma"), "es");
 
     let actual: BTreeSet<&str> = m

@@ -54,7 +54,7 @@ class TransferViewModelTest {
         FakeMessages(
             mapOf(
                 "MismaCuenta" to "La cuenta de origen y la de destino son la misma.",
-                "SaldoInsuficiente" to "Saldo insuficiente: tenés {available} y se necesitan {required}.",
+                "SaldoInsuficiente" to "Saldo insuficiente: tienes {available} y se necesitan {required}.",
             ),
         ),
     )
@@ -110,7 +110,7 @@ class TransferViewModelTest {
         vm.transfer()
         advanceUntilIdle()
         assertEquals(
-            "Saldo insuficiente: tenés 50.00 y se necesitan 100.01.",
+            "Saldo insuficiente: tienes 50.00 y se necesitan 100.01.",
             vm.uiState.value.error,
         )
         // El bug clásico: el catch se olvida de apagar el spinner y la pantalla queda
