@@ -865,36 +865,51 @@ superficie."
 
 **Contexto, y una limitación que hay que decir en voz alta:** React Native **no tiene corredor de tests en dispositivo**. Jest mockea los módulos nativos, así que nada automatizado puede cruzar JSI; lo único que lo haría sería un e2e con Detox, una pila entera que esta POC no necesita. Por eso este gate es **manual y documentado**, no una suite. Sigue siendo lo primero que se construye, porque si JSI no resuelve los símbolos, cuatro pantallas encima no sirven de nada.
 
-- [ ] **Step 1: Escribir el entrypoint de la librería**
+- [ ] **Step 1: Mover el entrypoint generado y escribir el propio encima**
 
-Crear `apps/react-native/src/index.tsx`. Sustituir `./generated/core_financiero` por el nombre real confirmado en la Task 7 Step 3:
+**NO escribas `src/index.tsx` desde cero.** La Task 7 descubrió que **`ubrn` lo genera**, y ese archivo hace algo que no se puede perder:
 
 ```tsx
-// La única superficie pública del paquete. No traduce nombres ni tipos: los reexporta.
-// Una segunda nomenclatura en TypeScript habría que mantenerla a mano y se desincroniza
-// en la primera regeneración de bindings.
-export {
-  add,
-  subtract,
-  calculateItf,
-  validateCci,
-  validateCard,
-  encrypt,
-  decrypt,
-  executeTransfer,
-  coreVersion,
-  DomainError,
-  DomainError_Tags,
-} from './generated/core_financiero';
-
-export type {
-  Account,
-  TransferRequest,
-  TransferResult,
-  ValidCci,
-  ValidCard,
-} from './generated/core_financiero';
+import installer from './NativeCoreFinanciero';
+installer.installRustCrate();          // registra el crate de Rust con Hermes
+export * from './generated/core_financiero';
 ```
+
+Sin esa llamada el turbo module **nunca se instala** y JSI no resuelve nada. Y el síntoma no aparece al compilar: aparece al abrir la app.
+
+Pero el paquete también tiene que exportar `contractName` (Task 11), y editar a mano un archivo que `ubrn` regenera es frágil. Se resuelve moviendo el archivo generado y quedándonos con el nombre:
+
+En `apps/react-native/ubrn.config.yaml`, añadir:
+
+```yaml
+turboModule:
+  entrypoint: src/bindings.tsx
+```
+
+Regenerar para que `ubrn` escriba ahí:
+
+```bash
+cd apps/react-native
+export PATH="$HOME/.cargo/bin:$PATH"
+pnpm exec ubrn generate jsi turbo-module --config ubrn.config.yaml
+ls src/            # bindings.tsx generado; index.tsx libre
+```
+
+Y ahora sí, escribir a mano `apps/react-native/src/index.tsx`:
+
+```tsx
+// La superficie pública del paquete. `bindings.tsx` lo genera ubrn —incluida la llamada que
+// registra el crate con Hermes— y por eso no se toca: este archivo sólo lo reexporta y le
+// suma lo que la librería aporta por su cuenta.
+export * from './bindings';
+export { default } from './bindings';
+
+export { contractName } from './contractName';   // lo crea la Task 11
+```
+
+**Por qué no al revés** —generar en `index.tsx` y añadirle la línea de `contractName`—: `ubrn` reescribe ese archivo en cada `--and-generate`, así que la línea se perdería en la primera regeneración. `noOverwrite` existe en la config para congelarlo, pero congelar el archivo que contiene el registro de Hermes significa quedarse con una versión vieja del *glue* la próxima vez que ubrn lo cambie. Mover el generado y envolverlo cuesta un archivo y no congela nada.
+
+**`src/contractName.ts` todavía no existe** (lo crea la Task 11), así que hasta entonces `tsc` va a marcar esa línea. Es esperado: se comprueba en la Task 11, no acá.
 
 - [ ] **Step 2: Poner `coreVersion()` en pantalla, y nada más**
 
@@ -1231,7 +1246,7 @@ Esperado: **FAIL**, porque `../src/contractName` no existe todavía.
 Crear `apps/react-native/src/contractName.ts`. Ajustar la forma de discriminación a la que se confirmó en la Task 7 Step 6:
 
 ```ts
-import { DomainError, DomainError_Tags } from './generated/core_financiero';
+import { DomainError_Tags, type DomainError } from './bindings';
 
 /**
  * Traduce una variante de `DomainError` al nombre en español que usa el contrato.
@@ -1247,7 +1262,7 @@ export function contractName(e: unknown): string {
   // Se discrimina por la PRESENCIA de `tag`, no con `DomainError.instanceOf(e)`. Ver el
   // comentario de abajo: `instanceOf` compara contra la clase de su propio módulo y rompe
   // en dos sitios que esta fase necesita.
-  const tag = (e as { tag: DomainError_Tags }).tag;
+  const { tag } = e as DomainError;
   switch (tag) {
     case DomainError_Tags.Length: return 'Longitud';
     case DomainError_Tags.CheckDigit: return 'DigitoControl';
@@ -1268,21 +1283,21 @@ export function contractName(e: unknown): string {
 
 **Dos cosas del código de arriba que no son estilo y no se cambian:**
 
-1. **El cast va al tipo del companion, no a `unknown`.** Con el discriminante tipado
+1. **El cast va al tipo `DomainError`, que es la unión de las nueve variantes**, no a `unknown`.
+   Verificado en el binding real (Task 7): cada variante declara su `tag` como el **miembro
+   concreto** del enum —`tag: DomainError_Tags.Length`—, así que `DomainError` es una unión
+   discriminada de verdad y el `switch` angosta solo hasta `never`. Con el discriminante tipado
    `unknown`, TypeScript **no puede angostar por exclusión de casos hasta `never`** —esa
    operación sólo existe sobre una unión finita—, así que el `default` fallaría a compilar
    **siempre**, con las nueve cubiertas o sin ellas. Una guardia que falla siempre no distingue
    "está completo" de "falta una variante", que es lo único que tiene que hacer. Verificado con
    `tsc --strict`: con `unknown` da `TS2322: Type 'unknown' is not assignable to type 'never'`
-   aun con los nueve `case` puestos; con el tipo del companion compila limpio, y al comentar un
-   `case` da el error **específico** nombrando la variante que falta.
+   aun con los nueve `case` puestos; con la unión compila limpio, y al comentar un `case` da el
+   error **específico** nombrando la variante que falta.
 
-   **Cuál es ese tipo depende de lo que haya generado `ubrn`, y hay que mirarlo** (Task 7
-   Step 6). Si `DomainError_Tags` es un `enum` de TypeScript, sirve tal cual como tipo y el cast
-   es `{ tag: DomainError_Tags }`. Si en cambio es un objeto constante
-   —`export const DomainError_Tags = { … } as const`—, **no** es un tipo y hay que escribir
-   `{ tag: (typeof DomainError_Tags)[keyof typeof DomainError_Tags] }`. Las dos formas angostan
-   igual; lo que no sirve es `unknown`.
+   **Ojo con el nombre, porque ubrn exporta dos cosas que se llaman igual:** un `const
+   DomainError` —objeto congelado con las nueve clases internas— y un `type DomainError` que es
+   la unión. El cast necesita **el tipo**, así que va importado como `type DomainError`.
 2. **Por qué NO `DomainError.instanceOf(e)`, aunque el binding lo ofrezca.** Compara contra la
    clase **de su propio módulo**, y eso falla en dos sitios que esta fase necesita: los tests de
    los hooks lanzan dobles de prueba —objetos planos con `tag`, que no son instancias de nada
@@ -1290,10 +1305,10 @@ export function contractName(e: unknown): string {
    que no son instancias de la clase del módulo JSI (Task 15). En los dos casos devuelve `false`
    y el mapeo se rompe entero. Discriminar por `tag` funciona en los tres flavours y con dobles.
 
-Exportarla desde `src/index.tsx` añadiendo:
+`src/index.tsx` **ya la exporta**: la línea la dejó puesta la Task 8. Comprobarlo y no duplicarla:
 
-```tsx
-export { contractName } from './contractName';
+```bash
+grep -n "contractName" apps/react-native/src/index.tsx
 ```
 
 - [ ] **Step 5: Correr y verificar que pasan**

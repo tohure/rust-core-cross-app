@@ -173,22 +173,46 @@ TypeScript es una capa que hay que mantener sincronizada a mano y que se desincr
 primera regeneración de bindings.
 
 Los errores llegan como excepciones tipadas. Captúralas en la pantalla y
-mapea a mensaje de usuario ahí, no en el adapter. ubrn genera para el enum una clase
-`DomainError` con un companion `DomainError_Tags`. La discriminación va **por la presencia de
-`tag`**, no por identidad de clase:
+mapea a mensaje de usuario ahí, no en el adapter.
+
+**Lo que ubrn genera de verdad, leído del binding y no deducido:**
 
 ```ts
-import { DomainError_Tags } from "@banco/core-financiero";
+export enum DomainError_Tags { Length = 'Length', CheckDigit = 'CheckDigit', … }
+
+export const DomainError = (() => { … })();   // objeto congelado, nueve clases internas
+export type DomainError = InstanceType<…>;    // la unión de esas nueve
+```
+
+No hay una `class DomainError`: hay un **objeto** con ese nombre —cada variante adentro, con su
+propio `instanceOf`— y **por separado un tipo** con el mismo nombre, que es la unión. Y cada
+variante declara su `tag` como el **miembro concreto** del enum, no como el enum entero:
+
+```ts
+type Length__interface = { tag: DomainError_Tags.Length; inner: Readonly<{ … }> };
+```
+
+Eso hace de `DomainError` una **unión discriminada de verdad**, y por lo tanto el `switch`
+angosta solo:
+
+```ts
+import { DomainError_Tags, type DomainError } from "@banco/core-financiero";
 
 try {
   const r = core.executeTransfer(accounts, request);
 } catch (e) {
-  switch ((e as { tag: DomainError_Tags }).tag) {
-    case DomainError_Tags.InvalidAmount: /* e.inner trae los campos */ break;
+  const { tag, inner } = e as DomainError;
+  switch (tag) {
+    case DomainError_Tags.InvalidAmount: /* `inner` trae los campos */ break;
     // … las nueve, y un default que asigne a `never`
   }
 }
 ```
+
+**El cast va al tipo `DomainError`, la unión.** Con eso el `default` angosta a `never` y la
+guardia funciona. Con `unknown` **no**: TypeScript sólo angosta por exclusión de casos sobre una
+unión finita, así que la asignación a `never` fallaría siempre —con las nueve cubiertas o sin
+ellas—, y una guardia que falla siempre no distingue "está completo" de "falta una variante".
 
 **Por qué no `DomainError.instanceOf(e)`, aunque el binding lo ofrezca.** Compara contra la clase
 **de su propio módulo**, y eso falla en los dos sitios donde esta fase lo necesita: los tests de
