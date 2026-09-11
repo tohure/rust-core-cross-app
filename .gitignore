@@ -21,6 +21,7 @@ __pycache__/
 /apps/react-native/src/generated-napi/
 /apps/react-native/src/generated-wasm/
 /apps/react-native/android/src/main/java/
+/apps/react-native/android/src/main/jniLibs/
 
 # Node
 node_modules/
