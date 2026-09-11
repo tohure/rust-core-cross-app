@@ -814,7 +814,7 @@ TS=$(ls src/generated/*.ts | head -1)
 grep -nE "DomainError|_Tags|instanceOf" $TS | head -20
 ```
 
-El CONTEXT predice una clase `DomainError` con `DomainError.instanceOf(e)` y un companion `DomainError_Tags`, porque las subclases de `Error` no responden bien a `instanceof`. **Anotar la forma real**: la Task 13 escribe el mapeo exhaustivo contra ella.
+El CONTEXT predice una clase `DomainError` y un companion `DomainError_Tags`. **Anotar la forma real, y en particular dos cosas que la Task 11 necesita**: los nueve valores de `DomainError_Tags`, y **si el binding exporta un tipo para ese companion** (el que se usará en el cast del `switch`). Si no lo exporta, hay que declararlo como la unión de los nueve valores. El mapeo se discrimina por `tag`, no con `instanceOf`: el porqué está en la Task 11.
 
 **Si algo de los Steps 4-6 difirió**, corregir `apps/react-native/CONTEXT.md` con el archivo generado a la vista, en un commit aparte con el mensaje `docs(react-native): los nombres derivados del CONTEXT, contrastados contra el binding real`.
 
@@ -1227,10 +1227,11 @@ import { DomainError, DomainError_Tags } from './generated/core_financiero';
  * rompe `tsc` en vez de caer en un "Desconocido" que pasaría en verde. Ésa es la guardia 4.
  */
 export function contractName(e: unknown): string {
-  if (!DomainError.instanceOf(e)) {
-    throw new Error(`no es un DomainError: ${String(e)}`);
-  }
-  switch (e.tag) {
+  // Se discrimina por la PRESENCIA de `tag`, no con `DomainError.instanceOf(e)`. Ver el
+  // comentario de abajo: `instanceOf` compara contra la clase de su propio módulo y rompe
+  // en dos sitios que esta fase necesita.
+  const tag = (e as { tag: DomainErrorTag }).tag;
+  switch (tag) {
     case DomainError_Tags.Length: return 'Longitud';
     case DomainError_Tags.CheckDigit: return 'DigitoControl';
     case DomainError_Tags.UnknownBank: return 'BancoDesconocido';
@@ -1241,12 +1242,29 @@ export function contractName(e: unknown): string {
     case DomainError_Tags.Encryption: return 'Cifrado';
     case DomainError_Tags.OutOfRange: return 'FueraDeRango';
     default: {
-      const _exhaustive: never = e.tag;
-      return _exhaustive;
+      const _exhaustive: never = tag;
+      throw new Error(`variante de DomainError sin nombre de contrato: ${String(_exhaustive)}`);
     }
   }
 }
 ```
+
+**Dos cosas del código de arriba que no son estilo y no se cambian:**
+
+1. **`DomainErrorTag` es el tipo del companion**, no `unknown`. Con el discriminante tipado
+   `unknown`, TypeScript **no puede angostar por exclusión de casos hasta `never`** —esa
+   operación sólo existe sobre una unión finita—, así que el `default` fallaría a compilar
+   **siempre**, con las nueve cubiertas o sin ellas. Una guardia que falla siempre no distingue
+   "está completo" de "falta una variante", que es lo único que tiene que hacer. Verificado con
+   `tsc --strict`: con `unknown` da `TS2322: Type 'unknown' is not assignable to type 'never'`
+   aun con los nueve `case` puestos. Toma el nombre real del tipo de `src/generated/` (Task 7
+   Step 6) — si el companion no expone un tipo, decláralo como la unión de los nueve valores.
+2. **Por qué NO `DomainError.instanceOf(e)`, aunque el binding lo ofrezca.** Compara contra la
+   clase **de su propio módulo**, y eso falla en dos sitios que esta fase necesita: los tests de
+   los hooks lanzan dobles de prueba —objetos planos con `tag`, que no son instancias de nada
+   (Task 16 en adelante)—, y el test de contrato por **WASM** recibe errores del módulo wasm,
+   que no son instancias de la clase del módulo JSI (Task 15). En los dos casos devuelve `false`
+   y el mapeo se rompe entero. Discriminar por `tag` funciona en los tres flavours y con dobles.
 
 Exportarla desde `src/index.tsx` añadiendo:
 
@@ -1721,30 +1739,17 @@ pnpm jest __tests__/contract.wasm.test.ts
 
 Esperado: **32 passed** — los 28 casos más las 4 guardias.
 
-**Modo de fallar esperable, y su arreglo.** `contractName` importa `DomainError` de
-`src/generated/` —los bindings **JSI**—, y `DomainError.instanceOf()` compara contra la clase de
-*ese* módulo. Un error lanzado por el módulo **wasm** es de otra clase, así que `instanceOf`
-puede devolver `false` y `contractName` tirar *"no es un DomainError"* en los ocho casos que
-esperan error.
+**El modo de fallar que esto habría tenido, y por qué ya no lo tiene.** `contractName` importa
+de `src/generated/` —los bindings **JSI**—, y un error lanzado por el módulo **wasm** no es
+instancia de la clase de ese módulo. Si `contractName` se hubiera escrito con
+`DomainError.instanceOf(e)`, habría devuelto `false` y tirado *"no es un DomainError"* en los
+ocho casos que esperan error.
 
-Si pasa, **no se duplica el mapeo** —eso es justo lo que la spec prohíbe—: se parametriza por la
-clase, dejando el `switch` en un solo lugar.
-
-```ts
-// src/contractName.ts — la firma pasa a recibir el par del flavour que corresponda
-export function contractNameWith(
-  DomainErrorClass: { instanceOf(e: unknown): boolean },
-  Tags: Record<string, unknown>,
-) {
-  return function contractName(e: unknown): string { /* el mismo switch, sin cambios */ };
-}
-
-// y se conserva el nombre corto para la ruta JSI, que es la que usa la app:
-export const contractName = contractNameWith(DomainError, DomainError_Tags);
-```
-
-Cada test de contrato construye entonces el suyo con el par de **su** flavour. Actualizar también
-`contract.napi.test.ts` si se llega aquí, y anotarlo en `TESTING.md`.
+Por eso la Task 11 lo escribe discriminando **por la presencia de `tag`**: los valores del
+companion son los mismos en los tres flavours, así que el mismo `switch` sirve para JSI, N-API y
+WASM sin parametrizar nada y sin duplicar el mapeo. **Si aun así este test falla con un error de
+mapeo**, comparar los valores de `DomainError_Tags` entre `src/generated/` y `src/generated-wasm/`
+antes que ninguna otra cosa: si difieren, el problema es de generación, no del mapeo.
 
 Si falla **sólo** el grupo de `tarjeta`, el sospechoso es el manejo de bytes en la frontera wasm, no la criptografía: el core es el mismo binario lógico.
 

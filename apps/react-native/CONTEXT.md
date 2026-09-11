@@ -56,8 +56,9 @@ type ValidCard = { brand: string; masked: string };
 > otras dos plataformas —`snake_case` de Rust a lowerCamelCase, campos de Record
 > camelCase— y de la documentación de ubrn, que genera cada Record como un `type` de
 > objetos planos. **Al primer `ubrn build android --and-generate`, contrastá
-> `src/generated/` con esta lista antes de escribir el adapter**: si algo difiere, manda el
-> archivo generado y se corrige acá.
+> `src/generated/` con esta lista antes de escribir `src/index.tsx`**: si algo difiere, manda el
+> archivo generado y se corrige acá. (El adapter de la app no entra en esto: consume el paquete,
+> no lo generado.)
 
 **Los identificadores están en inglés; los nombres del contrato, en español.**
 `contracts/cases.json` nombra los errores `"Longitud"`, `"DigitoControl"`, `"MismaCuenta"`…
@@ -66,7 +67,13 @@ librería, y el test de contrato **reusa esa misma función** en vez de escribir
 verifica contra `cases.json` el mapeo que la UI usa de verdad. En TypeScript la exhaustividad no
 la da el compilador sola: se
 consigue con un `default` que asigne a `never` (`const _exhaustive: never = e.tag`), para
-que una décima variante rompa `tsc` en vez de pasar en verde. Ver
+que una décima variante rompa `tsc` en vez de pasar en verde.
+
+**El cast va al tipo del companion, `{ tag: DomainError_Tags }`, y no a `unknown`.** Con el
+discriminante tipado `unknown`, TypeScript no puede angostar por exclusión de casos hasta `never`
+—esa operación sólo existe sobre una unión finita—, así que la asignación del `default` fallaría
+**siempre**, con las nueve variantes cubiertas o sin ellas. Una guardia que falla siempre no
+distingue "está completo" de "falta una variante", que es justo lo único que tiene que hacer. Ver
 [rust-core/FFI.md](../../rust-core/FFI.md).
 
 `validateCci` y `calculateItf` no tienen pantalla propia entre las cinco de la demo: hoy
@@ -176,7 +183,7 @@ import { DomainError_Tags } from "@banco/core-financiero";
 try {
   const r = core.executeTransfer(accounts, request);
 } catch (e) {
-  switch ((e as { tag?: unknown }).tag) {
+  switch ((e as { tag: DomainError_Tags }).tag) {
     case DomainError_Tags.InvalidAmount: /* e.inner trae los campos */ break;
     // … las nueve, y un default que asigne a `never`
   }
