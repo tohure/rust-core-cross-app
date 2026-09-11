@@ -2,10 +2,9 @@ import SwiftUI
 
 /// La navegación de la app y el pie de `coreVersion()` **visible en todas las pestañas**.
 ///
-/// Nace con **una sola pestaña, Aritmética**: las otras tres —Transferencia, Tarjeta y
-/// Benchmark— las agregan las Tasks 11, 12 y 13, cada una la suya, cuando sus pantallas
-/// existen. Preferible a un `TabView` de cuatro con placeholders: una pestaña sin
-/// contenido real sería código muerto.
+/// La Task 11 agregó Transferencia; Tarjeta y Benchmark las agregan las Tasks 12 y 13,
+/// cada una la suya, cuando sus pantallas existen. Preferible a un `TabView` de cuatro con
+/// placeholders: una pestaña sin contenido real sería código muerto.
 ///
 /// Sin librería de navegación: no hay back stack, ni argumentos, ni deep links. Una
 /// enumeración y un `TabView` alcanzan.
@@ -22,6 +21,10 @@ struct BancoApp: View {
             ArithmeticView(container: container)
                 .tabItem {
                     Label("Aritmética", systemImage: "plusminus")
+                }
+            TransferView(container: container)
+                .tabItem {
+                    Label("Transferencia", systemImage: "arrow.left.arrow.right")
                 }
         }
         .tint(Palette.brand)
