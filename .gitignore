@@ -12,6 +12,7 @@ __pycache__/
 # Artefactos generados por uniffi/ubrn — se regeneran, nunca se commitean
 # (ver el CONTEXT.md de cada app)
 /apps/android/app/src/main/jniLibs/
+/apps/android/app/src/main/java/uniffi/
 /apps/ios/CoreFinanciero.xcframework/
 /apps/ios/Generated/
 /apps/react-native/cpp/
@@ -33,3 +34,6 @@ xcuserdata/
 # Angular
 /apps/web-angular/.angular/
 /apps/web-angular/dist/
+
+# Índice de CodeGraph — generado, se reconstruye con `codegraph index`
+/.codegraph/

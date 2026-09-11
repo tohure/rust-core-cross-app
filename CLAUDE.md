@@ -92,8 +92,8 @@ Reglas derivadas, válidas en los cinco proyectos:
    regex, ninguna fórmula de cuota, ninguna tasa. Si estás escribiendo aritmética
    sobre montos en Kotlin, Swift o TS, estás haciendo lo contrario de lo que la POC
    demuestra. Única excepción permitida: los archivos `baseline` del benchmark
-   (`__benchmarks__/baseline.ts`, `features/benchmark/baseline.ts`, la baseline
-   Kotlin en `androidTest`), que existen justamente para exhibir la divergencia de
+   (`__benchmarks__/baseline.ts`, `features/benchmark/baseline.ts`, `ui/benchmark/NativeBaseline.kt`
+   en Android), que existen justamente para exhibir la divergencia de
    centavos y deben llevar un comentario que lo diga.
 3. **Ninguna librería de decimales en las apps** (`decimal.js`, `big.js`, etc.).
    Necesitarla es señal de que el cálculo está en el lugar equivocado. Para comparar
@@ -107,7 +107,7 @@ Reglas derivadas, válidas en los cinco proyectos:
 ## `contracts/cases.json` — el contrato compartido
 
 Es el artefacto central de la POC, no un detalle de testing. Un solo archivo de
-vectores golden que las cinco bases de código leen: Rust (`tests/`), Android
+vectores de contrato que las cinco bases de código leen: Rust (`tests/`), Android
 (`androidTest/`), iOS (`XCTest`, desde el bundle de test), React Native (Jest) y
 Angular (spec).
 
@@ -131,6 +131,10 @@ mismo hex. En producción eso sería catastrófico; ver [contracts/README.md](co
 
 ## Paridad entre apps
 
+Los wireframes, los labels exactos y el orden de campos están en
+**[docs/ui-spec.md](docs/ui-spec.md)**, normativo para las cuatro apps y única copia: los
+CONTEXT apuntan ahí en vez de repetir la lista.
+
 Las cuatro apps tienen las **mismas cinco pantallas, con los mismos labels y el mismo
 orden de campos**: Aritmética, Transferencia, Tarjeta, Benchmark, y el valor de
 `core_version()` visible al pie —la función se llama así en Rust; el binding generado es
@@ -144,16 +148,19 @@ construyó, así que hay que regenerar los cuatro desde el mismo HEAD antes de l
 
 ## Estado actual y flujo de trabajo (SDD con superpowers)
 
-**Fases 0 y 1 completadas. El núcleo existe y funciona; no hay todavía ninguna app.**
+**Fases 0, 1 y 2 completadas. El núcleo existe, funciona, y Android lo consume.**
 `rust-core/` tiene dos crates —`domain` (Rust puro, siete módulos) y `ffi` (paquete
 `core_financiero`, la fachada uniffi)— con ~1930 líneas de Rust, **67 tests en verde** y el
-**test golden pasando 28/28** contra `contracts/cases.json` **v2.3.0**. Los bindings Kotlin
+**test de contrato pasando 28/28** contra `contracts/cases.json` **v2.3.0**. Los bindings Kotlin
 y Swift se generaron y se verificó que las nueve funciones cruzan la frontera.
 
-Lo que **no** existe todavía: ni una línea de Kotlin, Swift o TypeScript. Lo que sigue
-—Fase 2, `apps/android`— es el primer consumidor real, y el primero que va a ejercitar el
-borde FFI de verdad: el golden de Rust llama a las funciones como funciones Rust ordinarias,
-así que nada cruzó JNI ni el ABI de C todavía.
+`apps/android/` es el primer consumidor real y **ya ejercita el borde FFI de verdad**: 35
+tests en verde —20 de JVM y 15 instrumentados sobre dispositivo, de los cuales 9 son el
+test de contrato—, las cuatro pantallas funcionando y el pie con `coreVersion()` visible en todas. Ver
+[apps/android/README.md](apps/android/README.md).
+
+Lo que **no** existe todavía: ni una línea de Swift o TypeScript. Lo que sigue es la Fase 3,
+`apps/ios`, espejo funcional de Android.
 
 Este proyecto se desarrolla con **Spec-Driven Development** usando el plugin
 `superpowers`. El flujo por fase es:
@@ -162,7 +169,7 @@ Este proyecto se desarrolla con **Spec-Driven Development** usando el plugin
 2. `superpowers:writing-plans` → plan en `docs/superpowers/plans/YYYY-MM-DD-<fase>.md`
 3. `superpowers:subagent-driven-development` (o `executing-plans` sin subagentes) → ejecución
 4. `superpowers:test-driven-development` durante la implementación —
-   aquí es literal: el test golden de `cases.json` se escribe **antes** que el cálculo
+   aquí es literal: el test de contrato de `cases.json` se escribe **antes** que el cálculo
 5. `superpowers:verification-before-completion` antes de declarar una fase terminada
 6. `superpowers:requesting-code-review` + `finishing-a-development-branch` para cerrar
 
@@ -181,7 +188,7 @@ Documentos vigentes:
 - Plan Fase 0: [docs/superpowers/plans/2026-09-08-phase-0-toolchain-and-contract.md](docs/superpowers/plans/2026-09-08-phase-0-toolchain-and-contract.md)
 - Spec Fase 1: [docs/superpowers/specs/2026-09-08-phase-1-rust-core-design.md](docs/superpowers/specs/2026-09-08-phase-1-rust-core-design.md) — decisiones D1-D6 del núcleo
 - Plan Fase 1: [docs/superpowers/plans/2026-09-08-phase-1-rust-core.md](docs/superpowers/plans/2026-09-08-phase-1-rust-core.md) — trece tareas, todas completas; su "Estado de ejecución" lista las seis desviaciones respecto del plan original
-- **Cierre de la Fase 1:** [rust-core/README.md](rust-core/README.md) — los comandos efectivamente ejecutados, el diagrama, qué prueba y qué no prueba el golden, y las dos cosas que **no** cruzan el FFI (el mapeo variante → nombre del contrato y los mensajes de error en español)
+- **Cierre de la Fase 1:** [rust-core/README.md](rust-core/README.md) — los comandos efectivamente ejecutados, el diagrama, qué prueba y qué no prueba el test de contrato, y las dos cosas que **no** cruzan el FFI (el mapeo variante → nombre del contrato y los mensajes de error en español)
 - Ledger de ejecución de la Fase 1: `.superpowers/sdd/2026-09-08-phase-1-rust-core/progress.md` — las rulings tarea por tarea y la evidencia de cada review
 
 ## Fases de desarrollo
@@ -201,7 +208,7 @@ El orden no es negociable: lo impone el grafo de dependencias de build de arriba
 - **Fase 1 — `rust-core`.** ✅ **Completada.** Workspace y los dos crates: `domain` (Rust
   puro, con los módulos `arithmetic`, `card`, `cci`, `crypto`, `error`, `itf`, `transfer`) y
   `ffi` (paquete `core_financiero`, la fachada uniffi). Entregó **67 tests en verde** —47
-  unitarios de `domain`, 6 de `proptest`, 3 del lib de `ffi` y 11 del golden— y el **golden
+  unitarios de `domain`, 6 de `proptest`, 3 del lib de `ffi` y 11 del test de contrato— y el **contrato
   28/28** contra `cases.json` v2.3.0, sin haber corregido un solo valor esperado para que
   pasara. El contrato subió de v2.1.0 a v2.3.0 durante la fase: la v2.2.0 agregó `itf-005`,
   el único caso que distingue `MidpointAwayFromZero` de banker's rounding (los cuatro casos
@@ -212,18 +219,23 @@ El orden no es negociable: lo impone el grafo de dependencias de build de arriba
   dejaba de valer.
   Fue la única fase donde se decidió lógica de negocio. Ver
   [rust-core/README.md](rust-core/README.md).
-- **Fase 2 — `apps/android`.** Primer consumidor: valida el pipeline uniffi + el test
-  golden en una plataforma real.
+- **Fase 2 — `apps/android`.** ✅ **Completada.** Primer consumidor real: validó el pipeline
+  uniffi y el test de contrato sobre un dispositivo. Entregó **35 tests en verde** —20 de JVM con
+  `FakeCoreFinanciero` y 15 instrumentados que sí cruzan el FFI, de los cuales 9 son el
+  test de contrato— y las cuatro pantallas de [docs/ui-spec.md](docs/ui-spec.md). Fue la fase que
+  probó lo que el test de contrato de Rust no podía: `System.loadLibrary`, la resolución de símbolos
+  de JNA, y que el `strip` del perfil release no se comiera nada. Ver
+  [apps/android/README.md](apps/android/README.md).
 - **Fase 3 — `apps/ios`.** Espejo funcional de Android.
 - **Fase 4 — `apps/react-native`.** Turbo Module vía `ubrn`. Desbloquea la fase 5.
 - **Fase 5 — `apps/web-angular`.** Consume el WASM producido en la fase 4.
 
 Cada fase termina con tres cosas, no una:
 
-1. **Su test golden en verde** contra `cases.json`.
+1. **Su test de contrato en verde** contra `cases.json`.
 2. **El `README.md` de su subproyecto** — `rust-core/README.md` en la Fase 1,
    `apps/<plataforma>/README.md` de la Fase 2 en adelante — con los comandos
-   **efectivamente ejecutados** para construir, correr la demo y correr el golden. Se
+   **efectivamente ejecutados** para construir, correr la demo y correr el test de contrato. Se
    escribe al final de la fase copiando comandos que ya corrieron, nunca deducidos del
    CONTEXT: un README con comandos sin ejecutar se descubre roto el día de la demo, que
    es el único día que importa.
@@ -249,7 +261,7 @@ HTTP, SQLite, runtime async, optimización de performance antes de que exista el
 
 ### Ramas y commits
 
-Una rama por fase, mergeada a `main` recién cuando su test golden pasa:
+Una rama por fase, mergeada a `main` recién cuando su test de contrato pasa:
 
 | Fase | Rama |
 |---|---|
@@ -285,7 +297,7 @@ y cada instalación se verifica antes de seguir.
 |---|---|---|
 | 0 | `rustup` + stable + clippy + rustfmt — ✅ **hecho** (1.98.1) | `cargo --version` |
 | 1 | nada — ✅ **hecho** (crates puros, se testean en el host) | `cargo test --workspace` → 67 passed |
-| 2 | `cargo install cargo-ndk` + 3 targets Android | `cargo ndk --version` |
+| 2 | `cargo install cargo-ndk` + 3 targets Android — ✅ **hecho** (cargo-ndk 4.1.2, NDK 30.0.16248370) | `cargo ndk --version`; `./gradlew :app:connectedDebugAndroidTest` → 15 passed |
 | 3 | 2 targets iOS (`aarch64-apple-ios`, `-sim`) | `rustup target list --installed` |
 | 4 | `uniffi-bindgen-react-native` en `apps/react-native` | `npx ubrn --version` |
 | 5 | target `wasm32-unknown-unknown` + Angular CLI | `ng version` |
@@ -297,7 +309,7 @@ Los comandos exactos están en el plan de cada fase.
 cargo test --workspace              # todo: 67 tests
 cargo test -p domain                # un solo crate, sin compilar uniffi
 cargo test -p domain rounds_half_away_from_zero_not_to_even   # un solo test por nombre
-cargo test -p core_financiero --test golden       # los vectores y las guardias del contrato
+cargo test -p core_financiero --test contract       # los vectores y las guardias del contrato
 cargo clippy --workspace --all-targets -- -D warnings
 cargo fmt --all
 ```

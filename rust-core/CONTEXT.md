@@ -53,7 +53,7 @@ rust-core/
 │       ├── src/lib.rs            uniffi::export, los Record y DomainError con piel de uniffi
 │       ├── build.rs              inyecta el SHA de git para core_version()
 │       ├── uniffi-bindgen.rs     el [[bin]] que genera los bindings
-│       └── tests/golden.rs       los 28 casos de ../contracts/cases.json
+│       └── tests/contract.rs       los 28 casos de ../contracts/cases.json
 ```
 
 `domain` NO conoce uniffi. Solo `ffi` depende de uniffi, y eso **no es una convención**:
@@ -159,7 +159,7 @@ dos veces —`domain::DomainError`, sin uniffi, y este, con la piel de uniffi—
 hacia `contracts/cases.json` es `DomainError::contract_name()`, que devuelve `"MismaCuenta"`
 para `SameAccount` y así con las nueve. **Ese método es Rust y no cruza el FFI:** en Kotlin
 y Swift el enum generado trae solo los nombres en inglés, así que cada app necesita escribir
-ese mapeo de nueve líneas **en su test golden**, no en producción. Si diverge, el golden de
+ese mapeo de nueve líneas **en su test de contrato**, no en producción. Si diverge, el test de contrato de
 esa app falla contra el contrato. Ver `rust-core/README.md`.
 
 `core_version()` devuelve versión del crate + SHA corto de git, inyectados en
@@ -235,11 +235,11 @@ Tres niveles, los tres obligatorios:
    - `validate_cci`, `validate_card` y `decrypt` **nunca entran en pánico** con
      ninguna entrada de texto. Es un test de seguridad, no solo de robustez:
      estas funciones reciben input arbitrario del usuario.
-3. **Vectores golden** desde `../contracts/cases.json`. Este archivo es el
+3. **Vectores de contrato** desde `../contracts/cases.json`. Este archivo es el
    contrato compartido con las cuatro apps: cada plataforma corre los mismos
    casos y debe producir strings idénticos carácter por carácter.
 
-El golden vive en **`crates/ffi/tests/golden.rs`**, dentro del paquete `ffi`, y no en
+El test de contrato vive en **`crates/ffi/tests/contract.rs`**, dentro del paquete `ffi`, y no en
 `rust-core/tests/` como decía antes este documento. La razón es mecánica y se descubrió al
 implementarlo: `rust-core/` es un **workspace virtual**, sin paquete raíz, y un directorio
 `tests/` en la raíz de un workspace así **nunca se compila ni se ejecuta**. Puesto ahí, el
@@ -254,7 +254,11 @@ El formato de `cases.json` y la especificación normativa de cada algoritmo est�
 ```bash
 # Android: .so por ABI + Kotlin
 cargo ndk -t arm64-v8a -t armeabi-v7a -t x86_64 -o ../apps/android/app/src/main/jniLibs build --release
-cargo run --bin uniffi-bindgen -- generate --library target/release/libcore_financiero.so \
+# bindgen lee el `.dylib` del **host**, NO el `.so` de Android, por dos razones verificadas
+# en la Fase 2: en macOS el host no produce `.so` (produce `.dylib`), y el `.so` de Android
+# sale con `strip = true` del perfil release, que borra la metadata de uniffi — apuntarle da
+# "No UniFFI metadata found". Los bindings no dependen de la arquitectura.
+cargo run --bin uniffi-bindgen -- generate --library target/release/libcore_financiero.dylib \
   --language kotlin --out-dir ../apps/android/app/src/main/java
 
 # iOS: XCFramework + Swift

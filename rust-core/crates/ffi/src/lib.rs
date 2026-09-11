@@ -31,7 +31,7 @@ pub enum DomainError {
 }
 
 impl DomainError {
-    /// Espejo de `domain::DomainError::contract_name()`. Lo usa el golden.
+    /// Espejo de `domain::DomainError::contract_name()`. Lo usa el test de contrato.
     pub fn contract_name(&self) -> &'static str {
         match self {
             Self::Length { .. } => "Longitud",
@@ -256,7 +256,7 @@ mod tests {
     /// dominio —eso lo garantiza el compilador—, pero no protege contra cambiar un
     /// *string*: renombrar `"Cifrado"` en `domain/src/error.rs` y olvidarlo acá compila y
     /// pasa todo lo demás. Y tres de estos nombres (`BancoDesconocido`, `Cifrado`,
-    /// `FueraDeRango`) no aparecen en `contracts/cases.json`, así que el golden tampoco
+    /// `FueraDeRango`) no aparecen en `contracts/cases.json`, así que el test de contrato tampoco
     /// los cubre: para esos tres, este test es la única guardia que existe.
     #[test]
     fn the_domain_error_translates_preserving_its_name() {

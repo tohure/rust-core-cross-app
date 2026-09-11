@@ -4,7 +4,7 @@ Núcleo de dominio de la POC. Es el único lugar donde vive lógica de negocio: 
 apps lo consumen sin reescribirlo.
 
 **Estado: Fase 1 completada.** 67 tests en verde —47 unitarios de `domain`, 6 de `proptest`,
-3 del lib de `ffi` y 11 del golden— contra `contracts/cases.json` v2.3.0, 28 casos.
+3 del lib de `ffi` y 11 del test de contrato— contra `contracts/cases.json` v2.3.0, 28 casos.
 
 Todos los comandos de este README **se ejecutaron tal como están escritos**, desde
 `rust-core/`, y la salida que sigue a cada uno es la que devolvieron. Ninguno está deducido
@@ -21,7 +21,7 @@ graph TD
     bindings["target/release/libcore_financiero.dylib<br/>+ bindings Kotlin / Swift"]
 
     ffi --> domain
-    ffi -. "tests/golden.rs lee" .-> contrato
+    ffi -. "tests/contract.rs lee" .-> contrato
     ffi ==> bindings
 ```
 
@@ -45,7 +45,7 @@ de la stdlib, y `#[derive(thiserror::Error)]` deja de compilar con `cannot find 
 ```bash
 cargo test --workspace                                        # todo: 67 tests
 cargo test -p domain                                          # solo el núcleo, sin compilar uniffi
-cargo test -p core_financiero --test golden                   # los 28 casos + las guardias
+cargo test -p core_financiero --test contract                   # los 28 casos + las guardias
 cargo test -p domain rounds_half_away_from_zero_not_to_even   # un solo test por nombre
 cargo clippy --workspace --all-targets -- -D warnings
 cargo fmt --all
@@ -58,26 +58,26 @@ doc-tests— reportan `0 passed`, que es lo esperado:
 | Binario | Tests |
 |---|---|
 | `crates/ffi/src/lib.rs` (unitarias del lib) | 3 |
-| `crates/ffi/tests/golden.rs` | 11 |
+| `crates/ffi/tests/contract.rs` | 11 |
 | `crates/domain/src/**` (unitarias del lib) | 47 |
 | `crates/domain/tests/properties.rs` (`proptest`) | 6 |
 | **Total** | **67** |
 
-`cargo test -p core_financiero --test golden` imprime:
+`cargo test -p core_financiero --test contract` imprime:
 
 ```
 running 11 tests
 test every_error_name_in_the_contract_has_a_user_message ... ok
-test golden_itf ... ok
-test golden_arithmetic ... ok
-test golden_transfer ... ok
+test contract_itf ... ok
+test contract_arithmetic ... ok
+test contract_transfer ... ok
 test the_contract_has_no_unknown_top_level_keys ... ok
 test the_messages_file_covers_the_nine_error_variants ... ok
 test the_contract_is_the_expected_version ... ok
 test the_contract_has_the_expected_number_of_cases ... ok
 test the_messages_file_has_the_expected_shape ... ok
-test golden_cci ... ok
-test golden_card ... ok
+test contract_cci ... ok
+test contract_card ... ok
 
 test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
 ```
@@ -85,11 +85,11 @@ test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; fin
 El orden de las once líneas **varía entre corridas** —los tests corren en paralelo—; lo que
 no varía es el `11 passed; 0 failed` del cierre.
 
-## El golden: qué prueba, qué no prueba y dónde vive
+## El test de contrato: qué prueba, qué no prueba y dónde vive
 
 ### Por qué vive en `crates/ffi/tests/`
 
-El golden está en `crates/ffi/tests/golden.rs` y **no** en `rust-core/tests/`. La razón es
+El test de contrato está en `crates/ffi/tests/contract.rs` y **no** en `rust-core/tests/`. La razón es
 mecánica: `rust-core/` es un workspace virtual, sin paquete raíz, y un directorio `tests/`
 en la raíz de un workspace así **nunca se compila ni se ejecuta**. El test más importante
 de la fase habría figurado como "pasado" sin haber corrido una sola vez. Dentro del paquete
@@ -108,12 +108,12 @@ Llama a las funciones del crate `ffi` **como funciones Rust ordinarias**. Prueba
 pública y el mapeo de tipos entre `domain` y la fachada; **no prueba el borde FFI real**:
 nada cruza JNI, ni el ABI de C, ni el `catch_unwind` de uniffi. Un fallo de carga en runtime
 —`System.loadLibrary`, JNA, símbolos comidos por el `strip`— no lo caza este test. Eso se
-prueba recién con el golden de `androidTest` en la Fase 2, corriendo el mismo `cases.json`
+prueba recién con el test de contrato de `androidTest` en la Fase 2, corriendo el mismo `cases.json`
 contra el `.so` de verdad.
 
 ### Sus seis guardias, y el hueco que queda abierto
 
-Cinco `golden_*` ejercitan los casos; los otros seis tests existen para que esos cinco no
+Cinco `contract_*` ejercitan los casos; los otros seis tests existen para que esos cinco no
 puedan mentir, y para que el segundo archivo del contrato —`contracts/messages.es.json`—
 no se desincronice del core:
 
@@ -121,7 +121,7 @@ no se desincronice del core:
 |---|---|
 | `the_contract_is_the_expected_version` | que el contrato deje de ser v2.3.0 |
 | `the_contract_has_the_expected_number_of_cases` | un grupo vaciado a `[]` o renombrado |
-| `the_contract_has_no_unknown_top_level_keys` | un grupo nuevo que ningún `golden_*` lee |
+| `the_contract_has_no_unknown_top_level_keys` | un grupo nuevo que ningún `contract_*` lee |
 | `the_messages_file_has_the_expected_shape` | una clave de primer nivel nueva o renombrada en `messages.es.json` |
 | `the_messages_file_covers_the_nine_error_variants` | una variante del core sin mensaje de usuario, o un mensaje presente pero vacío |
 | `every_error_name_in_the_contract_has_a_user_message` | un error que `cases.json` espera y `messages.es.json` no tiene |
@@ -130,12 +130,12 @@ Ninguna se verificó por lectura: las seis se rompieron a propósito y se miró 
 
 | Mutación | Qué reportó |
 |---|---|
-| `cci` vaciado a `[]` | sin la guardia, `golden_cci ... ok` en verde sin comparar un solo string |
+| `cci` vaciado a `[]` | sin la guardia, `contract_cci ... ok` en verde sin comparar un solo string |
 | se borra la entrada `"Cifrado"` de `messages.es.json` | `sobran: [], faltan: ["Cifrado"]` |
 | el mensaje de `MismaCuenta` se vacía a `""` | `el mensaje de MismaCuenta está vacío` — la igualdad de conjuntos sola lo dejaba pasar |
 | `"MismaCuenta"` renombrada a `"MismaCuentaX"` | dos fallos: la igualdad de conjuntos, y `el caso tr-005 del grupo transferencia espera el error MismaCuenta` |
 
-Cada `golden_*` además cuenta los casos que ejercitó y lo aserta contra una constante
+Cada `contract_*` además cuenta los casos que ejercitó y lo aserta contra una constante
 propia; `every_error_name_in_the_contract_has_a_user_message` lleva el mismo contador, por
 la misma razón: un `cases.json` sin casos de error pasaría en verde sin comparar nada.
 
@@ -148,7 +148,7 @@ Verificado agregándola de verdad: son tres puertas, y saltan **en orden**.
 | # | Dónde | Qué dice |
 |---|---|---|
 | 1 | `crates/ffi/src/lib.rs:53` | `non-exhaustive patterns: domain::DomainError::TenthVariant not covered` — es el `From` que traduce el error del núcleo a la fachada |
-| 2 | `crates/ffi/tests/golden.rs:59` | el mismo error sobre `core_financiero::DomainError`, una vez arreglada la puerta 1 |
+| 2 | `crates/ffi/tests/contract.rs:59` | el mismo error sobre `core_financiero::DomainError`, una vez arreglada la puerta 1 |
 | 3 | `the_messages_file_covers_the_nine_error_variants` | recién con la variante en la lista, el test falla nombrando el mensaje que falta |
 
 La puerta 2 es la que no es obvia, y la que no hay que borrar. Sin ella, la lista de nueve
@@ -158,9 +158,9 @@ las cuatro apps sin mensaje de usuario. Que es, en pantalla, un cuadro de error 
 uniffi arma el `message` desde los campos de la variante, y para una variante sin campos
 eso es el string vacío.
 
-**Hueco conocido y aceptado, uno:** borrar una función `golden_*` **entera** no lo caza
+**Hueco conocido y aceptado, uno:** borrar una función `contract_*` **entera** no lo caza
 ninguna guardia — el contador se borra junto con la función, y ni el conteo por grupo ni el
-set de claves saben qué funciones existen. Verificado: borrando `golden_cci` la corrida da
+set de claves saben qué funciones existen. Verificado: borrando `contract_cci` la corrida da
 diez tests, todo verde, sin un warning. Cerrarlo requeriría extraer los cinco cuerpos a
 funciones normales referenciadas desde una tabla `[(&str, fn(&Value)); 5]`, para que borrar
 una rompa la compilación o dispare `dead_code` en clippy; no se hizo porque colapsaría los
@@ -293,6 +293,40 @@ la superficie pública, y ahí no hay ninguno. `Vec<Account>` se mapea a `List<A
 `[Account]` en Swift. Ojo con el nombre del enum de error, que **difiere por lenguaje**:
 `DomainException` en Kotlin, `DomainError` en Swift.
 
+### El `.so` de Android NO sirve para generar bindings
+
+Verificado en la Fase 2, y vale la pena porque el error no dice la causa. El comando que uno
+escribiría —apuntarle al `.so` que produjo `cargo ndk`— falla así:
+
+```
+No UniFFI metadata found in target/aarch64-linux-android/release/libcore_financiero.so
+```
+
+Dos razones independientes, cualquiera de las dos alcanza:
+
+1. **El perfil de release lleva `strip = true`**, que borra los símbolos de metadata que
+   `uniffi-bindgen` necesita leer. El `.so` que se embarca en el APK está stripeado a
+   propósito —el tamaño del binario es criterio de la demo—, así que esto no se "arregla":
+   se evita.
+2. **En macOS el host no produce `.so`, produce `.dylib`.** Cualquier comando que diga
+   `target/release/libcore_financiero.so` no puede funcionar en esta máquina, porque ese
+   archivo no existe. `rust-core/CONTEXT.md` lo decía así y estaba roto; se corrigió.
+
+**Se usa siempre el `.dylib` del host, para Kotlin y para Swift.** Los bindings que emite
+uniffi no dependen de la arquitectura: son el mismo archivo salga de donde salga. Es el mismo
+razonamiento que ya estaba escrito para iOS, donde bindgen lee el `.a` del host y los `.a`
+por arquitectura existen solo para armar el XCFramework.
+
+La consecuencia práctica es que **hay que haber construido el host al menos una vez** antes
+de generar bindings para cualquier plataforma:
+
+```bash
+cargo build --release            # produce target/release/libcore_financiero.dylib
+```
+
+Los comandos de exportación completos, con su salida real, están en
+[apps/android/README.md](../apps/android/README.md).
+
 ### El modulemap de Swift no se llama `module.modulemap`
 
 uniffi 0.32 nombra el modulemap según el crate: genera **`core_financieroFFI.modulemap`**.
@@ -351,10 +385,10 @@ Consecuencia práctica, y es lo primero que va a chocar en la Fase 2: **cada app
 escribir esas nueve líneas de mapeo variante → nombre del contrato.** Y van en código de
 producción, no solo en el test: `contracts/messages.es.json` indexa los mensajes de usuario
 por el nombre del contrato, así que la pantalla de error necesita ese mapeo tanto como el
-golden.
+test de contrato.
 
-Se escribe **una vez** y el golden reusa ese mismo, en vez de tener el suyo. Compartirlo es
-más fuerte que duplicarlo: así el golden verifica contra `cases.json` el mapeo que la UI usa
+Se escribe **una vez** y el test de contrato reusa ese mismo, en vez de tener el suyo. Compartirlo es
+más fuerte que duplicarlo: así el test de contrato verifica contra `cases.json` el mapeo que la UI usa
 de verdad, y no una copia que puede divergir de ella en silencio. Esa es exactamente la
 garantía que el contrato compartido existe para dar.
 
@@ -446,7 +480,7 @@ reescritos como texto de usuario — el `#[error]` es un diagnóstico para quien
 que las cuatro apps leen igual que `cases.json`, indexados por el nombre del contrato
 (`Longitud`, `DigitoControl`, …) en vez de por el de la variante. Los dos textos son el
 mismo y no pueden divergir: si se cambia uno, se cambia el otro. La guardia está en el
-golden —`the_messages_file_covers_the_nine_error_variants`— y el porqué del archivo, en
+test de contrato —`the_messages_file_covers_the_nine_error_variants`— y el porqué del archivo, en
 [contracts/README.md](../contracts/README.md).
 
 | Variante | Mensaje de usuario |
@@ -474,7 +508,7 @@ Cuatro detalles que hacen la diferencia entre que esto funcione y que no:
    Amex válida tiene 15). Decir "se esperaban 16 dígitos" sería mentir en el caso de Amex, así
    que el mensaje de usuario no promete ninguna cantidad. `expected` y `received` siguen
    estando en el objeto de error, para el log.
-3. **`Encryption` y `OutOfRange` no tienen caso en `cases.json`**, así que ningún golden los
+3. **`Encryption` y `OutOfRange` no tienen caso en `cases.json`**, así que ningún test de contrato los
    compara: para estos dos, esta tabla es la única fuente de verdad que existe.
 4. **`{field}` de `OutOfRange` llega en español desde el core** (`"marca"`, `"monto"`), igual
    que `{code}` e `{id}`. No hay que traducirlo.

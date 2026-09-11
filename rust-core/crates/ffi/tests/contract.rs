@@ -7,7 +7,7 @@
 //! Este archivo lo van a espejar Kotlin, Swift y TypeScript, así que las guardias valen
 //! por cuatro. Son cuatro, en orden de cercanía al caso:
 //!
-//! - cada `golden_*` cuenta los casos que ejercitó y lo aserta al cerrar, así que un
+//! - cada `contract_*` cuenta los casos que ejercitó y lo aserta al cerrar, así que un
 //!   grupo vaciado hace fallar al test que lo lee y no solo a una tabla lejana;
 //! - `the_contract_has_the_expected_number_of_cases` fija el tamaño de cada grupo;
 //! - `the_contract_has_no_unknown_top_level_keys` fija qué grupos existen;
@@ -148,7 +148,7 @@ fn the_contract_is_the_expected_version() {
     assert_eq!(field(&contract(), "version"), "2.3.0");
 }
 
-/// Guardia contra el golden que reporta éxito sin haber ejercitado nada.
+/// Guardia contra el test de contrato que reporta éxito sin haber ejercitado nada.
 ///
 /// Dos razones por las que este test vale:
 ///
@@ -157,7 +157,7 @@ fn the_contract_is_the_expected_version() {
 ///    bases de código, y crecerlo es un acto consciente, no algo que se cuela por
 ///    descuido en una sola de ellas.
 /// 2. Sin esta guardia, un grupo vaciado o renombrado a la mitad pasaría en verde: un
-///    `for` sobre cero elementos no aserta nada, así que los `golden_*` dirían "ok" sin
+///    `for` sobre cero elementos no aserta nada, así que los `contract_*` dirían "ok" sin
 ///    haber comparado un solo string. Es exactamente la misma clase de fallo que motivó
 ///    poner este archivo dentro del paquete `ffi` y no en la raíz del workspace.
 #[test]
@@ -196,19 +196,19 @@ fn the_contract_has_the_expected_number_of_cases() {
 
 /// Guardia contra el grupo que nadie lee. Un escalón por encima del conteo.
 ///
-/// Un grupo de casos nuevo que ninguna función `golden_*` lea pasaría en verde sin
+/// Un grupo de casos nuevo que ninguna función `contract_*` lea pasaría en verde sin
 /// comparar un solo string — igual que un grupo vacío, y por el mismo motivo: lo que no
 /// se recorre no aserta nada. La diferencia es que el conteo no puede cazarlo, porque un
 /// grupo desconocido no está en su tabla.
 ///
-/// Por eso agregar un grupo al contrato **obliga** a agregarle acá su función `golden_*`
+/// Por eso agregar un grupo al contrato **obliga** a agregarle acá su función `contract_*`
 /// y a sumarlo a esta lista, y lo mismo en las otras tres plataformas. Es la misma
 /// fricción deliberada del conteo: `contracts/cases.json` lo leen cinco bases de código,
 /// y que una se quede atrás sin que nada falle es justo lo que la POC no puede permitirse.
 #[test]
 fn the_contract_has_no_unknown_top_level_keys() {
     // Las doce claves del contrato v2.3.0: seis de metadatos, cinco grupos de casos, y
-    // `cuentas_iniciales`, que `golden_transfer` usa como fixture y no como casos.
+    // `cuentas_iniciales`, que `contract_transfer` usa como fixture y no como casos.
     const KNOWN: [&str; 12] = [
         "version",
         "moneda",
@@ -241,7 +241,7 @@ fn the_contract_has_no_unknown_top_level_keys() {
         extra.is_empty() && missing.is_empty(),
         "las claves de primer nivel de cases.json no son las conocidas — sobran: {extra:?}, \
          faltan: {missing:?}. Si es un grupo de casos nuevo, no alcanza con agregarlo al \
-         contrato: necesita su propia función `golden_*` acá y en las otras tres plataformas"
+         contrato: necesita su propia función `contract_*` acá y en las otras tres plataformas"
     );
 }
 
@@ -323,7 +323,7 @@ fn the_messages_file_covers_the_nine_error_variants() {
 /// son un subconjunto de los nueve. Este test existe igual porque **no compara contra los
 /// nueve sino contra lo que el contrato usa de verdad**, y ese es el recorrido que Kotlin,
 /// Swift y TypeScript pueden espejar sin tener acceso a `contract_name()`. Lleva contador,
-/// como los `golden_*`: sin él, un `cases.json` sin casos de error pasaría en verde.
+/// como los `contract_*`: sin él, un `cases.json` sin casos de error pasaría en verde.
 #[test]
 fn every_error_name_in_the_contract_has_a_user_message() {
     // Los diez casos con `error` del contrato v2.3.0, sobre seis nombres distintos:
@@ -376,7 +376,7 @@ fn every_error_name_in_the_contract_has_a_user_message() {
 }
 
 #[test]
-fn golden_arithmetic() {
+fn contract_arithmetic() {
     // El contador se aserta al cerrar: si el grupo llegara vacío, el `for` no compararía
     // nada y este test pasaría en verde sin el assert final.
     const EXPECTED_CASES: usize = 6;
@@ -401,13 +401,13 @@ fn golden_arithmetic() {
 
     assert_eq!(
         exercised, EXPECTED_CASES,
-        "golden_arithmetic ejercitó {exercised} casos y el grupo `aritmetica` declara {EXPECTED_CASES}"
+        "contract_arithmetic ejercitó {exercised} casos y el grupo `aritmetica` declara {EXPECTED_CASES}"
     );
 }
 
 #[test]
-fn golden_itf() {
-    // Ver `golden_arithmetic`: el contador es lo que impide pasar en verde sin ejercitar.
+fn contract_itf() {
+    // Ver `contract_arithmetic`: el contador es lo que impide pasar en verde sin ejercitar.
     const EXPECTED_CASES: usize = 5;
     let mut exercised = 0;
 
@@ -421,13 +421,13 @@ fn golden_itf() {
 
     assert_eq!(
         exercised, EXPECTED_CASES,
-        "golden_itf ejercitó {exercised} casos y el grupo `itf` declara {EXPECTED_CASES}"
+        "contract_itf ejercitó {exercised} casos y el grupo `itf` declara {EXPECTED_CASES}"
     );
 }
 
 #[test]
-fn golden_cci() {
-    // Ver `golden_arithmetic`: el contador es lo que impide pasar en verde sin ejercitar.
+fn contract_cci() {
+    // Ver `contract_arithmetic`: el contador es lo que impide pasar en verde sin ejercitar.
     const EXPECTED_CASES: usize = 4;
     let mut exercised = 0;
 
@@ -470,13 +470,13 @@ fn golden_cci() {
 
     assert_eq!(
         exercised, EXPECTED_CASES,
-        "golden_cci ejercitó {exercised} casos y el grupo `cci` declara {EXPECTED_CASES}"
+        "contract_cci ejercitó {exercised} casos y el grupo `cci` declara {EXPECTED_CASES}"
     );
 }
 
 #[test]
-fn golden_card() {
-    // Ver `golden_arithmetic`: el contador es lo que impide pasar en verde sin ejercitar.
+fn contract_card() {
+    // Ver `contract_arithmetic`: el contador es lo que impide pasar en verde sin ejercitar.
     const EXPECTED_CASES: usize = 6;
     let mut exercised = 0;
 
@@ -524,13 +524,13 @@ fn golden_card() {
 
     assert_eq!(
         exercised, EXPECTED_CASES,
-        "golden_card ejercitó {exercised} casos y el grupo `tarjeta` declara {EXPECTED_CASES}"
+        "contract_card ejercitó {exercised} casos y el grupo `tarjeta` declara {EXPECTED_CASES}"
     );
 }
 
 #[test]
-fn golden_transfer() {
-    // Ver `golden_arithmetic`: el contador es lo que impide pasar en verde sin ejercitar.
+fn contract_transfer() {
+    // Ver `contract_arithmetic`: el contador es lo que impide pasar en verde sin ejercitar.
     const EXPECTED_CASES: usize = 7;
     let mut exercised = 0;
 
@@ -640,6 +640,6 @@ fn golden_transfer() {
 
     assert_eq!(
         exercised, EXPECTED_CASES,
-        "golden_transfer ejercitó {exercised} casos y el grupo `transferencia` declara {EXPECTED_CASES}"
+        "contract_transfer ejercitó {exercised} casos y el grupo `transferencia` declara {EXPECTED_CASES}"
     );
 }
