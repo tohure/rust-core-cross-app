@@ -21,16 +21,16 @@ Dos suites, y la distinción importa: una corre en la JVM y la otra **sobre un d
 ./gradlew :app:testDebugUnitTest
 ```
 
-Qué se debe ver — `BUILD SUCCESSFUL` y **20 tests, 0 failures**, en siete clases:
+Qué se debe ver — `BUILD SUCCESSFUL` y **25 tests, 0 failures**, en siete clases:
 
 | Clase | Tests |
 |---|---|
 | `format.MoneyFormatterTest` | 3 |
 | `adapter.ContractMessagesTest` | 3 |
-| `adapter.UniffiCoreFinancieroContractTest` | 2 |
+| `adapter.CoreFinancieroAdapterTest` | 2 |
 | `ui.arithmetic.ArithmeticViewModelTest` | 4 |
-| `ui.transfer.TransferViewModelTest` | 5 |
-| `ui.card.CardViewModelTest` | 2 |
+| `ui.transfer.TransferViewModelTest` | 6 |
+| `ui.card.CardViewModelTest` | 6 |
 | `ui.benchmark.NativeBaselineTest` | 1 |
 
 ```bash

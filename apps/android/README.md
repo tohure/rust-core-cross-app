@@ -6,7 +6,7 @@ otras tres apps de la POC (iOS, React Native, Angular) consumen **sin reescribir
 
 Lo que esta app hace con los datos es pedirlos y mostrarlos.
 
-**Estado:** funcional. 35 tests en verde, las cuatro pantallas andando.
+**Estado:** funcional. 40 tests en verde, las cuatro pantallas andando.
 
 | | |
 |---|---|

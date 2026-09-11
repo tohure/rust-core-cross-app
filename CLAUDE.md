@@ -154,8 +154,8 @@ construyó, así que hay que regenerar los cuatro desde el mismo HEAD antes de l
 **test de contrato pasando 28/28** contra `contracts/cases.json` **v2.3.0**. Los bindings Kotlin
 y Swift se generaron y se verificó que las nueve funciones cruzan la frontera.
 
-`apps/android/` es el primer consumidor real y **ya ejercita el borde FFI de verdad**: 35
-tests en verde —20 de JVM y 15 instrumentados sobre dispositivo, de los cuales 9 son el
+`apps/android/` es el primer consumidor real y **ya ejercita el borde FFI de verdad**: 40
+tests en verde —25 de JVM y 15 instrumentados sobre dispositivo, de los cuales 9 son el
 test de contrato—, las cuatro pantallas funcionando y el pie con `coreVersion()` visible en todas. Ver
 [apps/android/README.md](apps/android/README.md).
 
@@ -220,7 +220,7 @@ El orden no es negociable: lo impone el grafo de dependencias de build de arriba
   Fue la única fase donde se decidió lógica de negocio. Ver
   [rust-core/README.md](rust-core/README.md).
 - **Fase 2 — `apps/android`.** ✅ **Completada.** Primer consumidor real: validó el pipeline
-  uniffi y el test de contrato sobre un dispositivo. Entregó **35 tests en verde** —20 de JVM con
+  uniffi y el test de contrato sobre un dispositivo. Entregó **40 tests en verde** —25 de JVM con
   `FakeCoreFinanciero` y 15 instrumentados que sí cruzan el FFI, de los cuales 9 son el
   test de contrato— y las cuatro pantallas de [docs/ui-spec.md](docs/ui-spec.md). Fue la fase que
   probó lo que el test de contrato de Rust no podía: `System.loadLibrary`, la resolución de símbolos
