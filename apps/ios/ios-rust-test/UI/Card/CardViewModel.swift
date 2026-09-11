@@ -76,11 +76,6 @@ final class CardViewModel {
         }
     }
 
-    func clearErrors() {
-        state.encryptError = nil
-        state.decryptError = nil
-    }
-
     private func clearEncryptResult() {
         state.brand = ""
         state.masked = ""

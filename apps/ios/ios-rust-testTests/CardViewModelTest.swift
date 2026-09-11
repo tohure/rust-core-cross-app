@@ -91,5 +91,20 @@ struct CardViewModelTest {
         #expect(vm.state.cipherHex.isEmpty)
     }
 
+    @Test("descifrar un hex pegado de otra plataforma llena el número recuperado")
+    func decryptingAPastedHexFillsTheRecoveredNumber() throws {
+        let core = FakeCoreFinanciero()
+        // El hex de `tj-002`, el que produce cualquiera de las cuatro apps para la
+        // Mastercard. El fake responde SOLO a ese: así el test prueba que el ViewModel le
+        // pasa al core el hex que el usuario pegó, no que el fake devuelve lo que le dijeron.
+        let tj002 = "bcce3d351c22907582b60ac6ac293a57e26c8e6007abc9a2b0c323bf74184036"
+        core.decryptResult = { hex in hex == tj002 ? "5555555555554444" : "" }
+        let vm = try makeViewModel(core)
+        vm.pastedHexChanged(tj002)
+        vm.decryptPasted()
+        #expect(vm.state.recovered == "5555555555554444")
+        #expect(vm.state.decryptError == nil)
+    }
+
     private final class BundleToken {}
 }
