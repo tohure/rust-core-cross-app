@@ -6,7 +6,7 @@
 
 **Architecture:** `rust-core` baja a uniffi 0.31 porque `ubrn` fija `=0.31` (paso cero, con re-verificación de Android e iOS). Después, `apps/react-native` es una librería `create-react-native-library` tipo turbo module: posee la frontera nativa (`cpp/`, `src/generated*/`, podspec, `CMakeLists.txt`) y expone una sola superficie de nueve funciones TypeScript; `example/` tiene las cuatro pantallas y nunca importa uniffi. Tres flavours generados en tres directorios separados: JSI para la app, N-API y `wasm2` para los dos tests de contrato.
 
-**Tech Stack:** Rust 1.98.1 · uniffi 0.31.2 · uniffi-bindgen-react-native 0.31.0-5 (`ubrn`) · React Native 0.85.3 · React 19.2.3 · TypeScript · Jest · pnpm 11.21.x · Node 22.16
+**Tech Stack:** Rust 1.98.1 · uniffi 0.31.2 · uniffi-bindgen-react-native 0.31.0-5 (`ubrn`) · React Native 0.87.0 · React (el peer de RN 0.87) · TypeScript · Jest · pnpm 11.21.x · Node 22.16
 
 **Spec:** [docs/superpowers/specs/2026-09-11-phase-4-app-react-native-design.md](../specs/2026-09-11-phase-4-app-react-native-design.md)
 
@@ -25,7 +25,7 @@ Valen en **todas** las tareas. Los requisitos de cada tarea incluyen implícitam
 - **Los labels exactos y el orden de campos son normativos** y viven en [`docs/ui-spec.md`](../../ui-spec.md). Cambiar un label obliga a cambiarlo en las cuatro apps y en ese archivo, en el mismo cambio. No se duplica la lista en ningún otro lado.
 - **Los montos de los mensajes de error van CRUDOS**, tal como los devuelve el core. Nada de `Intl.NumberFormat` ahí.
 - **El `message` del binding es diagnóstico, nunca texto de usuario.** Los nueve textos de usuario viven en `contracts/messages.es.json`.
-- **Versiones fijas:** `react-native` 0.85.3 · `react` 19.2.3 · `@react-native-community/cli` 20.1.0 · `uniffi-bindgen-react-native` 0.31.0-5 · `@ubjs/core` y `@ubjs/node` 0.31.0-5 · Node ≥22 · pnpm 11.21.x.
+- **Versiones fijas:** `react-native` **0.87.0** · `react` el peer que declare RN 0.87 · `@react-native-community/cli` 20.1.0 · `uniffi-bindgen-react-native` 0.31.0-5 · `@ubjs/core` y `@ubjs/node` 0.31.0-5 · Node ≥22 · pnpm 11.21.x.
 - **`contracts/cases.json` está en v2.3.0** con 28 casos: `aritmetica` 6, `cci` 4, `itf` 5, `tarjeta` 6, `transferencia` 7, más `cuentas_iniciales` 2. Moneda `PEN`.
 - **Corregir un valor esperado de `cases.json` va SIEMPRE en su propio commit**, con la justificación aritmética en el mensaje, nunca mezclado con cambios al core. En esta fase **no se espera corregir ninguno**: si uno falla, el sospechoso es el código, no el contrato.
 - **No se inventan reglas de dominio.** Si un caso de negocio no está en `cases.json`, no se implementa: se pregunta.
@@ -617,7 +617,9 @@ Tres correcciones, todas verificadas antes de escribirlas:
 - Consumes: nada del código anterior.
 - Produces: un paquete `apps/react-native` con `pnpm exec ubrn --version` respondiendo. Las Tasks 7 en adelante lo usan.
 
-**Contexto y riesgo declarado:** `create-react-native-library` está en **0.63.1** y el tutorial de ubrn se probó con 0.35.1 y 0.42.3 sobre RN 0.75/0.76. Su CI declara cubrir los últimos 12 meses de React Native, así que RN 0.85.3 debería entrar. **Si hay drift, se baja a la versión que ubrn cubra y se documenta el porqué en `BUILD.md`** — no se pelea con el scaffolding.
+**Por qué 0.87.0 y no la del `stack.png`.** RN 0.87.0 salió el **2026-08-11** y ubrn 0.31.0-5 el **2026-08-21**, diez días después. El CHANGELOG de ubrn dice que su matriz de CI es *date-derived* y que los checks per-PR corren «the latest versions only»: o sea que **0.87.0 es, con alta probabilidad, la versión contra la que ubrn probó al publicarse**. El `stack.png` del usuario fija 0.85.3, que sólo entra en el barrido histórico nocturno — red más floja. **No 0.87.1**: salió el 2026-08-26, cinco días *después* de ubrn, y nadie las probó juntas. Queda anotado en `PENDING.md` que el stack corporativo está dos minors atrás, con un preset privado (`@mbbk/react-native-preset`, perfil `"0.85"`) que este entorno no puede resolver.
+
+**Riesgo declarado:** `create-react-native-library` está en **0.63.1** y el tutorial de ubrn se probó con 0.35.1 y 0.42.3 sobre RN 0.75/0.76. **Si hay drift, se baja a la versión que ubrn cubra y se documenta el porqué en `BUILD.md`** — no se pelea con el scaffolding.
 
 `ubrn` **no es un binario prebuilt**: su `bin/cli.cjs` hace `cargo run --manifest-path node_modules/.../ubrn_cli/Cargo.toml`. La primera invocación compila un proyecto Rust entero y tarda varios minutos, mostrando *"🤖 Building the uniffi-bindgen-react-native command… this is only needed first time"*. Eso es esperado, no un cuelgue.
 
@@ -655,8 +657,8 @@ El nombre del paquete **no es decorativo**: `@banco/core-financiero` es el que e
 Editar `apps/react-native/example/package.json` para que las dependencias sean exactamente:
 
 ```json
-"react": "19.2.3",
-"react-native": "0.85.3"
+"react": "<el peer que declare RN 0.87, leído de sus peerDependencies>",
+"react-native": "0.87.0"
 ```
 
 y `apps/react-native/package.json` para que `devDependencies` incluya `"@react-native-community/cli": "20.1.0"`. En `apps/react-native/package.json`, añadir el motor:
@@ -692,10 +694,25 @@ pnpm install
 ```bash
 cd apps/react-native
 export PATH="$HOME/.cargo/bin:$PATH"
-pnpm exec ubrn --version
+pnpm exec ubrn --help
+pnpm ls uniffi-bindgen-react-native
 ```
 
-Qué se debe ver: la primera vez, el mensaje de compilación y después una versión. **Si falla porque no encuentra `cargo`**, es el `PATH`: `ubrn` necesita el toolchain de Rust, y el `PATH` de un shell no interactivo no siempre lo trae.
+Qué se debe ver: la primera vez, `🤖 Building the uniffi-bindgen-react-native command…` y varios minutos de compilación; después, los subcomandos (`checkout`, `build`, `generate`) y `uniffi-bindgen-react-native@0.31.0-5`.
+
+**No uses `--version`: este CLI no define ese flag** y responde `error: unexpected argument '--version' found`. Verificado sobre la versión instalada. La versión se comprueba con `pnpm ls`, no con el binario.
+
+**Si falla porque no encuentra `cargo`**, es el `PATH`: `ubrn` necesita el toolchain de Rust, y el `PATH` de un shell no interactivo no siempre lo trae.
+
+- [ ] **Step 6b: Confirmar que existen los tres subcomandos que la fase necesita**
+
+```bash
+cd apps/react-native
+pnpm exec ubrn build --help      # android · ios · web · wasm2
+pnpm exec ubrn generate --help   # jsi · napi · wasm · wasm2
+```
+
+No es ceremonia: **`build wasm2` y `generate napi` son dos apuestas del diseño** —el flavour de WASM que consume la Fase 5 y la ruta del test de contrato del host— y hasta acá eran supuestos leídos de notas de release. Si alguno falta, para y repórtalo: cambia el plan, no el código.
 
 - [ ] **Step 7: Limpiar el scaffolding que no se usa**
 
