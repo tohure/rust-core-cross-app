@@ -1,5 +1,3 @@
-import Foundation
-
 /// Agrega `S/` y separadores de miles. **Solo al pintar.**
 ///
 /// Recibe el `String` que devolvió el core y **no redondea**: el core ya entregó el valor
@@ -13,21 +11,137 @@ import Foundation
 /// No se usa en los mensajes de error: ahí los montos van crudos.
 enum MoneyFormatter {
     static func format(_ amount: String) -> String {
-        // `Decimal(string:locale:)` con POSIX para que el punto decimal se interprete bien
-        // sin importar el locale del aparato. NUNCA `Double`. Solo se usa para validar que
-        // la entrada es numérica: los decimales que se pintan salen del string original.
-        guard Decimal(string: amount, locale: Locale(identifier: "en_US_POSIX")) != nil else {
-            return amount
+        guard let parsed = parse(amount) else { return amount }
+
+        let grouped = groupThousands(parsed.integerDigits)
+        guard !parsed.fractionDigits.isEmpty else {
+            return "S/ \(parsed.sign)\(grouped)"
+        }
+        return "S/ \(parsed.sign)\(grouped).\(parsed.fractionDigits)"
+    }
+
+    /// El número ya descompuesto en las tres piezas que hacen falta para pintarlo: signo,
+    /// parte entera sin ceros a la izquierda (salvo un único "0") y parte fraccionaria —que
+    /// puede ser vacía, cuando el valor no tiene decimales que mostrar.
+    private struct ParsedAmount {
+        let sign: String
+        let integerDigits: String
+        let fractionDigits: String
+    }
+
+    /// Reproduce la gramática de `java.math.BigDecimal(String)`, que es lo que
+    /// `MoneyFormatter.kt` usa en Android para decidir qué es un monto válido y qué no.
+    ///
+    /// **No es una regla de negocio nueva.** Es la misma validación que Kotlin ya hace del
+    /// otro lado del FFI, reproducida a mano porque Swift no tiene un tipo con la misma
+    /// gramática de parsing que `BigDecimal`. `Decimal(string:)` de Foundation no sirve para
+    /// esto: es un parser de *prefijo* que acepta basura arrastrada (`"12abc"` → 12,
+    /// `"12   "` → 12), y eso rompía la paridad con Android, que sí rechaza esos strings.
+    ///
+    /// Verificado contra `MoneyFormatter.kt` real, corriendo ambos lados con la misma lista
+    /// de entradas (ver `MoneyFormatterTest.swift`): ceros a la izquierda se cancelan
+    /// (`"007.50"` → `7.50`), un punto sin dígitos después es válido y sin parte decimal
+    /// (`"100."` → `100`), un punto sin dígitos antes es válido con parte entera "0"
+    /// (`".5"` → `0.5`), y la notación científica desplaza el punto decimal
+    /// (`"1e3"` → `1000`).
+    private static func parse(_ input: String) -> ParsedAmount? {
+        let chars = Array(input)
+        let n = chars.count
+        var i = 0
+        guard n > 0 else { return nil }
+
+        var isNegative = false
+        if chars[i] == "+" || chars[i] == "-" {
+            isNegative = chars[i] == "-"
+            i += 1
         }
 
-        let sign = amount.hasPrefix("-") ? "-" : ""
-        let unsigned = sign.isEmpty ? amount : String(amount.dropFirst())
-        let parts = unsigned.split(separator: ".", maxSplits: 1, omittingEmptySubsequences: false)
-        guard let integerPart = parts.first else { return amount }
+        var integerPart = ""
+        while i < n, isDigit(chars[i]) {
+            integerPart.append(chars[i])
+            i += 1
+        }
 
-        let grouped = String(
-            String(integerPart)
-                .reversed()
+        var fractionPart = ""
+        if i < n, chars[i] == "." {
+            i += 1
+            while i < n, isDigit(chars[i]) {
+                fractionPart.append(chars[i])
+                i += 1
+            }
+        }
+
+        // El significand tiene que aportar al menos un dígito, en la parte entera o en la
+        // fraccionaria — igual que exige BigDecimal. "." sola, o un signo solo, no alcanzan.
+        guard !(integerPart.isEmpty && fractionPart.isEmpty) else { return nil }
+
+        var exponent = 0
+        if i < n, chars[i] == "e" || chars[i] == "E" {
+            i += 1
+            var exponentIsNegative = false
+            if i < n, chars[i] == "+" || chars[i] == "-" {
+                exponentIsNegative = chars[i] == "-"
+                i += 1
+            }
+            var exponentDigits = ""
+            while i < n, isDigit(chars[i]) {
+                exponentDigits.append(chars[i])
+                i += 1
+            }
+            guard !exponentDigits.isEmpty, let exponentMagnitude = Int(exponentDigits) else {
+                return nil
+            }
+            exponent = exponentIsNegative ? -exponentMagnitude : exponentMagnitude
+        }
+
+        // Cualquier carácter sobrante — espacios, letras, un segundo punto — es basura: no
+        // es un BigDecimal válido, y el monto se pinta tal cual llegó.
+        guard i == n else { return nil }
+
+        // `scale` es cuántos dígitos quedan a la derecha del punto decimal una vez aplicado
+        // el exponente: los dígitos leídos después del punto restan al exponente, igual que
+        // en BigDecimal.
+        let scale = fractionPart.count - exponent
+
+        // Los ceros a la izquierda del valor sin escala se cancelan, igual que al construir
+        // un entero desde una cadena de dígitos: "007" y "7" son el mismo número.
+        var unscaledDigits = String((integerPart + fractionPart).drop { $0 == "0" })
+        if unscaledDigits.isEmpty { unscaledDigits = "0" }
+
+        // El signo desaparece si el valor es cero: no existe el cero negativo.
+        let sign = (isNegative && unscaledDigits != "0") ? "-" : ""
+
+        if scale <= 0 {
+            // Sin parte decimal: si el exponente empujó el punto más allá del último
+            // dígito, se completan ceros a la derecha (`"1e3"` → `1000`).
+            let trailingZeros = String(repeating: "0", count: -scale)
+            return ParsedAmount(
+                sign: sign, integerDigits: unscaledDigits + trailingZeros, fractionDigits: "")
+        }
+
+        if unscaledDigits.count > scale {
+            let splitIndex = unscaledDigits.index(unscaledDigits.endIndex, offsetBy: -scale)
+            return ParsedAmount(
+                sign: sign,
+                integerDigits: String(unscaledDigits[..<splitIndex]),
+                fractionDigits: String(unscaledDigits[splitIndex...])
+            )
+        }
+
+        // El valor es menor que 1: la parte entera es "0" y la fracción se completa con
+        // ceros a la izquierda (`".5"` → `0.5`).
+        let leadingZeros = String(repeating: "0", count: scale - unscaledDigits.count)
+        return ParsedAmount(
+            sign: sign, integerDigits: "0", fractionDigits: leadingZeros + unscaledDigits)
+    }
+
+    private static func isDigit(_ character: Character) -> Bool {
+        character >= "0" && character <= "9"
+    }
+
+    private static func groupThousands(_ digits: String) -> String {
+        String(
+            digits.reversed()
                 .enumerated()
                 .map {
                     let isGroupBoundary = $0.offset > 0 && $0.offset.isMultiple(of: 3)
@@ -36,10 +150,5 @@ enum MoneyFormatter {
                 .joined()
                 .reversed()
         )
-
-        if parts.count == 2 {
-            return "S/ \(sign)\(grouped).\(parts[1])"
-        }
-        return "S/ \(sign)\(grouped)"
     }
 }

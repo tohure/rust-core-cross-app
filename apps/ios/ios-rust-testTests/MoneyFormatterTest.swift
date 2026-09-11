@@ -24,11 +24,46 @@ struct MoneyFormatterTest {
     func garbagePassesThrough() {
         #expect(MoneyFormatter.format("") == "")
         #expect(MoneyFormatter.format("—") == "—")
+        // Fix 1 del review: `Decimal(string:)` de Foundation es un parser de *prefijo* y
+        // aceptaba estos tres arrastrando la basura ("12abc" -> 12, "12   " -> 12), cosa que
+        // `BigDecimal` de Kotlin no hace. Verificado corriendo `MoneyFormatter.kt` real:
+        // los tres se devuelven tal cual, sin tocar.
+        #expect(MoneyFormatter.format("12abc") == "12abc")
+        #expect(MoneyFormatter.format("12   ") == "12   ")
+        #expect(MoneyFormatter.format("-") == "-")
     }
 
     @Test("nunca redondea: el core ya entregó la escala correcta")
     func neverRounds() {
         #expect(MoneyFormatter.format("0.01") == "S/ 0.01")
         #expect(MoneyFormatter.format("87654.32") == "S/ 87,654.32")
+    }
+
+    @Test("coincide con BigDecimal de Kotlin en los quince casos que disputó el review")
+    func matchesKotlinsBigDecimalGrammar() {
+        // Tabla obtenida corriendo `MoneyFormatter.format` real de Kotlin sobre estas
+        // mismas quince entradas (ver el reporte de la Task 7, sección "Fix 1"). Cubre lo
+        // que `Decimal(string:)` no resolvía: ceros a la izquierda, punto colgante, punto
+        // sin parte entera, y notación científica.
+        let cases: [(input: String, expected: String)] = [
+            ("12abc", "12abc"),
+            ("12   ", "12   "),
+            ("-", "-"),
+            ("", ""),
+            ("—", "—"),
+            ("007.50", "S/ 7.50"),
+            ("100.", "S/ 100"),
+            ("1.5", "S/ 1.5"),
+            ("-123456.78", "S/ -123,456.78"),
+            ("0.00", "S/ 0.00"),
+            ("1000000.00", "S/ 1,000,000.00"),
+            (".5", "S/ 0.5"),
+            ("1e3", "S/ 1,000"),
+            ("5000.00", "S/ 5,000.00"),
+            ("1200.50", "S/ 1,200.50"),
+        ]
+        for c in cases {
+            #expect(MoneyFormatter.format(c.input) == c.expected, "entrada: \"\(c.input)\"")
+        }
     }
 }
