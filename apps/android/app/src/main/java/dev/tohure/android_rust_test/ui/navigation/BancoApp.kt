@@ -16,6 +16,8 @@ import androidx.compose.ui.Modifier
 import dev.tohure.android_rust_test.AppContainer
 import dev.tohure.android_rust_test.ui.arithmetic.ArithmeticScreen
 import dev.tohure.android_rust_test.ui.arithmetic.ArithmeticViewModel
+import dev.tohure.android_rust_test.ui.benchmark.BenchmarkScreen
+import dev.tohure.android_rust_test.ui.benchmark.BenchmarkViewModel
 import dev.tohure.android_rust_test.ui.card.CardScreen
 import dev.tohure.android_rust_test.ui.card.CardViewModel
 import dev.tohure.android_rust_test.ui.components.CoreVersionFooter
@@ -76,7 +78,7 @@ fun BancoApp(container: AppContainer) {
                     remember { TransferViewModel(container.core, container.contract, container.messages) },
                 )
                 Tab.Card -> CardScreen(remember { CardViewModel(container.core, container.contract, container.messages) })
-                Tab.Benchmark -> Text("Benchmark")     // Task 12
+                Tab.Benchmark -> BenchmarkScreen(remember { BenchmarkViewModel(container.core) })
             }
         }
     }
