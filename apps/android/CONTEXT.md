@@ -383,6 +383,13 @@ duplican acá: cuatro copias de la misma lista divergen, que es justo lo que la 
 permitirse. Cambiar un label obliga a cambiarlo en las cuatro apps y en ese archivo, en el
 mismo cambio.
 
+### Pantalla de Benchmark
+
+Es la única pantalla donde existe una implementación equivalente nativa, aislada en
+`ui/benchmark/NativeBaseline.kt`. Existe para exhibir la divergencia de centavos bajo
+IEEE-754 y debe llevar un comentario que lo explique. Es la única excepción permitida
+a la regla "cero lógica de negocio fuera de `rust-core`".
+
 ## Pruebas
 
 `androidTest/` debe incluir un test que lea `contracts/cases.json` y verifique
