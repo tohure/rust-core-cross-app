@@ -88,3 +88,32 @@ Lo que el benchmark **sí** exhibe es lo otro: `NativeBaseline` es más rápido 
 resultado**. Su test aserta que *diverge* del core; si alguna vez deja de fallar contra `0.30`,
 deja de servir para la demo.
 
+### La primera llamada al núcleo es lenta, y se paga una sola vez por proceso
+
+Los ~150 µs son el **estado estacionario**. La primera llamada de cada arranque cuesta bastante
+más —se percibe como un tirón de hasta un segundo en la pantalla de Aritmética— y después
+desaparece. Tres cosas se pagan ahí, y ninguna se repite:
+
+| Costo | Por qué ocurre una sola vez |
+|---|---|
+| `System.loadLibrary` | es **perezoso**: la `.so` se carga en el primer uso, no al abrir la app |
+| Resolución de símbolos de JNA | JNA mapea las firmas por **reflexión**, no con stubs JNI compilados |
+| Calentamiento de ART | las primeras invocaciones se **interpretan**; recién después el JIT las compila |
+
+**No es un bug y no hay nada que arreglar.** Conviene saberlo por dos motivos: para no
+confundirlo con un problema de rendimiento del core, y porque el día de la demo **la primera
+interacción conviene hacerla antes de que mire nadie**.
+
+Cómo comprobarlo, sin instrumentar nada: abrir la app y correr el Benchmark con 1000
+iteraciones **dos veces seguidas sin cerrarla**. La segunda corrida da un p95 sensiblemente más
+bajo que la primera; el p50 ronda los 150 µs en ambas.
+
+Un detalle que descarta la sospecha más común: **cambiar el radio button no llama al núcleo.**
+`ArithmeticViewModel.operationChanged()` solo actualiza el estado y limpia el error. Si el
+cambio de operación se siente lento, eso es recomposición de Compose, no el FFI.
+
+**Predicción para iOS, verificable en la Fase 3:** ahí el `.a` se enlaza **estáticamente**, sin
+`System.loadLibrary`, sin JNA y sin reflexión. Ese escalón de la primera llamada debería ser
+mucho menor o directamente no existir. Si se confirma, es un buen punto para la demo: el mismo
+núcleo, dos puentes distintos, y la diferencia se siente.
+
