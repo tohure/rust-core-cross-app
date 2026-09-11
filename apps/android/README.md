@@ -1,379 +1,184 @@
 # app-android
 
-Primer consumidor de `rust-core`. Kotlin + Jetpack Compose, vía uniffi.
+App Android nativa que **no contiene ni una sola regla de negocio**. Todo el cálculo —decimales,
+transferencias, validación de tarjetas, cifrado— lo resuelve un núcleo escrito en Rust que las
+otras tres apps de la POC (iOS, React Native, Angular) consumen **sin reescribirlo**.
 
-**Estado: Fase 2 completada.** **35 tests en verde** —20 unitarios de JVM y 15 instrumentados
-sobre dispositivo, de los cuales 9 son el test de contrato— contra `contracts/cases.json` v2.3.0, 28 casos.
-Las cuatro pantallas funcionan y el pie con `coreVersion()` es visible en todas.
+Lo que esta app hace con los datos es pedirlos y mostrarlos.
 
-Todos los comandos de este README **se ejecutaron tal como están escritos** y la salida que
-sigue a cada uno es la que devolvieron. Ninguno está deducido del CONTEXT.
+**Estado:** funcional. 35 tests en verde, las cuatro pantallas andando.
 
-## Arquitectura
+| | |
+|---|---|
+| **Lenguaje / UI** | Kotlin 2.4.20 · Jetpack Compose (BOM 2026.09.00) · Material 3 |
+| **Build** | AGP 9.4.0 · Gradle 9 · Java 21 |
+| **SDK** | compileSdk 37 · minSdk 28 |
+| **Puente al núcleo** | uniffi 0.32 sobre **JNA** (no JNI) |
+| **Núcleo** | Rust, `libcore_financiero.so` en tres ABIs |
+| **Paquete** | `dev.tohure.android_rust_test` |
+
+---
+
+## Cómo está armada
 
 ```mermaid
 flowchart TD
-    subgraph core["rust-core/"]
-        domain["crates/domain<br/>Rust puro, 7 módulos"]
-        ffi["crates/ffi<br/>paquete core_financiero<br/>fachada uniffi"]
+    subgraph core["rust-core/ — el único lugar con lógica de negocio"]
+        domain["crates/domain<br/>Rust puro · 7 módulos"]
+        ffi["crates/ffi<br/>fachada uniffi · 9 funciones"]
         domain --> ffi
     end
 
-    ffi -->|"cargo ndk<br/>3 ABIs, release"| so["app/src/main/jniLibs/<br/>arm64-v8a · armeabi-v7a · x86_64<br/>libcore_financiero.so"]
-    ffi -.->|"uniffi-bindgen<br/>lee el .dylib del HOST"| kt["app/src/main/java/uniffi/<br/>core_financiero.kt"]
+    ffi -->|"cargo ndk"| so["jniLibs/*.so<br/>arm64-v8a · armeabi-v7a · x86_64"]
+    ffi -.->|"uniffi-bindgen"| kt["uniffi/core_financiero.kt<br/>generado, no se edita"]
 
     so --> jna["JNA<br/>libjnidispatch.so"]
     kt --> jna
-    jna --> adapter["adapter/CoreFinanciero.kt<br/>única clase que llama al core"]
+    jna --> adapter["adapter/<br/>CoreFinanciero"]
     adapter --> vm["ui/*/XxxViewModel<br/>StateFlow&lt;XxxUiState&gt;"]
-    vm --> screens["Compose<br/>5 pantallas de docs/ui-spec.md"]
+    vm --> screens["ui/*/XxxScreen<br/>Compose"]
 
-    contrato[("contracts/<br/>cases.json<br/>messages.es.json")]
-    contrato -.->|"test de contrato<br/>en androidTest/"| adapter
-
+    contrato[("contracts/<br/>cases.json · messages.es.json")]
+    contrato --> source["contract/<br/>ContractSource · MessageSource"]
+    source --> vm
+    contrato -.->|"verifica"| adapter
 ```
 
-Todo el grafo está construido y verificado sobre un dispositivo.
+### Qué es cada pieza y por qué existe
 
-Dos cosas que el diagrama hace visibles y que cuestan una tarde si se descubren tarde:
-
-- **Los bindings NO salen del `.so` de Android.** Salen del `.dylib` del host. Ver
-  "El paso que no es obvio", abajo.
-- **JNA está en el medio de todo.** Los bindings Kotlin de uniffi corren sobre JNA, no JNI.
-  Sin esa dependencia la app compila y revienta al primer llamado.
-
-## Requisitos previos
-
-Ya instalados en esta máquina, verificados antes de empezar:
-
-```bash
-java -version                       # openjdk 21.0.10 LTS
-ls ~/Library/Android/sdk/ndk        # 29.0.14033849  30.0.14904198  30.0.16248370
-echo $ANDROID_HOME                  # /Users/<user>/Library/Android/sdk
-```
-
-**Se usa el NDK `30.0.16248370`.** Cualquiera r27+ sirve; con uno anterior la librería
-compila pero **crashea al cargar** en dispositivos con páginas de 16 KB.
-
-## Toolchain de la Fase 2
-
-Se agrega solo lo de esta fase, y se verifica antes de seguir.
-
-```bash
-cargo install cargo-ndk
-cargo ndk --version
-```
-
-Qué se debe ver: `cargo-ndk 4.1.2`.
-
-```bash
-rustup target add aarch64-linux-android armv7-linux-androideabi x86_64-linux-android
-rustup target list --installed
-```
-
-Qué se debe ver — cuatro targets, el del host más los tres de Android:
-
-```
-aarch64-apple-darwin
-aarch64-linux-android
-armv7-linux-androideabi
-x86_64-linux-android
-```
-
-## Construir las librerías nativas
-
-Desde `rust-core/`. **`ANDROID_NDK_HOME` no viene seteado por el instalador del SDK**: hay
-que exportarlo o cargo-ndk no encuentra el toolchain.
-
-```bash
-export ANDROID_NDK_HOME="$HOME/Library/Android/sdk/ndk/30.0.16248370"
-cargo ndk -t arm64-v8a -t armeabi-v7a -t x86_64 \
-  -o ../apps/android/app/src/main/jniLibs build --release -p core_financiero
-```
-
-Qué se debe ver, al cierre:
-
-```
-    Finished `release` profile [optimized] target(s) in 56.17s
-     Copying libraries to /…/apps/android/app/src/main/jniLibs
-```
-
-Y los tres artefactos:
-
-```bash
-find apps/android/app/src/main/jniLibs -name '*.so' -exec ls -l {} \;
-```
-
-| ABI | Bytes |
-|---|---|
-| `armeabi-v7a` | 326 480 |
-| `arm64-v8a` | 532 936 |
-| `x86_64` | 588 192 |
-
-### Verificar la alineación de 16 KB
-
-Es el chequeo que evita el crash silencioso en dispositivos modernos. **No se saltea.**
-
-```bash
-NDK="$HOME/Library/Android/sdk/ndk/30.0.16248370"
-READELF="$NDK/toolchains/llvm/prebuilt/darwin-x86_64/bin/llvm-readelf"
-for so in $(find apps/android/app/src/main/jniLibs -name '*.so'); do
-  a=$("$READELF" -l "$so" | awk '/LOAD/{print $NF}' | sort -u | head -1)
-  printf "%-40s align=%s\n" "$so" "$a"
-done
-```
-
-Qué se debe ver:
-
-```
-./armeabi-v7a/libcore_financiero.so      align=0x1000
-./arm64-v8a/libcore_financiero.so        align=0x4000
-./x86_64/libcore_financiero.so           align=0x4000
-```
-
-`0x4000` son 16 384 bytes = 16 KB, y es lo que hay que ver **en los dos ABIs de 64 bits**.
-`armeabi-v7a` en `0x1000` (4 KB) es correcto: el requisito de 16 KB aplica solo a 64 bits.
-
-## Generar los bindings Kotlin
-
-### El paso que no es obvio
-
-El comando que uno escribiría —apuntarle al `.so` de Android que se acaba de construir—
-**no funciona**, y falla de una forma que no dice por qué:
-
-```bash
-cargo run --bin uniffi-bindgen -- generate \
-  --library target/aarch64-linux-android/release/libcore_financiero.so \
-  --language kotlin --out-dir ../apps/android/app/src/main/java
-# No UniFFI metadata found in target/aarch64-linux-android/release/libcore_financiero.so
-```
-
-Dos razones, las dos verificadas acá:
-
-1. El perfil de release del workspace lleva **`strip = true`**, que borra los símbolos de
-   metadata que uniffi necesita leer.
-2. En macOS el build del host **no produce un `.so`**: produce `libcore_financiero.dylib`.
-   Un comando que diga `target/release/libcore_financiero.so` no puede funcionar en esta
-   máquina, porque ese archivo no existe.
-
-El comando correcto lee el **`.dylib` del host**. Los bindings que emite uniffi **no dependen
-de la arquitectura**, así que esto no es un atajo: es el camino.
-
-```bash
-cargo run --quiet --bin uniffi-bindgen -- generate \
-  --library target/release/libcore_financiero.dylib \
-  --language kotlin --out-dir ../apps/android/app/src/main/java
-```
-
-Qué se debe ver:
-
-```
-Code generation complete, formatting with ktlint (use --no-format to disable)
-```
-
-`--out-dir app/src/main/java` alcanza: uniffi-bindgen crea él mismo el árbol del paquete
-`uniffi.core_financiero`. No hay que mover nada.
-
-```bash
-ls -l apps/android/app/src/main/java/uniffi/core_financiero/core_financiero.kt
-# 63126 bytes
-```
-
-### Verificar que las nueve funciones cruzaron
-
-```bash
-KT=apps/android/app/src/main/java/uniffi/core_financiero/core_financiero.kt
-for f in add subtract calculateItf validateCci validateCard \
-         encrypt decrypt executeTransfer coreVersion; do
-  printf "%-18s %s\n" "$f" "$(grep -c "fun \`$f\`(" $KT)"
-done
-```
-
-Qué se debe ver — `1` en las nueve.
-
-## JNA: la dependencia sin la cual todo compila y nada funciona
-
-Los bindings Kotlin de uniffi corren sobre **JNA, no JNI**. Está declarada en el catálogo de
-versiones:
-
-```toml
-# gradle/libs.versions.toml
-jna = "5.14.0"
-jna = { group = "net.java.dev.jna", name = "jna", version.ref = "jna" }
-```
-
-```kotlin
-// app/build.gradle.kts
-implementation(variantOf(libs.jna) { artifactType("aar") })
-```
-
-**El `@aar` no es opcional.** El artefacto `jar` de JNA no trae las `.so` de
-`libjnidispatch`; el `aar` sí. Con el `jar`, la app compila y revienta en runtime.
-
-## Construir el APK
-
-```bash
-cd apps/android
-./gradlew :app:assembleDebug
-```
-
-Qué se debe ver — `BUILD SUCCESSFUL`, y el APK con **las tres `.so` del core más las de
-JNA**:
-
-```bash
-unzip -l app/build/outputs/apk/debug/app-debug.apk | grep '\.so'
-```
-
-```
-532936  lib/arm64-v8a/libcore_financiero.so
-168176  lib/arm64-v8a/libjnidispatch.so
-326480  lib/armeabi-v7a/libcore_financiero.so
-122296  lib/armeabi-v7a/libjnidispatch.so
-588192  lib/x86_64/libcore_financiero.so
-118584  lib/x86_64/libjnidispatch.so
-```
-
-Si `libcore_financiero.so` **no** aparece, `jniLibs/` está vacío: volvé al paso de cargo-ndk.
-
-### Pendiente conocido: el APK pesa 32 MB
-
-JNA trae `libjnidispatch.so` para **seis** ABIs, incluidos `mips` y `mips64`, muertos desde
-2017. Se recorta con `abiFilters` en `app/build.gradle.kts`:
-
-```kotlin
-defaultConfig {
-    ndk { abiFilters += listOf("arm64-v8a", "armeabi-v7a", "x86_64") }
-}
-```
-
-No está aplicado todavía: el tamaño del binario es criterio de la demo, así que se mide
-antes y después en la Fase 2 en vez de aplicarlo a ciegas.
-
-## Herramientas de agente
-
-El repo trae skills de Android instaladas (`.claude/skills/`), vía el `android` CLI:
-
-```bash
-android --version                          # 1.0.16261425
-android skills add android-cli testing-setup agp-9-upgrade edge-to-edge --project=.
-```
-
-`android skills list` muestra el catálogo completo. **Ojo:** `jetpack-compose-m3` es de
-**Wear OS**, no de Compose para teléfono —duplica a `wear-compose-m3`— y no sirve acá. No
-hay skill de Compose Material3 para teléfono en el catálogo.
-
-## Correr los tests
-
-Dos suites, y la distinción importa: una corre en la JVM y la otra **sobre un dispositivo**.
-
-```bash
-# JVM — rápidos, sin emulador. Usan FakeCoreFinanciero: NO cruzan el FFI.
-./gradlew :app:testDebugUnitTest
-```
-
-Qué se debe ver — `BUILD SUCCESSFUL` y **20 tests, 0 failures**, en siete clases:
-
-| Clase | Tests |
-|---|---|
-| `format.MoneyFormatterTest` | 3 |
-| `adapter.ContractMessagesTest` | 3 |
-| `adapter.UniffiCoreFinancieroContractTest` | 2 |
-| `ui.arithmetic.ArithmeticViewModelTest` | 4 |
-| `ui.transfer.TransferViewModelTest` | 5 |
-| `ui.card.CardViewModelTest` | 2 |
-| `ui.benchmark.NativeBaselineTest` | 1 |
-
-```bash
-# Instrumentados — necesitan un emulador o dispositivo conectado. Estos SÍ cruzan el FFI.
-adb devices                              # debe listar uno como `device`
-./gradlew :app:connectedDebugAndroidTest
-```
-
-Qué se debe ver — `BUILD SUCCESSFUL` y **15 tests, 0 failures**:
-
-| Clase | Tests | Qué prueba |
+| Pieza | Qué hace | Por qué existe |
 |---|---|---|
-| `CoreSmokeTest` | 2 | que la `.so` carga y JNA resuelve símbolos |
-| `ContractAssetsTest` | 2 | que los dos JSON del contrato llegaron a los dos APK |
-| `contract.AssetSourcesTest` | 2 | que los seams leen los assets reales |
-| **`ContractTest`** | **9** | **los 28 casos del contrato, más sus guardias** |
+| `crates/domain` | La lógica: decimales, ITF, Luhn, ChaCha20-Poly1305 | Rust puro, sin uniffi. Un `#[uniffi::export]` ahí **no compila**: la frontera la sostiene el compilador |
+| `crates/ffi` | Las nueve funciones públicas | La única superficie que cruza a Kotlin |
+| `jniLibs/*.so` | El núcleo compilado por ABI | Lo que el APK embarca y carga en runtime |
+| `uniffi/core_financiero.kt` | Bindings generados | **Artefacto generado.** Nunca se edita; si algo está mal, se corrige en Rust y se regenera |
+| **JNA** | El puente nativo real | Los bindings de uniffi corren sobre JNA, **no JNI**. Sin esta dependencia la app compila y revienta al primer llamado |
+| `adapter/CoreFinanciero` | La única clase que llama al núcleo | Es una **interfaz** para que los ViewModels se testeen en JVM sin emulador. Reexporta los tipos de uniffi: **no los traduce** |
+| `contract/` | Lee `cases.json` y `messages.es.json` | Las cuentas iniciales y los mensajes de error son **datos del contrato**, no de la app. Hardcodearlos los haría divergir entre las cuatro apps |
+| `ui/*/XxxViewModel` | Un estado inmutable por pantalla | La UI consume y no calcula. Todos los montos son `String` |
+| `ui/components/` | Los cinco componentes compartidos | Las cuatro apps usan la misma descomposición para que las pantallas sean comparables |
+| `AppContainer` | Cableado manual | Sin Hilt ni Koin: cinco pantallas y tres dependencias no los justifican |
 
-Para acotar una corrida instrumentada a una clase, **`--tests` no sirve** —ese flag es de la
-tarea de unit tests JVM y AGP 9 lo rechaza acá—. El equivalente que funciona:
+---
+
+## Antes de correrla
+
+Necesitás **Java 21**, el **SDK de Android** y un emulador o teléfono conectado.
+
+Si el repo ya viene con los artefactos construidos, eso alcanza. **Si no**, hay que compilar el
+núcleo Rust primero — eso pide `rustup`, `cargo-ndk` y el NDK r27+, y está todo en
+**[BUILD.md](BUILD.md)**.
+
+Para saber en cuál de los dos casos estás:
 
 ```bash
-./gradlew :app:connectedDebugAndroidTest \
-  -Pandroid.testInstrumentationRunnerArguments.class=dev.tohure.android_rust_test.ContractTest
+ls app/src/main/jniLibs/*/libcore_financiero.so
 ```
 
-### El test de contrato es el entregable, no un test de apoyo
+Si lista tres archivos, podés correrla ya. Si no, andá a [BUILD.md](BUILD.md).
 
-`ContractTest` es el espejo Kotlin de `rust-core/crates/ffi/tests/contract.rs`. Compara con
-`assertEquals` **sobre `String`**, nunca con tolerancia numérica. Que pase **es** la
-demostración de la POC en esta plataforma.
-
-Lleva las mismas guardias que el de Rust, y por el mismo motivo: un `for` sobre cero elementos
-no aserta nada. Verificadas **por mutación**, no por lectura:
-
-| Mutación en `contracts/cases.json` | Qué falló |
-|---|---|
-| `"cci": []` | `theContractHasTheExpectedNumberOfCases` y `contractCci`, por su contador |
-| un campo extra en el `esperado` de `tj-001` | `contractCard`, nombrando el campo que sobra |
-| se borra la entrada `"Cifrado"` de `messages.es.json` | `theMessagesAssetCoversTheNineErrorVariants`, nombrando la variante |
-
-Es además el primer test de toda la POC que cruza el **borde FFI real**: el test de contrato de
-`rust-core` llama a las nueve funciones como funciones Rust ordinarias, así que no prueba JNA,
-ni `System.loadLibrary`, ni los símbolos que el `strip` pudo comerse. Eso lo prueba recién este.
-
-## Correr la demo
+## Correrla
 
 ```bash
+adb devices                    # debe listar un dispositivo
 ./gradlew :app:installDebug
 adb shell am start -n dev.tohure.android_rust_test/.MainActivity
 ```
 
-Cuatro pestañas, y el pie con `coreVersion()` visible en todas — es la prueba **en pantalla**
-de que las cuatro apps de la demo corren el mismo build. Lo verificado sobre el emulador
-Pixel_9_Pro (arm64, android-36.1), leyendo la pantalla con `uiautomator dump`:
+Cuatro pestañas abajo, y **el pie con la versión del núcleo visible en todas**: algo como
+`1.0.0+a0a40a5`. Ese string lleva el SHA del commit con el que se compiló el núcleo, y es la
+prueba en pantalla de que las cuatro apps de la demo corren **el mismo build**. Si el pie sale
+vacío, la librería nativa no cargó — andá a [BUILD.md](BUILD.md).
 
-| Pantalla | Qué muestra |
+---
+
+## Qué podés hacer, pantalla por pantalla
+
+### Aritmética — por qué el `Double` no sirve para dinero
+
+Escribí `0.1` y `0.2`, tocá **Calcular**. Dos tarjetas:
+
+```
+Punto flotante nativo     0.30000000000000004     ← Double de Kotlin
+Core (Rust · Decimal)     0.30                    ← el núcleo
+```
+
+Es la única pantalla donde la app usa punto flotante, y está ahí **como contraejemplo**. Probá
+también restas, o `0.1 + 0.7`: los seis casos del contrato divergen.
+
+### Transferencia — el dinero se conserva
+
+Dos cuentas en memoria, con los saldos que dice el contrato. Transferí `100.00` y mirá:
+
+```
+Comisión ITF        S/ 0.01
+Total debitado      S/ 100.01
+Comprobante         TRF-9047-1065-10000
+Saldos              S/ 4,899.99   ·   S/ 1,300.50
+```
+
+La app **espera** antes de pintar el resultado, para que parezca una llamada de red. **No hay
+red**: el núcleo devuelve cuántos milisegundos simular.
+
+Probá a romperlo: un monto mayor al saldo, origen igual a destino, o `100.123` — el campo no te
+deja escribir el tercer decimal, y aunque pudieras, el núcleo lo rechaza.
+
+### Tarjeta — cifrado, y que se note que es cifrado
+
+Escribí `4111111111111111` y tocá **Validar y cifrar**:
+
+```
+Marca               Visa
+Enmascarado         4111 **** **** 1111
+Cifrado (hex)       bdca39311826947186b2…c7c7c0dd
+Descifrado          4111111111111111        ← la vuelta completa
+```
+
+La fila `Descifrado` no es decoración: sin ella ese hex es **indistinguible de un hash**. Cifrar
+y descifrar en el mismo gesto es lo que demuestra, mirando, que el núcleo hace criptografía
+reversible.
+
+Abajo hay un bloque para **pegar un hex producido por otra plataforma**. Ahí está la demostración
+en vivo: copiás el hex de la app de iOS, lo pegás acá, y sale el mismo número — porque las cuatro
+comparten clave, nonce y algoritmo desde el mismo núcleo.
+
+### Benchmark — cuánto cuesta cruzar la frontera
+
+Mide el núcleo contra una suma en `Double`, N veces. El núcleo es **más lento** —cruzar el FFI
+por JNA cuesta ~150 µs por llamada— y esa es exactamente la comparación honesta: la alternativa
+nativa es más rápida **y da mal el resultado**. Ver [TESTING.md](TESTING.md).
+
+---
+
+## Qué NO podés hacer, y por qué
+
+Nada de esto es un pendiente: son decisiones de la POC.
+
+| No hace | Por qué |
 |---|---|
-| **Aritmética** | con `0.1` y `0.2`: `Punto flotante nativo` → `0.30000000000000004`, `Core (Rust · Decimal)` → `0.30` |
-| **Transferencia** | con `100.00`: ITF `S/ 0.01`, total `S/ 100.01`, comprobante `TRF-9047-1065-10000`, saldos `S/ 4,899.99` y `S/ 1,300.50` — el caso `tr-001` del contrato, carácter por carácter |
-| **Tarjeta** | con `4111111111111111`: `Visa`, `4111 **** **** 1111`, y el hex `bdca39311826947186b20ec2a92c3f521aacff902e37d519bcd2754fc7c7c0dd` — idéntico al `cifrado_hex` de `tj-001` |
-| **Benchmark** | 1000 iteraciones: Core p50 `147.25 µs` / p95 `557.67 µs`; Nativa p50 `4.08 µs` / p95 `34.38 µs` |
-| **Pie** | `1.0.0+a0a40a5` en las cuatro |
+| **Guardar nada.** Cerrás la app y los saldos vuelven al inicio | Sin base de datos, sin caché, sin `SharedPreferences`. Es una POC de dominio |
+| **Keychain / Keystore / biométricos** | La POC demuestra que **el algoritmo de cifrado** vive en el núcleo y da el mismo resultado en cuatro plataformas. Dónde guardarías una clave en producción es otro problema |
+| **Red** | Ni un cliente HTTP. La "latencia" de Transferencia es un número que devuelve el núcleo |
+| **Agregar cuentas, tarjetas o bancos** | Los datos son del contrato compartido. Cambiarlos acá los haría divergir de las otras tres apps |
+| **Calcular algo en Kotlin** | Si te encontrás escribiendo aritmética sobre montos, el cálculo está en el lugar equivocado: pedíselo al núcleo |
 
-### Lo que dice el benchmark, y lo que no
+Y dos reglas que valen si vas a tocar el código:
 
-Cruzar el FFI cuesta **~150 µs por llamada** en este emulador, contra ~4 µs de una suma en
-`Double`. JNA es reflexivo y tiene sobrecosto real; un emulador además es lento.
+- **Ningún `Double` ni `Float` toca un monto. Nunca**, ni en tests. Los montos viajan como
+  `String` de punta a punta. La única excepción es `ui/benchmark/NativeBaseline.kt`, que existe
+  para exhibir el fallo y lleva un comentario que lo dice.
+- **No edites `uniffi/core_financiero.kt` ni `jniLibs/`.** Son generados. Si algo está mal ahí,
+  se arregla en `rust-core` y se regenera.
 
-**No invalida la guía de llamar al core de forma síncrona**: 150 µs es un sexto de un frame a
-60 fps, y cada interacción hace una o dos llamadas. Pero el número conviene tenerlo escrito, en
-vez de repetir "microsegundos" sin medirlo.
+---
 
-Lo que el benchmark **sí** exhibe es lo otro: `NativeBaseline` es más rápido y **da mal el
-resultado**. Su test aserta que *diverge* del core; si alguna vez deja de fallar contra `0.30`,
-deja de servir para la demo.
+## Dónde está el resto
 
-## Dos trampas de AGP 9 que costaron tiempo
-
-Documentadas porque se descubrieron ejecutando, no leyendo:
-
-1. **`srcDir` del SourceSet API no acepta un `Provider<Directory>`.** Falla con
-   `You cannot add Provider instances to the Android SourceSet API`. Se resuelve con
-   `.get().asFile`, manteniendo el `Provider` crudo en el `into()` del `Copy` para no romper la
-   configuration cache.
-2. **`--tests` no filtra tests instrumentados** (ver arriba).
-
-## Lo que esta fase NO entrega
-
-- **`abiFilters`**: el APK de debug pesa ~32 MB porque JNA trae `libjnidispatch.so` para seis
-  ABIs, incluidos `mips` y `mips64`, muertos desde 2017. Se recorta con tres líneas, pero el
-  tamaño del binario es criterio de la demo y corresponde medirlo antes y después, no a ciegas.
-- **Un test instrumentado de `UniffiCoreFinanciero`**: nada verifica hoy que su `runCatching`
-  convierta una excepción del core en `Result.failure` contra la `.so` real. El test de contrato llama a
-  las funciones de uniffi directamente, sin pasar por el adapter.
-- **`rememberSaveable` para la pestaña activa**: al rotar vuelve a Aritmética.
-- Persistencia, red, animaciones, tablet/foldable, e i18n más allá del español.
+| Archivo | Para qué |
+|---|---|
+| **[BUILD.md](BUILD.md)** | Compilar el núcleo Rust, generar los bindings, armar el APK, y las trampas de AGP 9 |
+| **[TESTING.md](TESTING.md)** | Las dos suites, el test de contrato, y cómo se verificaron sus guardias |
+| **[PENDING.md](PENDING.md)** | Deuda técnica conocida y qué quedó fuera por diseño |
+| **[CONTEXT.md](CONTEXT.md)** | La spec: arquitectura de UI, convenciones de ViewModel, prohibiciones |
+| [../../docs/ui-spec.md](../../docs/ui-spec.md) | Los labels y el orden de campos que las cuatro apps comparten |
+| [../../contracts/README.md](../../contracts/README.md) | El contrato: los 28 casos y de dónde salen |

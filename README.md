@@ -54,8 +54,8 @@ rust-core/crates/ffi        (único crate exportado; domain/calculation/validati
 | Fase | Entregable | Estado |
 |---|---|---|
 | 0 | Toolchain + `contracts/cases.json` | ✅ Completada |
-| 1 | `rust-core` — dominio, cálculo, validación, cifrado, FFI | ⬜ Siguiente |
-| 2 | `apps/android` — Kotlin + Compose | ⬜ |
+| 1 | `rust-core` — dominio, cálculo, validación, cifrado, FFI | ✅ Completada |
+| 2 | `apps/android` — Kotlin + Compose | ✅ Completada |
 | 3 | `apps/ios` — Swift + SwiftUI | ⬜ |
 | 4 | `apps/react-native` — Turbo Module | ⬜ |
 | 5 | `apps/web-angular` — WASM | ⬜ |
@@ -67,14 +67,18 @@ en Mermaid. Una fase sin las dos cosas no está terminada, por bien que se vea l
 ## Arranque
 
 ```bash
-# Fase 0 (ya hecha): toolchain host
-curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
-cargo --version
+# El núcleo, desde rust-core/
+cargo test --workspace          # 67 tests
+cargo test --test contract      # solo los 28 vectores del contrato
 
-# Fase 1 en adelante, desde rust-core/
-cargo test --workspace
-cargo test --test de contrato        # solo los vectores del contrato
+# La app Android, desde apps/android/
+./gradlew :app:testDebugUnitTest          # 25 tests, en la JVM
+./gradlew :app:connectedDebugAndroidTest  # 15 tests, sobre un dispositivo
+./gradlew :app:installDebug               # y a correrla
 ```
+
+Si es la primera vez, cada subproyecto tiene su README con los requisitos y el paso a paso:
+[rust-core/README.md](rust-core/README.md) y [apps/android/README.md](apps/android/README.md).
 
 Cada fase instala solo el toolchain y las skills que necesita: ver
 [docs/superpowers/skills-by-phase.md](docs/superpowers/skills-by-phase.md).

@@ -309,7 +309,7 @@ Los comandos exactos están en el plan de cada fase.
 cargo test --workspace              # todo: 67 tests
 cargo test -p domain                # un solo crate, sin compilar uniffi
 cargo test -p domain rounds_half_away_from_zero_not_to_even   # un solo test por nombre
-cargo test -p core_financiero --test de contrato       # los vectores y las guardias del contrato
+cargo test -p core_financiero --test contract       # los vectores y las guardias del contrato
 cargo clippy --workspace --all-targets -- -D warnings
 cargo fmt --all
 ```

@@ -45,7 +45,7 @@ de la stdlib, y `#[derive(thiserror::Error)]` deja de compilar con `cannot find 
 ```bash
 cargo test --workspace                                        # todo: 67 tests
 cargo test -p domain                                          # solo el núcleo, sin compilar uniffi
-cargo test -p core_financiero --test de contrato                   # los 28 casos + las guardias
+cargo test -p core_financiero --test contract                   # los 28 casos + las guardias
 cargo test -p domain rounds_half_away_from_zero_not_to_even   # un solo test por nombre
 cargo clippy --workspace --all-targets -- -D warnings
 cargo fmt --all
@@ -63,7 +63,7 @@ doc-tests— reportan `0 passed`, que es lo esperado:
 | `crates/domain/tests/properties.rs` (`proptest`) | 6 |
 | **Total** | **67** |
 
-`cargo test -p core_financiero --test de contrato` imprime:
+`cargo test -p core_financiero --test contract` imprime:
 
 ```
 running 11 tests

@@ -37,7 +37,7 @@ centavos — que es exactamente el fallo que la POC existe para hacer visible.
 
 | Proyecto | Ruta | Runner |
 |---|---|---|
-| `rust-core` | `../contracts/cases.json` | `cargo test --test de contrato` |
+| `rust-core` | `../contracts/cases.json` | `cargo test --test contract` |
 | `apps/android` | copiar a `src/androidTest/assets/` en el build | `androidTest` |
 | `apps/ios` | agregar al bundle del test target | `XCTest` |
 | `apps/react-native` | `../../contracts/cases.json` | Jest |
