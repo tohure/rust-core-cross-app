@@ -18,20 +18,12 @@
 			remoteGlobalIDString = DD83237E3053A1AF0038F99E;
 			remoteInfo = "ios-rust-test";
 		};
-		DD8323973053A1B00038F99E /* PBXContainerItemProxy */ = {
-			isa = PBXContainerItemProxy;
-			containerPortal = DD8323773053A1AF0038F99E /* Project object */;
-			proxyType = 1;
-			remoteGlobalIDString = DD83237E3053A1AF0038F99E;
-			remoteInfo = "ios-rust-test";
-		};
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
 		C0DE000000000000000000F1 /* CoreFinanciero.xcframework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcframework; path = CoreFinanciero.xcframework; sourceTree = "<group>"; };
 		DD83237F3053A1AF0038F99E /* ios-rust-test.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "ios-rust-test.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		DD83238C3053A1B00038F99E /* ios-rust-testTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "ios-rust-testTests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
-		DD8323963053A1B00038F99E /* ios-rust-testUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "ios-rust-testUITests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -43,11 +35,6 @@
 		DD83238F3053A1B00038F99E /* ios-rust-testTests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = "ios-rust-testTests";
-			sourceTree = "<group>";
-		};
-		DD8323993053A1B00038F99E /* ios-rust-testUITests */ = {
-			isa = PBXFileSystemSynchronizedRootGroup;
-			path = "ios-rust-testUITests";
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -68,13 +55,6 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		DD8323933053A1B00038F99E /* Frameworks */ = {
-			isa = PBXFrameworksBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -83,7 +63,6 @@
 			children = (
 				DD8323813053A1AF0038F99E /* ios-rust-test */,
 				DD83238F3053A1B00038F99E /* ios-rust-testTests */,
-				DD8323993053A1B00038F99E /* ios-rust-testUITests */,
 				C0DE000000000000000000F1 /* CoreFinanciero.xcframework */,
 				DD8323803053A1AF0038F99E /* Products */,
 			);
@@ -94,7 +73,6 @@
 			children = (
 				DD83237F3053A1AF0038F99E /* ios-rust-test.app */,
 				DD83238C3053A1B00038F99E /* ios-rust-testTests.xctest */,
-				DD8323963053A1B00038F99E /* ios-rust-testUITests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -147,29 +125,6 @@
 			productReference = DD83238C3053A1B00038F99E /* ios-rust-testTests.xctest */;
 			productType = "com.apple.product-type.bundle.unit-test";
 		};
-		DD8323953053A1B00038F99E /* ios-rust-testUITests */ = {
-			isa = PBXNativeTarget;
-			buildConfigurationList = DD8323A63053A1B00038F99E /* Build configuration list for PBXNativeTarget "ios-rust-testUITests" */;
-			buildPhases = (
-				DD8323923053A1B00038F99E /* Sources */,
-				DD8323933053A1B00038F99E /* Frameworks */,
-				DD8323943053A1B00038F99E /* Resources */,
-			);
-			buildRules = (
-			);
-			dependencies = (
-				DD8323983053A1B00038F99E /* PBXTargetDependency */,
-			);
-			fileSystemSynchronizedGroups = (
-				DD8323993053A1B00038F99E /* ios-rust-testUITests */,
-			);
-			name = "ios-rust-testUITests";
-			packageProductDependencies = (
-			);
-			productName = "ios-rust-testUITests";
-			productReference = DD8323963053A1B00038F99E /* ios-rust-testUITests.xctest */;
-			productType = "com.apple.product-type.bundle.ui-testing";
-		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -184,10 +139,6 @@
 						CreatedOnToolsVersion = 26.6;
 					};
 					DD83238B3053A1B00038F99E = {
-						CreatedOnToolsVersion = 26.6;
-						TestTargetID = DD83237E3053A1AF0038F99E;
-					};
-					DD8323953053A1B00038F99E = {
 						CreatedOnToolsVersion = 26.6;
 						TestTargetID = DD83237E3053A1AF0038F99E;
 					};
@@ -209,7 +160,6 @@
 			targets = (
 				DD83237E3053A1AF0038F99E /* ios-rust-test */,
 				DD83238B3053A1B00038F99E /* ios-rust-testTests */,
-				DD8323953053A1B00038F99E /* ios-rust-testUITests */,
 			);
 		};
 /* End PBXProject section */
@@ -223,13 +173,6 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 		DD83238A3053A1B00038F99E /* Resources */ = {
-			isa = PBXResourcesBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
-		DD8323943053A1B00038F99E /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -253,13 +196,6 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		DD8323923053A1B00038F99E /* Sources */ = {
-			isa = PBXSourcesBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
@@ -267,11 +203,6 @@
 			isa = PBXTargetDependency;
 			target = DD83237E3053A1AF0038F99E /* ios-rust-test */;
 			targetProxy = DD83238D3053A1B00038F99E /* PBXContainerItemProxy */;
-		};
-		DD8323983053A1B00038F99E /* PBXTargetDependency */ = {
-			isa = PBXTargetDependency;
-			target = DD83237E3053A1AF0038F99E /* ios-rust-test */;
-			targetProxy = DD8323973053A1B00038F99E /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
@@ -329,7 +260,7 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 26.5;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
@@ -387,7 +318,7 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 26.5;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
@@ -417,7 +348,7 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = "dev.tohure.ios-rust-test.ios-rust-test";
+				PRODUCT_BUNDLE_IDENTIFIER = "dev.tohure.ios-rust-test";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
@@ -449,7 +380,7 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = "dev.tohure.ios-rust-test.ios-rust-test";
+				PRODUCT_BUNDLE_IDENTIFIER = "dev.tohure.ios-rust-test";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
@@ -469,7 +400,7 @@
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = PSBE6PYY33;
 				GENERATE_INFOPLIST_FILE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 26.5;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = "dev.tohure.ios-rust-test.ios-rust-testTests";
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -491,7 +422,7 @@
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = PSBE6PYY33;
 				GENERATE_INFOPLIST_FILE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 26.5;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = "dev.tohure.ios-rust-test.ios-rust-testTests";
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -502,46 +433,6 @@
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
 				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/ios-rust-test.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/ios-rust-test";
-			};
-			name = Release;
-		};
-		DD8323A73053A1B00038F99E /* Debug */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = PSBE6PYY33;
-				GENERATE_INFOPLIST_FILE = YES;
-				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = "dev.tohure.ios-rust-test.ios-rust-testUITests";
-				PRODUCT_NAME = "$(TARGET_NAME)";
-				STRING_CATALOG_GENERATE_SYMBOLS = NO;
-				SWIFT_APPROACHABLE_CONCURRENCY = YES;
-				SWIFT_EMIT_LOC_STRINGS = NO;
-				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
-				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2";
-				TEST_TARGET_NAME = "ios-rust-test";
-			};
-			name = Debug;
-		};
-		DD8323A83053A1B00038F99E /* Release */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = PSBE6PYY33;
-				GENERATE_INFOPLIST_FILE = YES;
-				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = "dev.tohure.ios-rust-test.ios-rust-testUITests";
-				PRODUCT_NAME = "$(TARGET_NAME)";
-				STRING_CATALOG_GENERATE_SYMBOLS = NO;
-				SWIFT_APPROACHABLE_CONCURRENCY = YES;
-				SWIFT_EMIT_LOC_STRINGS = NO;
-				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
-				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2";
-				TEST_TARGET_NAME = "ios-rust-test";
 			};
 			name = Release;
 		};
@@ -571,15 +462,6 @@
 			buildConfigurations = (
 				DD8323A43053A1B00038F99E /* Debug */,
 				DD8323A53053A1B00038F99E /* Release */,
-			);
-			defaultConfigurationIsVisible = 0;
-			defaultConfigurationName = Release;
-		};
-		DD8323A63053A1B00038F99E /* Build configuration list for PBXNativeTarget "ios-rust-testUITests" */ = {
-			isa = XCConfigurationList;
-			buildConfigurations = (
-				DD8323A73053A1B00038F99E /* Debug */,
-				DD8323A83053A1B00038F99E /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
