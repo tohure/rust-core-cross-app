@@ -1,6 +1,7 @@
 package dev.tohure.android_rust_test
 
 import android.content.Context
+import androidx.compose.runtime.Immutable
 import dev.tohure.android_rust_test.adapter.ContractMessages
 import dev.tohure.android_rust_test.adapter.CoreFinanciero
 import dev.tohure.android_rust_test.adapter.UniffiCoreFinanciero
@@ -15,7 +16,11 @@ import dev.tohure.android_rust_test.contract.ContractSource
  * Ninguno de los dos es *más* desacoplado que esto: son más automáticos. Con cinco
  * pantallas y tres dependencias, explícito gana — se lee de arriba abajo y el compilador
  * lo verifica entero.
+ *
+ * `@Immutable` —no `@Stable`— porque las tres dependencias son `val` y no mutan nunca:
+ * es la promesa más fuerte de las dos y acá es literalmente cierta.
  */
+@Immutable
 class AppContainer(context: Context) {
     private val assets = context.applicationContext.assets
 
