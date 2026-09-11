@@ -129,13 +129,6 @@ conviene. Se cierra con una llamada de prueba fuera del bucle antes de medir.
 - El estado no sobrevive a que el sistema descarte la escena: cada `View` crea su
   `@Observable` con `@State` y no hay `SceneStorage`. No afecta la demo.
 
-## Hallazgo para otra app, anotado aquí porque apareció comparando
-
-`apps/android/.../ui/benchmark/BenchmarkViewModel.kt:37` hace `toIntOrNull() ?: return` sin
-chequear `n > 0`. Con `"0"` iteraciones eso llega a `coerceIn(0, -1)`, que en Kotlin **lanza
-`IllegalArgumentException`**: la app crashea. iOS tiene el guard y por eso su test
-`zeroIterationsIsSafe` pasa. Es un `fix(android):` de una línea que no pertenece a esta rama.
-
 ## Fuera de alcance por diseño
 
 Esto **no** son pendientes: son cosas que la POC decidió no hacer.

@@ -4,6 +4,7 @@ import androidx.compose.runtime.Stable
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dev.tohure.android_rust_test.adapter.CoreFinanciero
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -24,7 +25,16 @@ import kotlinx.coroutines.withContext
  * aprende a ignorar tapa la que sí importa. Ver PENDING.md.
  */
 @Stable
-class BenchmarkViewModel(private val core: CoreFinanciero) : ViewModel() {
+class BenchmarkViewModel(
+    private val core: CoreFinanciero,
+    /**
+     * Dónde corren las mediciones. Se inyecta **solo para poder testear esta pantalla**:
+     * con `Dispatchers.Default` fijo, la corrutina salta a un pool real que
+     * `advanceUntilIdle()` no espera, y el test no puede observar el estado final. Eso es
+     * lo que dejó pasar el bug de `n = 0` hasta la Fase 3.
+     */
+    private val worker: CoroutineDispatcher = Dispatchers.Default,
+) : ViewModel() {
     private val _uiState = MutableStateFlow(BenchmarkUiState())
     val uiState: StateFlow<BenchmarkUiState> = _uiState.asStateFlow()
 
@@ -34,13 +44,18 @@ class BenchmarkViewModel(private val core: CoreFinanciero) : ViewModel() {
     }
 
     fun run() {
-        val n = _uiState.value.iterations.toIntOrNull() ?: return
+        // `n > 0`, no solo `n != null`: con n = 0, `measure` calcula el índice del percentil
+        // como (0 * 0.5).toInt().coerceIn(0, -1) y `coerceIn` lanza IllegalArgumentException
+        // cuando el mínimo supera al máximo. La corrutina moría después de prender
+        // isRunning, así que el spinner quedaba colgado — y en un aparato la excepción sin
+        // capturar en viewModelScope se lleva puesta la app. iOS tiene el mismo guard.
+        val n = _uiState.value.iterations.toIntOrNull()?.takeIf { it > 0 } ?: return
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isRunning = true)
             // ESTA es la única pantalla donde las llamadas al core salen del hilo principal.
             // En el resto son síncronas y de microsegundos: envolverlas sería puro ruido.
-            val core50to95 = withContext(Dispatchers.Default) { measure(n) { core.add("0.1", "0.2") } }
-            val native50to95 = withContext(Dispatchers.Default) { measure(n) { NativeBaseline.add("0.1", "0.2") } }
+            val core50to95 = withContext(worker) { measure(n) { core.add("0.1", "0.2") } }
+            val native50to95 = withContext(worker) { measure(n) { NativeBaseline.add("0.1", "0.2") } }
             _uiState.value = _uiState.value.copy(
                 coreP50 = core50to95.first, coreP95 = core50to95.second,
                 nativeP50 = native50to95.first, nativeP95 = native50to95.second,
