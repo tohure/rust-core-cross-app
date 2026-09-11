@@ -30,8 +30,10 @@ después de tocar `rust-core`, los pies no coinciden y la comparación deja de v
 
 1. Abrir cada app.
 2. Mirar **el pie de cualquier pantalla** — está en las cuatro, no en una pantalla "Acerca de".
-3. Verificar que el string sea **idéntico**, por ejemplo `1.0.0+57d8fa4`. Va sin prefijo
-   ni reformateo: es lo que devuelve `core_version()` y nada más.
+3. Verificar que el string sea **idéntico entre las apps**. Al momento de escribir esto es
+   `1.0.0+b719da3`, pero el SHA cambia cada vez que se regenera el artefacto: **lo que importa
+   no es qué valor tiene, sino que sea el mismo en todas.** Va sin prefijo ni reformateo — es
+   lo que devuelve `core_version()` y nada más.
 
 Si no coinciden, regenerar todos los artefactos desde el mismo HEAD antes de seguir. El
 procedimiento por plataforma está en [`../rust-core/BUILD.md`](../rust-core/BUILD.md) y en el
