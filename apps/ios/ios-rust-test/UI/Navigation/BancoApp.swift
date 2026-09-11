@@ -2,9 +2,8 @@ import SwiftUI
 
 /// La navegación de la app y el pie de `coreVersion()` **visible en todas las pestañas**.
 ///
-/// Las Tasks 11 y 12 agregaron Transferencia y Tarjeta; Benchmark la agrega la Task 13,
-/// cuando su pantalla existe. Preferible a un `TabView` de cuatro con placeholders: una
-/// pestaña sin contenido real sería código muerto.
+/// Las cuatro pestañas: Aritmética, Transferencia y Tarjeta las agregaron las Tasks 10, 11
+/// y 12; Benchmark la agrega la Task 13 y cierra la UI de la fase.
 ///
 /// Sin librería de navegación: no hay back stack, ni argumentos, ni deep links. Una
 /// enumeración y un `TabView` alcanzan.
@@ -29,6 +28,10 @@ struct BancoApp: View {
             CardView(container: container)
                 .tabItem {
                     Label("Tarjeta", systemImage: "creditcard")
+                }
+            BenchmarkView(container: container)
+                .tabItem {
+                    Label("Benchmark", systemImage: "speedometer")
                 }
         }
         .tint(Palette.brand)
