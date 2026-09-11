@@ -60,7 +60,7 @@ rust-core/crates/ffi        (único crate exportado; domain/calculation/validati
 | 4 | `apps/react-native` — Turbo Module | ⬜ |
 | 5 | `apps/web-angular` — WASM | ⬜ |
 
-Cada fase termina con su test golden en verde contra el contrato **y** con el `README.md`
+Cada fase termina con su test de contrato en verde contra el contrato **y** con el `README.md`
 de su subproyecto: comandos ya ejecutados (no deducidos) más un diagrama de arquitectura
 en Mermaid. Una fase sin las dos cosas no está terminada, por bien que se vea la UI.
 
@@ -73,7 +73,7 @@ cargo --version
 
 # Fase 1 en adelante, desde rust-core/
 cargo test --workspace
-cargo test --test golden        # solo los vectores del contrato
+cargo test --test de contrato        # solo los vectores del contrato
 ```
 
 Cada fase instala solo el toolchain y las skills que necesita: ver

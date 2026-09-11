@@ -3,7 +3,7 @@
 Primer consumidor de `rust-core`. Kotlin + Jetpack Compose, vía uniffi.
 
 **Estado: Fase 2 completada.** **35 tests en verde** —20 unitarios de JVM y 15 instrumentados
-sobre dispositivo, de los cuales 9 son el golden— contra `contracts/cases.json` v2.3.0, 28 casos.
+sobre dispositivo, de los cuales 9 son el test de contrato— contra `contracts/cases.json` v2.3.0, 28 casos.
 Las cuatro pantallas funcionan y el pie con `coreVersion()` es visible en todas.
 
 Todos los comandos de este README **se ejecutaron tal como están escritos** y la salida que
@@ -29,7 +29,7 @@ flowchart TD
     vm --> screens["Compose<br/>5 pantallas de docs/ui-spec.md"]
 
     contrato[("contracts/<br/>cases.json<br/>messages.es.json")]
-    contrato -.->|"golden de androidTest/"| adapter
+    contrato -.->|"test de contrato<br/>en androidTest/"| adapter
 
 ```
 
@@ -296,19 +296,19 @@ Qué se debe ver — `BUILD SUCCESSFUL` y **15 tests, 0 failures**:
 | `CoreSmokeTest` | 2 | que la `.so` carga y JNA resuelve símbolos |
 | `ContractAssetsTest` | 2 | que los dos JSON del contrato llegaron a los dos APK |
 | `contract.AssetSourcesTest` | 2 | que los seams leen los assets reales |
-| **`GoldenTest`** | **9** | **los 28 casos del contrato, más sus guardias** |
+| **`ContractTest`** | **9** | **los 28 casos del contrato, más sus guardias** |
 
 Para acotar una corrida instrumentada a una clase, **`--tests` no sirve** —ese flag es de la
 tarea de unit tests JVM y AGP 9 lo rechaza acá—. El equivalente que funciona:
 
 ```bash
 ./gradlew :app:connectedDebugAndroidTest \
-  -Pandroid.testInstrumentationRunnerArguments.class=dev.tohure.android_rust_test.GoldenTest
+  -Pandroid.testInstrumentationRunnerArguments.class=dev.tohure.android_rust_test.ContractTest
 ```
 
-### El golden es el entregable, no un test de apoyo
+### El test de contrato es el entregable, no un test de apoyo
 
-`GoldenTest` es el espejo Kotlin de `rust-core/crates/ffi/tests/golden.rs`. Compara con
+`ContractTest` es el espejo Kotlin de `rust-core/crates/ffi/tests/contract.rs`. Compara con
 `assertEquals` **sobre `String`**, nunca con tolerancia numérica. Que pase **es** la
 demostración de la POC en esta plataforma.
 
@@ -317,11 +317,11 @@ no aserta nada. Verificadas **por mutación**, no por lectura:
 
 | Mutación en `contracts/cases.json` | Qué falló |
 |---|---|
-| `"cci": []` | `theContractHasTheExpectedNumberOfCases` y `goldenCci`, por su contador |
-| un campo extra en el `esperado` de `tj-001` | `goldenCard`, nombrando el campo que sobra |
+| `"cci": []` | `theContractHasTheExpectedNumberOfCases` y `contractCci`, por su contador |
+| un campo extra en el `esperado` de `tj-001` | `contractCard`, nombrando el campo que sobra |
 | se borra la entrada `"Cifrado"` de `messages.es.json` | `theMessagesAssetCoversTheNineErrorVariants`, nombrando la variante |
 
-Es además el primer test de toda la POC que cruza el **borde FFI real**: el golden de
+Es además el primer test de toda la POC que cruza el **borde FFI real**: el test de contrato de
 `rust-core` llama a las nueve funciones como funciones Rust ordinarias, así que no prueba JNA,
 ni `System.loadLibrary`, ni los símbolos que el `strip` pudo comerse. Eso lo prueba recién este.
 
@@ -373,7 +373,7 @@ Documentadas porque se descubrieron ejecutando, no leyendo:
   ABIs, incluidos `mips` y `mips64`, muertos desde 2017. Se recorta con tres líneas, pero el
   tamaño del binario es criterio de la demo y corresponde medirlo antes y después, no a ciegas.
 - **Un test instrumentado de `UniffiCoreFinanciero`**: nada verifica hoy que su `runCatching`
-  convierta una excepción del core en `Result.failure` contra la `.so` real. El golden llama a
+  convierta una excepción del core en `Result.failure` contra la `.so` real. El test de contrato llama a
   las funciones de uniffi directamente, sin pasar por el adapter.
 - **`rememberSaveable` para la pestaña activa**: al rotar vuelve a Aritmética.
 - Persistencia, red, animaciones, tablet/foldable, e i18n más allá del español.

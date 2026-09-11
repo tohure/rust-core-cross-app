@@ -33,7 +33,7 @@ fun DomainException.contractName(): String =
  *
  * Vive en producción, no solo en el test, porque `contracts/messages.es.json` indexa los
  * mensajes por nombre del contrato: la pantalla de error necesita el mapeo igual que el
- * golden. **El golden reusa esta misma función** en vez de escribir la suya — así verifica
+ * test de contrato. **El test de contrato reusa esta misma función** en vez de escribir la suya — así verifica
  * contra `cases.json` el mapeo que la UI usa de verdad, y no una copia que puede divergir.
  */
 class ContractMessages(source: MessageSource) {

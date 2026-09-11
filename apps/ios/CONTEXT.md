@@ -60,13 +60,13 @@ Dos detalles que ahorran una tarde:
   `SameAccount`, `InsufficientFunds`, `Encryption` y `OutOfRange` — con esa capitalización,
   que no es la convención de Swift pero es la que genera uniffi. `contracts/cases.json` los
   nombra en español (`"Longitud"`, `"DigitoControl"`, …) y **ese mapeo no cruza el FFI**:
-  hay que escribirlo, nueve líneas, **en el `XCTest` golden, no en producción**, con un
+  hay que escribirlo, nueve líneas, **en el `XCTest` de contrato, no en producción**, con un
   `switch` que cubra los nueve casos **sin `default`**, para que una décima variante rompa
   la compilación en vez de pasar en verde. Ver
   [rust-core/README.md](../../rust-core/README.md).
 
 `validateCci` y `calculateItf` no tienen pantalla propia entre las cinco de la demo: hoy
-las consume el test golden. Si se decide darles pantalla, se agrega **en las cuatro apps a
+las consume el test de contrato. Si se decide darles pantalla, se agrega **en las cuatro apps a
 la vez** — la paridad es la demo.
 
 ## Estructura
@@ -151,7 +151,7 @@ Reglas:
    lee igual que `cases.json` desde el bundle de test. Está indexado por el
    **nombre del contrato** (`Longitud`, `DigitoControl`, …) y no por el de la
    variante, así que el mapeo `DomainError` → nombre del contrato hace falta **en
-   producción**, y el golden reusa ese mismo mapeo en vez de escribir el suyo. Va
+   producción**, y el test de contrato reusa ese mismo mapeo en vez de escribir el suyo. Va
    exhaustivo: `switch` sin `default`. El porqué del archivo está en
    [rust-core/README.md](../../rust-core/README.md) — "Los mensajes de error en
    español NO cruzan el FFI".
@@ -181,7 +181,7 @@ Tres cosas que no son opcionales:
 
 1. **Es un filtro de texto, no una regla de negocio.** No parsea, no redondea, no calcula:
    decide si el string que el usuario acaba de teclear se acepta en el campo. Quien valida
-   sigue siendo el core, y `tr-007` sigue probándolo en el golden.
+   sigue siendo el core, y `tr-007` sigue probándolo en el test de contrato.
 2. **El string viaja al core tal como se tecleó:** punto decimal, sin `S/` y sin
    separadores de miles. Verificado contra el core: `"1,50"`, `"1 000.50"` y `"S/ 100.00"`
    devuelven `InvalidAmount`. El `.decimalPad` en un dispositivo con locale es_PE ofrece

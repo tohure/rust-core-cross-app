@@ -34,3 +34,6 @@ xcuserdata/
 # Angular
 /apps/web-angular/.angular/
 /apps/web-angular/dist/
+
+# Índice de CodeGraph — generado, se reconstruye con `codegraph index`
+/.codegraph/

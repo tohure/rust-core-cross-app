@@ -11,7 +11,7 @@ import uniffi.core_financiero.coreVersion
 /**
  * El primer test de toda la POC que cruza el borde FFI real.
  *
- * El golden de `rust-core` llama a las nueve funciones como funciones Rust ordinarias:
+ * El test de contrato de `rust-core` llama a las nueve funciones como funciones Rust ordinarias:
  * no prueba JNA, ni `System.loadLibrary`, ni si el `strip` del perfil release se comió
  * algún símbolo. Esto sí. Si este test falla, ninguna pantalla tiene sentido todavía.
  */

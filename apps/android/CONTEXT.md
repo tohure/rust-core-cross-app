@@ -71,11 +71,11 @@ Dos detalles que ahorran una tarde:
   con un `when` exhaustivo usado como expresión y **sin rama `else`**, para que una décima
   variante rompa la compilación en vez de pasar en verde. Va en producción porque
   `contracts/messages.es.json` indexa los mensajes de usuario por el nombre del contrato, así
-  que la pantalla de error lo necesita igual que el golden; se escribe una vez y el golden
+  que la pantalla de error lo necesita igual que el test de contrato; se escribe una vez y el test de contrato
   reusa ese mismo. Ver [rust-core/README.md](../../rust-core/README.md).
 
 `validateCci` y `calculateItf` no tienen pantalla propia entre las cinco de la demo: hoy
-las consume el test golden. Si se decide darles pantalla, se agrega **en las cuatro apps a
+las consume el test de contrato. Si se decide darles pantalla, se agrega **en las cuatro apps a
 la vez** — la paridad es la demo.
 
 **Las pantallas, sus labels y el orden de campos están en
@@ -145,7 +145,7 @@ Reglas de la capa adapter:
    lee igual que `cases.json`. Está indexado por el **nombre del contrato**
    (`Longitud`, `DigitoControl`, …) y no por el de la variante, así que el mapeo
    `DomainException` → nombre del contrato hace falta **en producción**, y el
-   golden reusa ese mismo mapeo en vez de escribir el suyo. Va exhaustivo: `when`
+   test de contrato reusa ese mismo mapeo en vez de escribir el suyo. Va exhaustivo: `when`
    como expresión, sin `else`. El porqué del archivo está en
    [rust-core/README.md](../../rust-core/README.md) — "Los mensajes de error en
    español NO cruzan el FFI".
@@ -175,7 +175,7 @@ Tres cosas que no son opcionales:
 
 1. **Es un filtro de texto, no una regla de negocio.** No parsea, no redondea, no calcula:
    decide si el string que el usuario acaba de teclear se acepta en el campo. Quien valida
-   sigue siendo el core, y `tr-007` sigue probándolo en el golden.
+   sigue siendo el core, y `tr-007` sigue probándolo en el test de contrato.
 2. **El string viaja al core tal como se tecleó:** punto decimal, sin `S/` y sin
    separadores de miles. Verificado contra el core: `"1,50"`, `"1 000.50"` y `"S/ 100.00"`
    devuelven `InvalidAmount`. El teclado `Decimal` en un dispositivo con locale es-PE puede
@@ -398,7 +398,7 @@ sobre strings, no comparación numérica con tolerancia. Ese test es la
 evidencia central de la POC: si pasa en las cuatro plataformas, el argumento
 está probado.
 
-Es además el primer test de toda la POC que cruza el **borde FFI real**: el golden de
+Es además el primer test de toda la POC que cruza el **borde FFI real**: el test de contrato de
 `rust-core` llama a las nueve funciones como funciones Rust ordinarias, así que no prueba
 JNA, ni `System.loadLibrary`, ni los símbolos que el `strip` podría haberse comido. Eso lo
 prueba recién este.

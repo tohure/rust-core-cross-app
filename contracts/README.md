@@ -4,7 +4,7 @@ El contrato compartido de la POC son **dos archivos**, y los leen las cinco base
 
 | Archivo | Qué fija | Lo compara |
 |---|---|---|
-| `cases.json` | los vectores golden: entradas y strings esperados | el test golden de cada plataforma |
+| `cases.json` | los vectores de contrato: entradas y strings esperados | el test de contrato de cada plataforma |
 | `messages.es.json` | el mensaje de usuario de cada nombre de error | la pantalla de error de cada app |
 
 Que los mismos casos produzcan los mismos strings en Rust, Android, iOS, React Native y
@@ -37,7 +37,7 @@ centavos — que es exactamente el fallo que la POC existe para hacer visible.
 
 | Proyecto | Ruta | Runner |
 |---|---|---|
-| `rust-core` | `../contracts/cases.json` | `cargo test --test golden` |
+| `rust-core` | `../contracts/cases.json` | `cargo test --test de contrato` |
 | `apps/android` | copiar a `src/androidTest/assets/` en el build | `androidTest` |
 | `apps/ios` | agregar al bundle del test target | `XCTest` |
 | `apps/react-native` | `../../contracts/cases.json` | Jest |
@@ -211,7 +211,7 @@ en las cuatro apps, para que la comparación lado a lado sea limpia.
 ### Qué es y por qué existe aparte
 
 `cases.json` comparte los **nombres** de las variantes de error (`"MismaCuenta"`,
-`"DigitoControl"`), y el golden de cada plataforma los compara por igualdad exacta. Los
+`"DigitoControl"`), y el test de contrato de cada plataforma los compara por igualdad exacta. Los
 **mensajes**, en cambio, no cruzan el FFI: uniffi no usa el `Display` de `thiserror`, arma
 el `message` a partir de los campos de la variante (en Kotlin, `Length` sale como
 `field=cci, expected=20, received=18`) y devuelve **el string vacío** para las variantes sin
@@ -268,14 +268,14 @@ que traducirlos.
 
 ### La guardia que lo sostiene
 
-`rust-core/crates/ffi/tests/golden.rs` lo ata en tres tests, y las otras tres plataformas
+`rust-core/crates/ffi/tests/contract.rs` lo ata en tres tests, y las otras tres plataformas
 los espejan:
 
 - `the_messages_file_has_the_expected_shape` — las claves de primer nivel son las conocidas;
 - `the_messages_file_covers_the_nine_error_variants` — las claves de `mensajes` son
   exactamente los nueve `contract_name()`, ninguna vacía. Los nueve no están tipeados en el
   test: salen de las nueve variantes reales, y un `match` exhaustivo sin rama por defecto
-  hace que agregar una décima **rompa la compilación** del golden;
+  hace que agregar una décima **rompa la compilación** del test de contrato;
 - `every_error_name_in_the_contract_has_a_user_message` — todo nombre que `cases.json` espera
   tiene su mensaje, reportando el id del caso que se quedaría sin texto.
 
@@ -288,7 +288,7 @@ Agregar una variante a `DomainError` obliga, **en el mismo cambio**, a:
 
 1. su brazo en `contract_name()` (el compilador lo exige en `domain` y en `ffi`);
 2. su entrada en `messages.es.json`, con el mensaje de usuario;
-3. su patrón en `every_variant_is_listed` del golden — hasta que esté, el golden no compila;
+3. su patrón en `every_variant_is_listed` del test de contrato — hasta que esté, el test de contrato no compila;
 4. subir el `version` de `messages.es.json` con el mismo criterio semver de abajo: **minor**
    al agregar una entrada, **major** al cambiar o borrar el texto de una existente, porque
    ese texto es normativo para las cuatro pantallas.
@@ -315,5 +315,5 @@ contrato, así que para ellos este archivo y el test de arriba son la única fue
    aritmética en el mensaje y sin mezclar cambios al core. Es la única forma de auditar
    después si el contrato se dobló para que pasara el código.
 4. Si el caso nuevo espera un `error` cuyo nombre todavía no está en `messages.es.json`,
-   ese mensaje se agrega en el mismo cambio. El golden lo exige: sin la entrada, el test
+   ese mensaje se agrega en el mismo cambio. El test de contrato lo exige: sin la entrada, el test
    falla nombrando el id del caso que quedaría con la pantalla de error en blanco.

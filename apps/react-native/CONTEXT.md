@@ -61,14 +61,14 @@ type ValidCard = { brand: string; masked: string };
 
 **Los identificadores están en inglés; los nombres del contrato, en español.**
 `contracts/cases.json` nombra los errores `"Longitud"`, `"DigitoControl"`, `"MismaCuenta"`…
-y **ese mapeo no cruza el FFI**: hay que escribir las nueve líneas **en el test golden de
+y **ese mapeo no cruza el FFI**: hay que escribir las nueve líneas **en el test de contrato de
 Jest, no en producción**. En TypeScript la exhaustividad no la da el compilador sola: se
 consigue con un `default` que asigne a `never` (`const _exhaustive: never = e.tag`), para
 que una décima variante rompa `tsc` en vez de pasar en verde. Ver
 [rust-core/README.md](../../rust-core/README.md).
 
 `validateCci` y `calculateItf` no tienen pantalla propia entre las cinco de la demo: hoy
-las consume el test golden. Si se decide darles pantalla, se agrega **en las cuatro apps a
+las consume el test de contrato. Si se decide darles pantalla, se agrega **en las cuatro apps a
 la vez** — la paridad es la demo.
 
 ## Configuración
@@ -156,7 +156,7 @@ la variante y lo deja vacío para las que no tienen campos (`CheckDigit`,
 en [`contracts/messages.es.json`](../../contracts/messages.es.json), que esta app
 lee igual que `cases.json`. Está indexado por el **nombre del contrato**
 (`Longitud`, `DigitoControl`, …) y no por el de la variante, así que el mapeo
-`e.tag` → nombre del contrato hace falta **en producción**, y el golden reusa ese
+`e.tag` → nombre del contrato hace falta **en producción**, y el test de contrato reusa ese
 mismo mapeo en vez de escribir el suyo. Va exhaustivo, con el `default` que
 asigna a `never`. El porqué del archivo está en
 [rust-core/README.md](../../rust-core/README.md) — "Los mensajes de error en
@@ -184,7 +184,7 @@ Tres cosas que no son opcionales:
 
 1. **Es un filtro de texto, no una regla de negocio.** No parsea, no redondea, no calcula:
    decide si el string que el usuario acaba de teclear se acepta en el campo. Quien valida
-   sigue siendo el core, y `tr-007` sigue probándolo en el golden. `MONTO.test(...)` opera
+   sigue siendo el core, y `tr-007` sigue probándolo en el test de contrato. `MONTO.test(...)` opera
    sobre el string: no hay `Number` de por medio, y no puede haberlo.
 2. **El string viaja al core tal como se tecleó:** punto decimal, sin `S/` y sin
    separadores de miles. Verificado contra el core: `"1,50"`, `"1 000.50"` y `"S/ 100.00"`

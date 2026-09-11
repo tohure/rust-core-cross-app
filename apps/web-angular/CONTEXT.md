@@ -58,7 +58,7 @@ type ValidCard = { brand: string; masked: string };
 
 **Los identificadores están en inglés; los nombres del contrato, en español.**
 `contracts/cases.json` nombra los errores `"Longitud"`, `"DigitoControl"`, `"MismaCuenta"`…
-y **ese mapeo no cruza el FFI**: hay que escribir las nueve líneas **en el spec golden, no
+y **ese mapeo no cruza el FFI**: hay que escribir las nueve líneas **en el spec del test de contrato, no
 en producción**. En TypeScript la exhaustividad no la da el compilador sola: se consigue
 con un `default` que asigne a `never` (`const _exhaustive: never = e.tag`), para que una
 décima variante rompa `tsc` en vez de pasar en verde. Ver
@@ -120,7 +120,7 @@ la variante y lo deja vacío para las que no tienen campos (`CheckDigit`,
 en [`contracts/messages.es.json`](../../contracts/messages.es.json), que esta app
 lee igual que `cases.json`. Está indexado por el **nombre del contrato**
 (`Longitud`, `DigitoControl`, …) y no por el de la variante, así que el mapeo
-`e.tag` → nombre del contrato hace falta **en producción**, y el golden reusa ese
+`e.tag` → nombre del contrato hace falta **en producción**, y el test de contrato reusa ese
 mismo mapeo en vez de escribir el suyo. Va exhaustivo, con el `default` que
 asigna a `never`. El porqué del archivo está en
 [rust-core/README.md](../../rust-core/README.md) — "Los mensajes de error en
@@ -155,7 +155,7 @@ src/app/
     └── benchmark/          incluye baseline.ts, la implementación en `number` que diverge
 
 `validateCci` y `calculateItf` no tienen pantalla propia entre las cinco de la demo: hoy
-las consume el spec golden. Este CONTEXT listaba además un feature `validador-cci/` que
+las consume el spec del test de contrato. Este CONTEXT listaba además un feature `validador-cci/` que
 ninguna de las otras tres apps tiene; se sacó por la regla de paridad del
 [CLAUDE.md](../../CLAUDE.md) —las cuatro apps tienen **las mismas cinco pantallas**—. Si se
 quiere pantalla de CCI, se agrega **en las cuatro a la vez**.
@@ -193,7 +193,7 @@ Tres cosas que no son opcionales:
 
 1. **Es un filtro de texto, no una regla de negocio.** No parsea, no redondea, no calcula:
    decide si el string que el usuario acaba de teclear se acepta en el campo. Quien valida
-   sigue siendo el core, y `tr-007` sigue probándolo en el golden.
+   sigue siendo el core, y `tr-007` sigue probándolo en el test de contrato.
 2. **El string viaja al core tal como se tecleó:** punto decimal, sin `S/` y sin
    separadores de miles. Verificado contra el core: `"1,50"`, `"1 000.50"` y `"S/ 100.00"`
    devuelven `InvalidAmount`. El teclado `inputmode="decimal"` de un móvil con locale es-PE

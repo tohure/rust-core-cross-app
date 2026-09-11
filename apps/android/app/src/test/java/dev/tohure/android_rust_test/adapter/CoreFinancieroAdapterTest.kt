@@ -5,8 +5,8 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 import uniffi.core_financiero.DomainException
 
-/** Verifica el CONTRATO de la interfaz con el fake — el core real lo prueba el golden. */
-class UniffiCoreFinancieroContractTest {
+/** Verifica el CONTRATO de la interfaz con el fake — el core real lo prueba el test de contrato. */
+class CoreFinancieroAdapterTest {
     @Test
     fun aFailureComesBackAsResultFailureAndNotAsAThrow() {
         val core = FakeCoreFinanciero()

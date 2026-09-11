@@ -22,7 +22,7 @@ import uniffi.core_financiero.validateCard
 import uniffi.core_financiero.validateCci
 
 /**
- * Espejo Kotlin de `rust-core/crates/ffi/tests/golden.rs`. Que este test pase **es** la
+ * Espejo Kotlin de `rust-core/crates/ffi/tests/contract.rs`. Que este test pase **es** la
  * demostración: los mismos 28 casos producen los mismos strings que en Rust.
  *
  * Comparaciones con `assertEquals` sobre `String`, nunca numéricas con tolerancia.
@@ -31,7 +31,7 @@ import uniffi.core_financiero.validateCci
  * elementos no aserta nada, y un test que no compara ningún string reporta éxito.
  */
 @RunWith(AndroidJUnit4::class)
-class GoldenTest {
+class ContractTest {
     private val contract: JSONObject by lazy {
         val assets = InstrumentationRegistry.getInstrumentation().context.assets
         JSONObject(assets.open("cases.json").bufferedReader().use { it.readText() })
@@ -83,7 +83,7 @@ class GoldenTest {
     /**
      * Ata el asset REAL de `messages.es.json` a las nueve variantes del core.
      *
-     * Es la única guardia de mensajes que Android necesita y que Rust no puede dar: el golden
+     * Es la única guardia de mensajes que Android necesita y que Rust no puede dar: el test de contrato
      * de Rust lee el archivo fuente con `include_str!`, mientras que esta app lee el asset que
      * copió Gradle. Un asset viejo o truncado dejaría a Rust en verde y a las cuatro pantallas
      * de error mostrando cosas distintas.
@@ -135,7 +135,7 @@ class GoldenTest {
     // ── Los cinco grupos ──────────────────────────────────────────────────────
 
     @Test
-    fun goldenArithmetic() {
+    fun contractArithmetic() {
         val cases = group("aritmetica")
         var checked = 0
         for (i in 0 until cases.length()) {
@@ -155,7 +155,7 @@ class GoldenTest {
     }
 
     @Test
-    fun goldenItf() {
+    fun contractItf() {
         val cases = group("itf")
         var checked = 0
         for (i in 0 until cases.length()) {
@@ -171,7 +171,7 @@ class GoldenTest {
     }
 
     @Test
-    fun goldenCci() {
+    fun contractCci() {
         val cases = group("cci")
         var checked = 0
         for (i in 0 until cases.length()) {
@@ -199,7 +199,7 @@ class GoldenTest {
     }
 
     @Test
-    fun goldenCard() {
+    fun contractCard() {
         val cases = group("tarjeta")
         var checked = 0
         for (i in 0 until cases.length()) {
@@ -230,7 +230,7 @@ class GoldenTest {
     }
 
     @Test
-    fun goldenTransfer() {
+    fun contractTransfer() {
         val initial = initialAccounts()
         val cases = group("transferencia")
         var checked = 0
@@ -297,7 +297,7 @@ class GoldenTest {
     }
 
     /**
-     * Espejo de `assert_exact_fields` de `golden.rs`.
+     * Espejo de `assert_exact_fields` de `contract.rs`.
      *
      * Verifica que un `esperado` traiga EXACTAMENTE los campos declarados. Sin esta guardia,
      * un campo nuevo en el contrato quedaría sin comparar en silencio: los `getString(...)`
