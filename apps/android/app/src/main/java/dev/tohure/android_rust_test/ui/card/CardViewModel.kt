@@ -26,20 +26,37 @@ class CardViewModel(
         clearError()
     }
 
+    fun foreignHexChanged(value: String) {
+        // Solo hex: filtro de texto. Que el hex sea descifrable lo decide el core.
+        if (!value.all { it.isDigit() || it in 'a'..'f' || it in 'A'..'F' }) return
+        _uiState.value = _uiState.value.copy(foreignHex = value.lowercase())
+        clearForeignError()
+    }
+
     // ── Acciones ──────────────────────────────────────────────────────────────
 
+    /**
+     * Valida por Luhn, cifra, **y vuelve a descifrar**.
+     *
+     * El descifrado no es redundante: es lo único que demuestra en pantalla que esto es
+     * cifrado reversible y no un hash. Sin esa vuelta, el hex de la pantalla es
+     * indistinguible de un `sha256` para quien mira la demo.
+     */
     fun validateAndEncrypt() {
         val number = _uiState.value.number
+        val key = contract.demoKeyHex()
+        val nonce = contract.demoNonceHex()
         core.validateCard(number)
             .mapCatching { card ->
-                val hex = core.encrypt(number, contract.demoKeyHex(), contract.demoNonceHex())
-                    .getOrThrow()
-                card to hex
-            }.onSuccess { (card, hex) ->
+                val hex = core.encrypt(number, key, nonce).getOrThrow()
+                val back = core.decrypt(hex, key, nonce).getOrThrow()
+                Triple(card, hex, back)
+            }.onSuccess { (card, hex, back) ->
                 _uiState.value = _uiState.value.copy(
                     brand = card.brand,
                     masked = card.masked,
                     cipherHex = hex,
+                    roundTrip = back,
                     error = null,
                 )
             }.onFailure { e ->
@@ -47,10 +64,38 @@ class CardViewModel(
                     brand = "",
                     masked = "",
                     cipherHex = "",
+                    roundTrip = "",
                     error = (e as? DomainException)?.let(messages::userMessage) ?: e.toString(),
                 )
             }
     }
 
-    fun clearError() { _uiState.value = _uiState.value.copy(error = null) }
+    /**
+     * Descifra un hex producido por **otra plataforma**.
+     *
+     * Es la demostración en vivo de la tesis: el hex que cifró la app de iOS, React Native o
+     * Angular se pega acá y sale el mismo número, porque la clave, el nonce y el algoritmo
+     * vienen del mismo core de Rust. Hasta ahora eso solo lo probaba el test de contrato.
+     */
+    fun decryptForeign() {
+        val hex = _uiState.value.foreignHex
+        core.decrypt(hex, contract.demoKeyHex(), contract.demoNonceHex())
+            .onSuccess { plain ->
+                _uiState.value = _uiState.value.copy(foreignPlain = plain, foreignError = null)
+            }.onFailure { e ->
+                _uiState.value = _uiState.value.copy(
+                    foreignPlain = "",
+                    foreignError = (e as? DomainException)?.let(messages::userMessage)
+                        ?: e.toString(),
+                )
+            }
+    }
+
+    fun clearError() {
+        _uiState.value = _uiState.value.copy(error = null)
+    }
+
+    fun clearForeignError() {
+        _uiState.value = _uiState.value.copy(foreignError = null)
+    }
 }

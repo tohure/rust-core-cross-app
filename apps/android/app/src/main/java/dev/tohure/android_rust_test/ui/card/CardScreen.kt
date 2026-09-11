@@ -5,6 +5,8 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.MaterialTheme
@@ -20,12 +22,13 @@ import dev.tohure.android_rust_test.ui.components.LabeledField
 import dev.tohure.android_rust_test.ui.components.ResultRow
 import dev.tohure.android_rust_test.ui.components.ScreenHeader
 import dev.tohure.android_rust_test.ui.components.SectionDivider
+import dev.tohure.android_rust_test.ui.theme.CoreGreen
 
 @Composable
 fun CardScreen(vm: CardViewModel, modifier: Modifier = Modifier) {
     val state by vm.uiState.collectAsStateWithLifecycle()
 
-    Column(modifier.padding(16.dp)) {
+    Column(modifier.padding(16.dp).verticalScroll(rememberScrollState())) {
         ScreenHeader("Tarjeta", "Luhn y cifrado ChaCha20-Poly1305")
         Spacer(Modifier.height(16.dp))
 
@@ -42,6 +45,7 @@ fun CardScreen(vm: CardViewModel, modifier: Modifier = Modifier) {
             SectionDivider("Resultado")
             ResultRow("Marca", state.brand)
             ResultRow("Enmascarado", state.masked, mono = true)
+
             Text("Cifrado (hex)", style = MaterialTheme.typography.labelLarge)
             Spacer(Modifier.height(4.dp))
             Card(Modifier.fillMaxWidth()) {
@@ -54,6 +58,39 @@ fun CardScreen(vm: CardViewModel, modifier: Modifier = Modifier) {
                     modifier = Modifier.padding(12.dp),
                 )
             }
+
+            Spacer(Modifier.height(8.dp))
+            // La vuelta completa. Sin esta fila el hex de arriba es indistinguible de un hash:
+            // esto es lo que muestra que el core CIFRA y no resume.
+            ResultRow("Descifrado", state.roundTrip, mono = true)
+            Text(
+                "El mismo número salió de vuelta: es cifrado reversible, no un hash.",
+                style = MaterialTheme.typography.bodySmall,
+                color = CoreGreen,
+            )
+        }
+
+        // ── Descifrar un hex ajeno ────────────────────────────────────────────
+        SectionDivider("Descifrar un hex de otra plataforma")
+        Text(
+            "Pegá acá el hex que produjo la app de iOS, React Native o Angular. Sale el mismo " +
+                "número, porque las cuatro usan el mismo core.",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Spacer(Modifier.height(8.dp))
+        LabeledField("Hex cifrado", state.foreignHex, vm::foreignHexChanged)
+        Spacer(Modifier.height(12.dp))
+        Button(vm::decryptForeign, Modifier.fillMaxWidth()) { Text("Descifrar") }
+
+        state.foreignError?.let {
+            Spacer(Modifier.height(8.dp))
+            Text(it, color = MaterialTheme.colorScheme.error)
+        }
+
+        if (state.foreignPlain.isNotEmpty()) {
+            Spacer(Modifier.height(8.dp))
+            ResultRow("Número recuperado", state.foreignPlain, mono = true)
         }
     }
 }

@@ -160,6 +160,9 @@ flotante nativo**, y existe justamente para eso.
 
 ### 3. Tarjeta
 
+**La pantalla que demuestra la capacidad criptográfica del core.** Hace tres cosas, y las tres
+importan: valida por Luhn, cifra, y **descifra**.
+
 ```
 ┌─────────────────────────────────────┐
 │  Tarjeta                            │
@@ -174,17 +177,47 @@ flotante nativo**, y existe justamente para eso.
 │  Enmascarado         4111 **** **** 1111 │
 │  Cifrado (hex)                      │
 │  ┌───────────────────────────────┐  │
-│  │ 9a3f...  (monoespaciado,      │  │  ← debe ser idéntico en las 4
-│  │           con corte de línea) │  │
+│  │ bdca39311826947186b20ec2a92c  │  │  ← monoespaciado, con corte de línea
+│  │ 3f521aacff902e37d519bcd2754f  │  │
+│  │ c7c7c0dd                      │  │
 │  └───────────────────────────────┘  │
+│  Descifrado       4111111111111111  │  ← la vuelta completa
+│  El mismo número salió de vuelta:   │
+│  es cifrado reversible, no un hash. │
+│                                     │
+│  ─── Descifrar un hex de otra ───   │
+│      plataforma                     │
+│  Pegá acá el hex que produjo la app │
+│  de iOS, React Native o Angular…    │
+│  Hex cifrado  [ bcce3d351c2290… ]   │
+│           [  Descifrar  ]           │
+│  Número recuperado 5555555555554444 │
 └─────────────────────────────────────┘
 ```
 
-- Labels exactos: `Número`, `Validar y cifrar`, `Marca`, `Enmascarado`, `Cifrado (hex)`.
-- El hex va en **fuente monoespaciada** y debe poder compararse a simple vista contra las
-  otras tres pantallas: es el punto de la demo.
+- Labels exactos: `Número`, `Validar y cifrar`, `Resultado`, `Marca`, `Enmascarado`,
+  `Cifrado (hex)`, `Descifrado`, `Descifrar un hex de otra plataforma`, `Hex cifrado`,
+  `Descifrar`, `Número recuperado`.
+- **La fila `Descifrado` no es decorativa.** Sin ella la pantalla muestra un hex que un
+  espectador **no puede distinguir de un hash**. Cifrar y volver a descifrar en el mismo gesto
+  es lo único que prueba, mirando, que el core hace criptografía reversible.
+- **El bloque de abajo es la demostración en vivo de la tesis.** Se copia el hex de una app y
+  se pega en otra: sale el mismo número, porque las cuatro comparten clave, nonce y algoritmo
+  desde el mismo core de Rust. Hasta ahora eso solo lo probaba el test de contrato, donde nadie
+  lo ve durante una demo.
+- El hex va en **fuente monoespaciada** y debe poder compararse a simple vista contra las otras
+  tres pantallas.
+- **Los dos bloques son independientes y tienen su propio error.** Un fallo al descifrar un hex
+  pegado no puede borrar el resultado de cifrar: en la demo los dos están en pantalla a la vez.
+- Filtros de texto, **no** validaciones: el campo `Número` acepta solo dígitos y `Hex cifrado`
+  solo `[0-9a-f]`. Quien decide si el número pasa Luhn o si el hex es descifrable es el core.
 - El nonce es fijo a propósito para que las cuatro produzcan el mismo hex. En producción eso
   sería catastrófico; ver `contracts/README.md`.
+
+**Fuera de alcance, y conviene decirlo porque la pantalla invita a pedirlo:** nada de Keychain,
+Keystore, biométricos ni almacenamiento seguro. La POC demuestra que **el algoritmo** vive en el
+core y da el mismo resultado en las cuatro plataformas; dónde se guardaría una clave en una app
+real es otro problema, y no está acá.
 
 ### 4. Benchmark
 

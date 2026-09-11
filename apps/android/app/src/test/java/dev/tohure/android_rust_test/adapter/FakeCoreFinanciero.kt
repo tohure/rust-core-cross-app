@@ -39,4 +39,6 @@ class FakeCoreFinanciero(
     fun failNextTransfer(e: Throwable) { nextTransfer = Result.failure(e) }
     fun failNextAdd(e: Throwable) { nextAdd = Result.failure(e) }
     fun failNextCard(e: Throwable) { nextCard = Result.failure(e) }
+
+    fun failNextDecrypt(e: Throwable) { nextDecrypt = Result.failure(e) }
 }
