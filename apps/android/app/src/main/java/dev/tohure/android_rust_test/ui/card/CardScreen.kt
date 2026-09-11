@@ -83,7 +83,7 @@ fun CardScreen(vm: CardViewModel, modifier: Modifier = Modifier) {
         // ── Descifrar un hex ajeno ────────────────────────────────────────────
         SectionDivider("Descifrar un hex de otra plataforma")
         Text(
-            "Pegá acá el hex que produjo la app de iOS, React Native o Angular. Sale el mismo " +
+            "Pega aquí el hex que produjo la app de iOS, React Native o Angular. Sale el mismo " +
                 "número, porque las cuatro usan el mismo core.",
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
