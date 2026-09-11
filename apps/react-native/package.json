@@ -40,7 +40,11 @@
     "test": "jest",
     "release": "release-it --only-version",
     "web": "vite",
-    "build:web": "vite build"
+    "build:web": "vite build",
+    "ubrn:android": "ubrn build android --release --and-generate",
+    "ubrn:ios": "ubrn build ios --release --and-generate && (cd example/ios && pod install)",
+    "ubrn:wasm": "ubrn build wasm2 --and-generate",
+    "ubrn:clean": "rm -rf cpp/ src/generated src/generated-napi src/generated-wasm src/bindings.tsx"
   },
   "keywords": [
     "react-native",

@@ -101,6 +101,10 @@ export ANDROID_NDK_HOME="$HOME/Library/Android/sdk/ndk/30.0.16248370"
 pnpm exec ubrn build android --release --and-generate
 ```
 
+Este mismo comando está envuelto en `package.json` como `pnpm run ubrn:android` — ver la
+sección [Scripts](#scripts) más abajo. Los dos hacen exactamente lo mismo; a partir de acá
+`BUILD.md` usa el script.
+
 **La primera vez, esto compila `ubrn` mismo con cargo** antes de poder generar nada — el CLI
 `uniffi-bindgen-react-native` es un binario Rust (`uniffi_bindgen`, `uniffi_udl`, `askama`,
 etc. aparecen en la lista de crates que compila), no un script JS. Esa compilación de la
@@ -195,8 +199,98 @@ commitea todavía: `ubrn` lo generó en esta primera corrida como reexport autom
 tarea siguiente lo convierte en un archivo nuestro, escrito a mano — no lo toques hasta que
 esa tarea defina cómo queda la configuración de `ubrn.config.yaml` para eso.
 
-## Limpiar
+## Scripts
+
+`package.json` envuelve los comandos de `ubrn` en cuatro scripts — son la interfaz que
+`CONTEXT.md` documenta para el paquete:
+
+```json
+"ubrn:android": "ubrn build android --release --and-generate",
+"ubrn:ios": "ubrn build ios --release --and-generate && (cd example/ios && pod install)",
+"ubrn:wasm": "ubrn build wasm2 --and-generate",
+"ubrn:clean": "rm -rf cpp/ src/generated src/generated-napi src/generated-wasm src/bindings.tsx"
+```
+
+Los dos primeros llevan `--release` por el mismo motivo de siempre: el Benchmark es el
+centro de la demo y un core en debug distorsiona la comparación. `ubrn:wasm` no lleva
+`--release` en este listado porque **`wasm2` no acepta perfil de build** — se resuelve
+cuando llegue esa fase, no acá. `ubrn:ios` todavía no se corrió ni una vez: se agrega el
+script porque el CONTEXT ya lo documenta como parte de la interfaz del paquete, pero
+generar para iOS es trabajo de otra tarea.
+
+## Limpiar y regenerar — corrida real
+
+**`ubrn:clean` no borra todo lo que `ubrn` genera, solo el material multiplataforma**
+(`cpp/`, los tres `src/generated*` y `src/bindings.tsx`). No toca `android/build.gradle`,
+`android/CMakeLists.txt`, `android/cpp-adapter.cpp` ni `android/src/` — esos se sobrescriben
+solos en la próxima corrida de `ubrn build android --and-generate`, así que borrarlos en el
+clean sería trabajo redundante, no protección extra.
 
 ```bash
-pnpm run ubrn:clean   # rm -rf cpp/ src/generated src/generated-napi src/generated-wasm
+$ pnpm run ubrn:clean
+$ rm -rf cpp/ src/generated src/generated-napi src/generated-wasm src/bindings.tsx
 ```
+
+Salida real — exit `0`, sin nada más que imprimir (`rm -rf` es silencioso). Verificado con
+`ls` inmediatamente después:
+
+```
+$ ls cpp src/generated src/generated-napi src/generated-wasm src/bindings.tsx
+ls: cpp: No such file or directory
+ls: src/bindings.tsx: No such file or directory
+ls: src/generated: No such file or directory
+ls: src/generated-napi: No such file or directory
+ls: src/generated-wasm: No such file or directory
+```
+
+`src/generated-napi`, `src/generated-wasm` y `src/bindings.tsx` ya no existían de entrada
+—esta app todavía no generó para esos flavours—, y el `rm -rf` no falla por eso (la `-f`
+hace que un path inexistente no sea error). Lo que sí existía y se borró de verdad fue
+`cpp/` (los cuatro archivos de la Task 7 original) y `src/generated/` (`core_financiero.ts`
+y `core_financiero-ffi.ts`).
+
+Se confirmó además que el `clean` **no tocó** lo que no debía —`android/build.gradle`,
+`android/cpp-adapter.cpp`, `android/CMakeLists.txt`, los `.a` de `android/src/main/jniLibs/`,
+los `.kt` de `android/src/main/java/`, `src/index.tsx`, `src/NativeCoreFinanciero.ts`— todos
+seguían presentes después del `rm -rf`, con su mtime sin cambiar.
+
+```bash
+$ pnpm run ubrn:android
+$ ubrn build android --release --and-generate
+Running ... "--target" "arm64-v8a" ... "build" "--profile" "release"
+    Building arm64-v8a (aarch64-linux-android)
+   Compiling core_financiero v1.0.0 (.../rust-core/crates/ffi)
+    Finished `release` profile [optimized] target(s) in 21.92s
+Running ... "--target" "armeabi-v7a" ... "build" "--profile" "release"
+    Building armeabi-v7a (armv7-linux-androideabi)
+   Compiling core_financiero v1.0.0 (.../rust-core/crates/ffi)
+    Finished `release` profile [optimized] target(s) in 19.22s
+Running ... "--target" "x86_64" ... "build" "--profile" "release"
+    Building x86_64 (x86_64-linux-android)
+   Compiling core_financiero v1.0.0 (.../rust-core/crates/ffi)
+    Finished `release` profile [optimized] target(s) in 17.29s
+-- Copying into jniLibs directory
+rm -Rf .../android/src/main/jniLibs
+cp .../release/libcore_financiero.a .../jniLibs/arm64-v8a/libcore_financiero.a
+cp .../release/libcore_financiero.a .../jniLibs/armeabi-v7a/libcore_financiero.a
+cp .../release/libcore_financiero.a .../jniLibs/x86_64/libcore_financiero.a
+Generating bindings and turbo module from lib file .../release/libcore_financiero.a
+Skipping formatting C++. Is clang-format installed?
+```
+
+Mucho más rápido que la primera corrida (~1 min en total, contra los ~1 min 30 s de antes):
+`cargo` ya tenía en caché todas las dependencias del workspace de `ubrn` y del crate
+`core_financiero` de la corrida anterior; solo tuvo que recompilar `core_financiero` mismo
+para las tres ABI. Exit `0`, sin `error`/`warning`/`panic`.
+
+**Nada quedó sin regenerar.** `cpp/` volvió con sus cuatro archivos
+(`banco-core-financiero.{cpp,h}`, `bindings/core_financiero.{cpp,hpp}`), `src/generated/`
+volvió con los mismos dos archivos de siempre, y los tres `.a` de `jniLibs/` salieron
+**byte por byte idénticos** a los de la corrida anterior (mismo tamaño exacto:
+86 414 486 / 76 781 550 / 81 190 196 — build reproducible). Recontrasté el gate completo
+sobre el archivo regenerado y no cambió nada: las nueve funciones siguen en `1`,
+`DomainError_Tags` sigue siendo el mismo `enum` de nueve valores, `simulatedLatencyMs` sigue
+siendo el único `number`. `ubrn:android` no toca `android/build.gradle`,
+`CMakeLists.txt`, `cpp-adapter.cpp` ni `android/src/main/java/` como archivos *nuevos* — los
+**reescribe** con el mismo contenido de siempre (mtime actualizado, contenido idéntico),
+consistente con que es un `--and-generate` completo y determinístico, no incremental.
