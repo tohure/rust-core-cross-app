@@ -219,6 +219,42 @@ unzip -l app/build/outputs/apk/debug/app-debug.apk | grep '\.so'
 
 Si `libcore_financiero.so` **no** aparece, `jniLibs/` está vacío: volvé al paso de cargo-ndk.
 
+### El filtro de ABIs, y por qué hace falta
+
+El AAR de JNA trae `libjnidispatch.so` para **siete** ABIs, cuatro de las cuales no existen:
+`mips` y `mips64` salieron del NDK en r17 (2018), `armeabi` en r16, y el `x86` de 32 bits
+llega sin un `libcore_financiero.so` que lo acompañe, porque cargo-ndk compila solo las tres
+de arriba. Sin filtro, el APK carga **541 456 bytes** de slices que ningún dispositivo puede
+ejecutar, y uno de ellos —`x86`— instalaría una app que revienta al primer `loadLibrary`.
+
+```kotlin
+// app/build.gradle.kts, dentro de defaultConfig
+ndk {
+    abiFilters += listOf("arm64-v8a", "armeabi-v7a", "x86_64")
+}
+```
+
+Qué se debe ver — **nueve** entradas en `lib/`, tres por ABI, y ninguna de `mips`, `mips64`,
+`armeabi` ni `x86`:
+
+```bash
+unzip -l app/build/outputs/apk/debug/app-debug.apk | grep 'lib/' | awk '{print $1, $4}'
+```
+
+```
+10096   lib/arm64-v8a/libandroidx.graphics.path.so
+532936  lib/arm64-v8a/libcore_financiero.so
+176520  lib/arm64-v8a/libjnidispatch.so
+7252    lib/armeabi-v7a/libandroidx.graphics.path.so
+326480  lib/armeabi-v7a/libcore_financiero.so
+126496  lib/armeabi-v7a/libjnidispatch.so
+10760   lib/x86_64/libandroidx.graphics.path.so
+588192  lib/x86_64/libcore_financiero.so
+126912  lib/x86_64/libjnidispatch.so
+```
+
+Si aparece `lib/mips/` o `lib/x86/`, el bloque `ndk { }` no está en `defaultConfig`.
+
 ## Dos trampas de AGP 9 que costaron tiempo
 
 Documentadas porque se descubrieron ejecutando, no leyendo:

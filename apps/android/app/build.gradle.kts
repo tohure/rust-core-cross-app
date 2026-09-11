@@ -17,6 +17,14 @@ android {
         versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+
+        // El AAR de JNA trae slices para ABIs que el NDK ya no soporta —`mips` y `mips64`
+        // salieron en r17, `armeabi` en r16— y un `x86` de 32 bits sin `libcore_financiero.so`
+        // que lo acompañe, porque cargo-ndk compila las tres de abajo. Son ~530 KB que no
+        // pueden ejecutarse en ningún dispositivo. El filtro las deja fuera del APK.
+        ndk {
+            abiFilters += listOf("arm64-v8a", "armeabi-v7a", "x86_64")
+        }
     }
 
     buildTypes {
