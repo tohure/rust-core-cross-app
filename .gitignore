@@ -18,6 +18,9 @@ __pycache__/
 /apps/ios/ios-rust-test/Generated/
 /apps/react-native/cpp/
 /apps/react-native/src/generated/
+/apps/react-native/src/generated-napi/
+/apps/react-native/src/generated-wasm/
+/apps/react-native/android/src/main/java/
 
 # Node
 node_modules/
