@@ -3570,15 +3570,28 @@ struct BenchmarkView: View {
             .tint(Palette.brand)
             .disabled(viewModel.state.isRunning)
 
-            SectionDivider(title: "Resultado")
-            ResultRow(label: "Core · p50", value: viewModel.state.coreP50)
-            ResultRow(label: "Core · p95", value: viewModel.state.coreP95)
-            ResultRow(label: "Nativa · p50", value: viewModel.state.nativeP50)
-            ResultRow(label: "Nativa · p95", value: viewModel.state.nativeP95)
+            // Los nombres de las dos implementaciones son LOS MISMOS que usa la pantalla de
+            // Aritmética: quien mira la demo tiene que ver dos conceptos, no cuatro.
+            // Labels normativos, iguales en las cuatro apps: ver docs/ui-spec.md.
+            SectionDivider(title: "Core (Rust · Decimal)")
+            ResultRow(label: "Tiempo típico (p50)", value: viewModel.state.coreP50)
+            ResultRow(label: "Peor caso (p95)", value: viewModel.state.coreP95)
 
-            Text("⚠ La baseline nativa diverge en centavos: existe para exhibirlo.")
+            SectionDivider(title: "Punto flotante nativo")
+            ResultRow(label: "Tiempo típico (p50)", value: viewModel.state.nativeP50)
+            ResultRow(label: "Peor caso (p95)", value: viewModel.state.nativeP95)
+
+            // Sin esta frase, un número más grande parece un defecto en vez del argumento
+            // que es.
+            Text("El core es más lento porque cada llamada cruza la frontera al código Rust.")
                 .font(.caption)
-                .foregroundStyle(Palette.wrong)
+                .foregroundStyle(Palette.onSurfaceMuted)
+            Text(
+                "⚠ El punto flotante nativo es más rápido y da mal el resultado: existe para "
+                    + "exhibirlo."
+            )
+            .font(.caption)
+            .foregroundStyle(Palette.wrong)
         }
     }
 }
