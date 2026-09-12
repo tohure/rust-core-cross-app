@@ -1,0 +1,51 @@
+// Dos mundos de Jest, no uno, y la separación no es cosmética.
+//
+// El plan original de esta fase pedía un `jest.config.js` con `preset: 'ts-jest'` y un solo
+// `testMatch`. Eso rompía tres cosas a la vez: un `jest.config.js` tiene precedencia sobre la
+// clave `jest` de `package.json`, así que se llevaba puesto el preset de React Native y los dos
+// arreglos que lo hacen funcionar bajo pnpm; dejaba fuera del `testMatch` al test que ya existía;
+// y sumaba `ts-jest` como segunda pila de transformación al lado de babel-jest, que ya transpila
+// TypeScript vía `babel.config.js`.
+//
+// Los dos entornos son incompatibles entre sí y los dos hacen falta:
+//
+//   napi          → Node puro. Carga un `.dylib` nativo por la puerta de addons de Node. El
+//                   entorno de React Native **mockea los módulos nativos**, así que acá cruzaría
+//                   a un fake y el test de contrato no probaría nada.
+//   react-native  → El preset de RN, que las pruebas de hooks del Bloque 4 necesitan
+//                   (`@testing-library/react-native`, `renderHook`).
+module.exports = {
+  projects: [
+    {
+      displayName: 'napi',
+      rootDir: __dirname,
+      testEnvironment: 'node',
+      testMatch: ['<rootDir>/__tests__/**/*.test.ts'],
+      modulePathIgnorePatterns: ['<rootDir>/example/', '<rootDir>/lib/'],
+    },
+    {
+      displayName: 'react-native',
+      rootDir: __dirname,
+      preset: '@react-native/jest-preset',
+      testMatch: ['<rootDir>/src/__tests__/**/*.test.ts'],
+      testEnvironmentOptions: {
+        customExportConditions: [
+          'require',
+          'react-native',
+          'banco-core-financiero-source',
+        ],
+      },
+      // pnpm guarda el paquete real en `node_modules/.pnpm/…/node_modules/@react-native/…`, o sea
+      // con **dos** `node_modules/`. El patrón del preset —pensado para un árbol aplanado—
+      // matchea en el primero, porque lo sigue `.pnpm/`, y deja `jest/setup.js` sin transpilar
+      // aunque esté en ESM. El lookahead extra hace que la decisión la tome el segundo.
+      transformIgnorePatterns: [
+        'node_modules/(?!\\.pnpm/)(?!((jest-)?react-native|@react-native(-community)?)/)',
+      ],
+      modulePathIgnorePatterns: [
+        '<rootDir>/example/node_modules',
+        '<rootDir>/lib/',
+      ],
+    },
+  ],
+};

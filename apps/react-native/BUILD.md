@@ -589,3 +589,88 @@ Lo que **no** se comitea, por el mismo criterio que el resto del *glue*:
 `Podfile.lock` y `Gemfile.lock` **sí** se comitean: este repo comitea sus lockfiles
 —`pnpm-lock.yaml`, `Cargo.lock`— para que el build sea el mismo en otra máquina, y no hay razón
 para tratar a CocoaPods distinto.
+
+## La ruta N-API — cómo Jest llama al core de verdad
+
+Jest corre en Node y **no puede cargar el turbo module**, que es C++ atado a JSI. La ruta N-API
+entra al **mismo** `cdylib` de Rust por la puerta de addons nativos de Node, así que los tests
+del host cruzan a Rust de verdad en vez de ir contra un doble. Es lo que permite verificar los
+28 casos de `contracts/cases.json` sin un aparato conectado.
+
+```bash
+cd apps/react-native
+export PATH="$HOME/.cargo/bin:$PATH"
+pnpm run napi:generate
+pnpm test
+```
+
+Qué se debe ver en `src/generated-napi/`:
+
+```
+core_financiero-ffi.ts     capa de soporte
+core_financiero.ts         las nueve funciones
+index.ts
+libcore_financiero.dylib   el cdylib del host, copiado al lado
+```
+
+El `.dylib` es de macOS. En Linux sería `.so`, y el script habría que ajustarlo; esta POC se
+construye en macOS.
+
+### El comando del plan no funcionaba, por dos razones
+
+```bash
+# ✗ como estaba en el plan
+pnpm exec ubrn generate napi bindings \
+  --library src/generated-napi/libcore_financiero.dylib \
+  --ts-dir src/generated-napi --lib-colocated
+```
+
+1. **`--library` es un flag booleano**, no una opción con valor: significa «tratá la entrada como
+   librería». La ruta va como **argumento posicional** al final.
+2. **Hay que correrlo desde un directorio con `Cargo.toml`.** `ubrn` ejecuta `cargo metadata` en
+   el cwd pase lo que pase, y `apps/react-native` no tiene manifiesto, así que muere con
+   ``manifest path `Cargo.toml` does not exist`` antes de mirar los argumentos. No lo salva
+   `--crate`, probado.
+
+La forma que sí anda, y que quedó en el script `napi:generate`:
+
+```bash
+RN=$PWD
+cargo build --release --manifest-path ../../rust-core/Cargo.toml
+mkdir -p src/generated-napi
+cp ../../rust-core/target/release/libcore_financiero.dylib src/generated-napi/
+cd ../../rust-core/crates/ffi
+ubrn generate napi bindings --library \
+  --ts-dir "$RN/src/generated-napi" \
+  --lib-colocated "$RN/src/generated-napi/libcore_financiero.dylib"
+```
+
+### `import.meta` y por qué el arreglo va en `babel.config.js`
+
+Los bindings generados resuelven la ruta del `.dylib` con `callerUrl: import.meta.url`, que
+**sólo existe en ESM**. Jest corre sus módulos como CommonJS, así que revienta con
+`Cannot use 'import.meta' outside a module`.
+
+`--lib-absolute` no lo evita: agrega un `override` con la ruta absoluta pero **sigue emitiendo la
+línea de `import.meta`**, verificado. Así que el arreglo va del lado de Babel — un plugin de diez
+líneas que traduce `import.meta` a su equivalente CJS.
+
+Va bajo **`env.test`**, y eso no es un detalle: Jest define `NODE_ENV=test`, Metro y `bob build`
+no. Reescribir `import.meta` en el bundle de React Native sería meterse con Hermes por una razón
+que sólo existe en los tests.
+
+### Dos proyectos de Jest, no uno
+
+`jest.config.js` declara dos *projects* porque los entornos son incompatibles y los dos hacen
+falta:
+
+| Proyecto | Entorno | Tests | Por qué |
+|---|---|---|---|
+| `napi` | `node` | `__tests__/**` | Carga un `.dylib` nativo. El entorno de React Native **mockea los nativos**, así que acá cruzaría a un fake y el contrato no probaría nada. |
+| `react-native` | preset de RN | `src/__tests__/**` | Lo necesitan las pruebas de hooks (`@testing-library/react-native`, `renderHook`). |
+
+Correrlos es un solo `pnpm test`; la salida los distingue por `displayName`.
+
+**No se usa `ts-jest`.** `babel.config.js` ya transpila TypeScript vía el preset de bob, y una
+segunda pila de transformación al lado de babel-jest es la clase de cosa que después nadie sabe
+por qué está.
