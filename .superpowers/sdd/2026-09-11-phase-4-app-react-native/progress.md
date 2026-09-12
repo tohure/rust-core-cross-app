@@ -1350,3 +1350,69 @@ mismo criterio. Anotado para la Task 23 / PENDING.
 - **Fase 4: completa.** Las tres cosas que `CLAUDE.md` exige para cerrar una fase: el contrato en
   verde (28/28 por N-API y 28/28 por WASM), el README con los comandos efectivamente ejecutados,
   y su diagrama de arquitectura en Mermaid.
+
+### Review de la Fase 4 — 13 hallazgos, los 13 aplicados
+
+Corrido sobre el PR #3. **Verifiqué los 13 uno por uno antes de tocar nada**; se sostienen todos.
+Tres son míos y uno de ellos rompía la demo.
+
+- **R-1 (rompía la demo, y ya lo había arreglado Android).** Cambiar de pestaña **desmontaba la
+  pantalla y mataba su `useState`**. Reproducido en el emulador: transferir, tocar `Tarjeta`,
+  volver — el comprobante y los saldos desaparecían y volvían a `S/ 5,000.00` / `S/ 1,200.50`.
+  `BancoApp.kt` documenta este mismísimo defecto y lo arregla elevando los cuatro ViewModels
+  fuera del `when`; iOS no lo tiene porque `TabView` mantiene las cuatro vistas vivas.
+  **Yo vi el desmontaje a mitad de la fase y lo descarté** como irrelevante, razonando que «el
+  estado se pierde igual» — sin conectarlo con que el runbook cambia de pestaña. Arreglo: las
+  cuatro pantallas quedan montadas y las inactivas se ocultan con `display: 'none'`, cada una
+  con su propio `ScrollView` para conservar su scroll.
+- **R-2 (labels abreviados).** `Transf.` y `Bm` contra los `Transferencia` y `Benchmark` de
+  Android e iOS. Salieron del **wireframe ASCII** de `ui-spec.md`, que abrevia por ancho de
+  columna; el texto normativo, dos líneas más arriba en ese mismo archivo, los nombra enteros.
+  La Task 18 los dio por «contrastados contra ui-spec» — lo estaban, contra la parte equivocada.
+  **Y al ponerlos completos el aparato mostró por qué el wireframe abreviaba:** `Transferencia`
+  partía en dos líneas. Lo que se ajusta es la tipografía (`numberOfLines={1}`, cuerpo 12), no el
+  texto.
+- **R-3 (mi cuenta del 43× estaba mal).** Comparé el `add` de React Native contra el **piso** de
+  Android (`coreVersion()`, 172 µs), que son funciones distintas. Like-for-like es `add` contra
+  `add`: 444 / 3,96 ≈ **112×**. Peor: el runbook, que también escribí, usaba 444, así que los dos
+  documentos se contradecían y la salvedad que puse no mencionaba este problema. Corregido en los
+  dos.
+- **R-4.** `useBenchmark` usaba `String(e)` en vez de `userMessage(e)` — los otros tres hooks sí
+  lo usan. **Mi test lo dejaba pasar**: pedía `not.toBe('')` y el valor real era `[object
+  Object]`, verificado al ponerlo en rojo. Es el mismo error de forma que el Ruling T20-1 y el
+  de la vuelta del cifrado en la Task 21: una aserción que pasa por coincidencia.
+- **R-5.** `contractName` lanza con cualquier cosa que no sea un `DomainError`, y se llama
+  **dentro de `catch`**, así que la excepción escapaba del handler al `onPress`. **No lo arreglé
+  donde lo pedía el review:** el `throw` de `contractName` es la guardia del Ruling P1 y el test
+  de contrato **depende** de que lance. El fallback va en `userMessage`, que es el borde de UI —
+  que es además donde Android lo tiene (`?: e.toString()`).
+- **R-6.** El `setTimeout` de la latencia no se cancelaba. Con R-1 encima, una transferencia en
+  vuelo desaparecía sin dejar ni resultado ni error. Ahora se guarda en un `ref`, se limpia al
+  desmontar, y `transfer()` no se pisa a sí misma.
+- **R-7.** `lefthook.yml` línea 10: `"*.{js,ts, jsx, tsx}"` con espacios → `.tsx` no matcheaba y
+  `tsc` se salteaba en pre-commit. Importa porque **`tsc` es lo único que sostiene la guardia 4**
+  (el `satisfies` de `contractName`), que babel-jest borra sin mirar.
+- **R-8.** `napi:generate` hardcodeaba `.dylib` dos veces: el gate 28/28 por N-API era macOS-only
+  sin decirlo. Ahora elige la extensión por `uname`.
+- **R-9.** `.github/` vivía dentro de `apps/react-native/`, donde GitHub Actions **no lo lee
+  nunca**; encima usaba yarn en un repo pnpm y dependía de generados gitignorados que ningún paso
+  producía. Un verde suyo no habría significado nada. **Borrado**, con lo que haría falta para
+  una CI de verdad anotado en `PENDING.md`.
+- **R-10.** La lista de excepciones de `CLAUDE.md` nombraba `features/benchmark/baseline.ts`, que
+  no existe, y no cubría `example/src/benchmark/NativeBaseline.ts`. O sea que la regla prohibía un
+  archivo que el proyecto quiere tener. Ahora lista las **cuatro** con su ruta real.
+- **R-11.** El centinela «debió fallar y no falló» del test de contrato caía en su propio `catch`
+  y `contractName` se quejaba de una variante desconocida: el test fallaba nombrando la causa
+  equivocada. Corregido en los cuatro sitios con `expect(...).toThrow()`.
+- **R-12.** `messageFor` usaba chequeo falsy en vez de `=== undefined`.
+- **R-13.** `CoreVersionFooter` importaba `coreVersion` del paquete, lo que ataba los cinco
+  componentes de presentación al binding nativo y hacía **imposible falsear el pie** — el
+  `coreVersion` de `FakeCore` era código muerto. Ahora recibe el string como prop, igual que
+  Android e iOS, y hay test del pie.
+- **Verde: 113 tests, 13 suites.** `tsc` y `lint` en cero, contrato 28/28 por las dos vías.
+  **Verificado en el emulador y en el simulador:** el estado sobrevive al cambio de pestaña, los
+  cuatro labels entran en una línea en las dos plataformas, y la transferencia sigue dando los
+  mismos strings.
+- **Lección, y es la misma de toda la fase:** los tests en verde no dicen que la pantalla esté
+  bien. R-1 y R-2 sólo se ven mirando el aparato; R-4 pasaba en verde con `[object Object]`; R-3
+  era aritmética mía en un documento. Ninguno lo habría cazado correr la suite otra vez.

@@ -153,9 +153,13 @@ describe('tarjeta', () => {
       // La vuelta completa: es cifrado reversible, no un hash.
       expect(decrypt(c.esperado.cifrado_hex, KEY, NONCE)).toBe(c.entrada);
     } else {
+      // `expect(...).toThrow()` y NO un `try/throw/catch`: con el centinela, si el core
+      // aceptara la tarjeta, el `Error` que se lanza cae en su propio `catch` y `contractName`
+      // se queja de una variante desconocida — el test falla, pero nombrando la causa
+      // equivocada. Así el fallo dice «no lanzó».
+      expect(() => validateCard(c.entrada)).toThrow();
       try {
         validateCard(c.entrada);
-        throw new Error(`${c.id} debió fallar y no falló`);
       } catch (e) {
         expect(contractName(e)).toBe(c.error);
       }
@@ -194,9 +198,11 @@ describe('transferencia', () => {
         c.esperado.cuentas.map((a: { saldo: string }) => a.saldo)
       );
     } else {
+      // Mismo motivo que en `tarjeta`: el centinela caía en su propio `catch` y el fallo
+      // nombraba la causa equivocada.
+      expect(() => executeTransfer(cuentas(), req)).toThrow();
       try {
         executeTransfer(cuentas(), req);
-        throw new Error(`${c.id} debió fallar y no falló`);
       } catch (e) {
         expect(contractName(e)).toBe(c.error);
       }

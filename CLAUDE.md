@@ -91,10 +91,19 @@ Reglas derivadas, válidas en los cinco proyectos:
 2. **Cero reglas de negocio fuera de `rust-core`.** Ninguna validación de CCI con
    regex, ninguna fórmula de cuota, ninguna tasa. Si estás escribiendo aritmética
    sobre montos en Kotlin, Swift o TS, estás haciendo lo contrario de lo que la POC
-   demuestra. Única excepción permitida: los archivos `baseline` del benchmark
-   (`__benchmarks__/baseline.ts`, `features/benchmark/baseline.ts`, `ui/benchmark/NativeBaseline.kt`
-   en Android), que existen justamente para exhibir la divergencia de
-   centavos y deben llevar un comentario que lo diga.
+   demuestra. Únicas excepciones permitidas, y la lista es exhaustiva: los archivos
+   `baseline` del benchmark, que existen justamente para exhibir la divergencia de centavos y
+   **deben llevar un comentario que lo diga**:
+   - `apps/android/.../ui/benchmark/NativeBaseline.kt`
+   - `apps/ios/.../UI/Benchmark/NativeBaseline.swift`
+   - `apps/react-native/example/src/benchmark/NativeBaseline.ts` — la que se **pinta** en la
+     pantalla de Benchmark
+   - `apps/react-native/__benchmarks__/baseline.ts` — la del paquete, que existe para que un
+     test **exhiba** la divergencia contra `cases.json`
+
+   Las dos de React Native se quedan separadas a propósito: viven en paquetes distintos y
+   unificarlas obligaría a exportar `__benchmarks__` desde la superficie pública, que es
+   justamente lo que no debe pasar.
 3. **Ninguna librería de decimales en las apps** (`decimal.js`, `big.js`, etc.).
    Necesitarla es señal de que el cálculo está en el lugar equivocado. Para comparar
    u ordenar en UI: `BigDecimal` (Kotlin) o `Decimal` de Foundation (Swift).

@@ -26,7 +26,9 @@ export function demoNonce(): string {
 
 export function messageFor(contractName: string): string {
   const m = messages.mensajes[contractName as keyof typeof messages.mensajes];
-  if (!m) {
+  // `=== undefined`, no falsy: un mensaje vacío en el contrato existe, y reportarlo como
+  // "no hay mensaje" mandaría el throw por un camino que escapa del catch del hook.
+  if (m === undefined) {
     throw new Error(`no hay mensaje de usuario para "${contractName}"`);
   }
   return m;

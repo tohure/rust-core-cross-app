@@ -17,7 +17,22 @@ import { messageFor } from '../contract/sources';
  * presentación, no acá.
  */
 export function userMessage(e: unknown): string {
-  const plantilla = messageFor(contractName(e));
+  let plantilla: string;
+  try {
+    plantilla = messageFor(contractName(e));
+  } catch {
+    // **`userMessage` se llama siempre dentro de un `catch`, así que no puede lanzar.** Si lo
+    // hiciera, la excepción saldría del handler del hook y llegaría al `onPress` de React: caja
+    // roja en desarrollo, botón muerto en release. Y llega acá cualquier cosa que no sea un
+    // `DomainError` — un `TypeError` de la capa JSI, un trap de WebAssembly, un error del
+    // bundler—, porque `contractName` lanza a propósito con un tag que no reconoce (es la
+    // guardia del Ruling P1, y el test de contrato **depende** de que lance: por eso el fallback
+    // va acá, en el borde de UI, y no ahí).
+    //
+    // Android hace exactamente lo mismo:
+    // `(e as? DomainException)?.let(messages::userMessage) ?: e.toString()`.
+    return `Ocurrió un error inesperado: ${String(e)}`;
+  }
   const campos = (e as { inner?: Record<string, string> }).inner ?? {};
   return plantilla.replace(/\{(\w+)\}/g, (coincidencia, clave) =>
     clave in campos ? campos[clave]! : coincidencia

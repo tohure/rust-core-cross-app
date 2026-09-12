@@ -68,8 +68,10 @@ describe('useBenchmark', () => {
     await act(async () => result.current.setIterations('5'));
     await act(async () => result.current.run());
     await waitFor(() => expect(result.current.state.running).toBe(false));
-    // El benchmark de Android se tragaba los errores del core; acá se muestran.
-    expect(result.current.state.error).not.toBe('');
+    // El benchmark de Android se tragaba los errores del core; acá se muestran **como texto de
+    // usuario**, igual que en los otros tres hooks. `not.toBe('')` no alcanzaba: dejaba pasar
+    // `[object Object]` y el diagnóstico crudo de uniffi, que no son texto para nadie.
+    expect(result.current.state.error).toBe('El monto ingresado no es válido.');
   });
 
   it('una corrida que falla borra las medidas de la anterior', async () => {

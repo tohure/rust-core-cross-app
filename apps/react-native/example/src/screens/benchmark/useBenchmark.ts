@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import type { Core } from '../../adapter/core';
+import { userMessage } from '../../adapter/ContractMessages';
 import { nativeFloat } from '../../benchmark/NativeBaseline';
 import {
   initialBenchmarkState,
@@ -80,16 +81,18 @@ export function useBenchmark(core: Core) {
           nativeP95: us(nat.p95),
         });
       } catch (e) {
-        // El benchmark de Android se tragaba los errores del core; acá se muestran. Las
-        // medidas vuelven a `—`: dejar las de una corrida anterior debajo de un error haría
-        // parecer que el número de pantalla corresponde a esta corrida.
+        // El benchmark de Android se tragaba los errores del core; acá se muestran, y **como
+        // texto de usuario**, igual que en los otros tres hooks: `String(e)` pintaba
+        // `[object Object]` para un error tagueado y el diagnóstico crudo de uniffi para uno
+        // real, que no es texto para nadie. Las medidas vuelven a `—`: dejar las de una corrida
+        // anterior debajo de un error haría parecer que el número corresponde a ésta.
         set({
           running: false,
           coreP50: SIN_MEDIR,
           coreP95: SIN_MEDIR,
           nativeP50: SIN_MEDIR,
           nativeP95: SIN_MEDIR,
-          error: String(e),
+          error: userMessage(e),
         });
       }
     }, 0);

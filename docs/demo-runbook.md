@@ -250,10 +250,10 @@ Desgloses en [apps/ios/TESTING.md](../apps/ios/TESTING.md) y
 [apps/android/TESTING.md](../apps/android/TESTING.md).
 
 **React Native mide su propio par en la misma pantalla**, y el número es llamativo: `add` cuesta
-**3,96 µs** en Android y **8,75 µs** en iOS (p50, 1000 iteraciones). Si se lo pone al lado de los
-444 µs de la app nativa de Android, sugiere que **JSI es órdenes de magnitud más barato que
-JNA** — que es exactamente lo que uno esperaría, porque JSI llama C++ directo sin reflexión ni
-marshalling de `Structure`.
+**3,96 µs** en Android y **8,75 µs** en iOS (p50, 1000 iteraciones). Contra los **444 µs** que
+cuesta el mismo `add` en la app nativa de Android —`add` contra `add`, no contra el piso— son
+unas **112× menos**, que es exactamente lo que uno esperaría: JSI llama C++ directo, sin
+reflexión ni marshalling de `Structure`.
 
 > **Pero no lo afirmes como medición comparable, porque no lo es.** Los números de React Native
 > están tomados en un **emulador y un simulador**, no en aparatos, y con otro reloj

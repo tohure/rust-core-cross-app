@@ -8,7 +8,6 @@ import {
   type StyleProp,
   type ViewStyle,
 } from 'react-native';
-import { coreVersion } from '@banco/core-financiero';
 import { theme } from '../theme';
 
 // Los cinco componentes de `docs/ui-spec.md`, con la **misma descomposición** que Android e iOS:
@@ -157,15 +156,27 @@ export function SectionDivider({
  * El pie va en las **cuatro** pantallas, no en un "Acerca de": cuatro strings idénticos en pantalla
  * son la prueba de que las cuatro apps corren el mismo build. Se muestra tal cual lo devuelve el
  * core, **sin reformatear**.
+ *
+ * **Recibe el string, no lo va a buscar.** Importar `coreVersion` acá ataba este módulo —que son
+ * cinco componentes de presentación— al binding nativo, de modo que renderizar un botón en un
+ * test cargaba el core; y hacía imposible falsear el pie, que es justamente el string que el
+ * primer paso del runbook compara entre las apps. Android (`CoreVersionFooter(container.core
+ * .coreVersion())`) e iOS lo pasan igual, como parámetro.
  */
-export function CoreVersionFooter({ style }: { style?: StyleProp<ViewStyle> }) {
+export function CoreVersionFooter({
+  version,
+  style,
+}: {
+  version: string;
+  style?: StyleProp<ViewStyle>;
+}) {
   return (
     <View style={style}>
       <Text
         testID="core-version"
         style={{ textAlign: 'center', color: theme.muted, fontSize: 12 }}
       >
-        {coreVersion()}
+        {version}
       </Text>
     </View>
   );

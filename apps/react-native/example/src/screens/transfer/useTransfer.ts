@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { Core } from '../../adapter/core';
 import { userMessage } from '../../adapter/ContractMessages';
 import { initialTransferState, type TransferUiState } from './TransferUiState';
@@ -22,10 +22,24 @@ const AMOUNT = /^\d{0,9}(\.\d{0,2})?$/;
 export function useTransfer(core: Core) {
   const [state, setState] = useState<TransferUiState>(initialTransferState);
 
+  // El timer de la latencia simulada se guarda para poder cancelarlo. Sin esto quedaba
+  // pendiente una actualización de estado contra un componente que ya no está —y, si alguien
+  // tocara `Transferir` dos veces, dos timers superpuestos—. Se cancela al desmontar.
+  const temporizador = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(
+    () => () => {
+      if (temporizador.current !== null) clearTimeout(temporizador.current);
+    },
+    []
+  );
+
   const set = (patch: Partial<TransferUiState>) =>
     setState((s) => ({ ...s, ...patch }));
 
   function transfer() {
+    // Una transferencia en vuelo no se pisa con otra: el botón ya está deshabilitado mientras
+    // carga, pero el hook no puede depender de que la UI lo respete.
+    if (state.loading) return;
     set({ loading: true, error: '' });
     try {
       const r = core.executeTransfer(state.accounts, {
@@ -37,7 +51,8 @@ export function useTransfer(core: Core) {
       });
       // Se espera la latencia simulada para que parezca una llamada de red. NO HAY RED: el
       // número lo devuelve el core.
-      setTimeout(() => {
+      temporizador.current = setTimeout(() => {
+        temporizador.current = null;
         set({
           loading: false,
           accounts: r.accounts,

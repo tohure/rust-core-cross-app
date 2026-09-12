@@ -279,10 +279,14 @@ Medido con 1000 iteraciones, **en emulador y simulador, no en aparatos**:
 | React Native / iOS (sim. iPhone 17 Pro) — core | 8,75 µs | 10,83 µs |
 | React Native / iOS — float nativo | 0,87 µs | 1,00 µs |
 
-La Fase 3 anotó **172 µs para Android nativo (JNA)** y **0,33 µs para iOS nativo** (`.a`
-estático). Poniendo los números uno al lado del otro, los 3,96 µs de acá sugieren que **JSI es
-unas 43× más barato que el puente JNA** de la app nativa de Android, lo cual sería un dato
-fuerte para la demo.
+La Fase 3 anotó, para la app **nativa** de Android: **172 µs el piso del cruce**
+(`coreVersion()`, sin argumentos ni cómputo) y **444 µs `add("0.1","0.2")`**. En iOS nativo el
+piso es 0,33 µs.
+
+**La comparación que vale es `add` contra `add`:** 444 / 3,96 ≈ **112×**. No 43× — ese número
+salía de comparar el `add` de React Native contra el **piso** de Android, que son funciones
+distintas, y contradecía al propio `demo-runbook.md`, que usa los 444. Corregido en los dos
+documentos.
 
 **No lo afirmes todavía.** No es una comparación limpia: distinto arnés de medición, emulador
 contra aparato, y `performance.now()` de Hermes contra `System.nanoTime()` de la JVM. Antes de
@@ -316,3 +320,26 @@ silencio a la tipografía por defecto. Se descubrió en la pantalla de Tarjeta, 
 
 **Si se agrega otra fuente al tema, verificarla en las dos plataformas antes de darla por
 buena:** el modo de fallar es silencioso y sólo se ve mirando la pantalla.
+
+## No hay CI, y el scaffold que simulaba tenerla se borró
+
+`create-react-native-library` dejó un `apps/react-native/.github/` con un `ci.yml`. **No podía
+correr nunca**, por tres razones independientes:
+
+1. GitHub Actions sólo lee `.github/workflows` en la **raíz del repositorio**, y en esta raíz no
+   hay ningún `.github/`. El archivo era inerte.
+2. Aun reubicado, `actions/setup/action.yml` corría `yarn install --immutable` y cacheaba por
+   `hashFiles('yarn.lock')`. Este repo usa **pnpm**: no existe ningún `yarn.lock`.
+3. El job de test corría `yarn test`, pero el proyecto `napi` de Jest necesita
+   `src/generated-napi/` y `src/generated-wasm/`, que están **gitignorados** y los produce
+   `napi:generate` / `wasm:generate` — que a su vez necesitan Rust instalado. Ningún paso hacía
+   nada de eso.
+
+Un verde de esa CI no habría significado nada, y un rojo tampoco. Se eliminó entero en vez de
+dejarlo simulando cobertura.
+
+**Si alguna vez se quiere CI de verdad**, tiene que vivir en la raíz del repo y hacer, como
+mínimo: instalar Rust con los targets, instalar pnpm, correr `napi:generate` y `wasm:generate`
+antes de `pnpm test`, y correr también `cargo test --workspace`. Los tests instrumentados de
+Android y los de iOS necesitan además emulador/simulador en el runner. **Nada de eso cruza JSI
+igual**, así que el smoke manual seguiría siendo obligatorio antes de una demo.
