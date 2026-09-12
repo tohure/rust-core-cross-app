@@ -207,16 +207,19 @@ esa tarea defina cómo queda la configuración de `ubrn.config.yaml` para eso.
 ```json
 "ubrn:android": "ubrn build android --release --and-generate",
 "ubrn:ios": "ubrn build ios --release --and-generate && (cd example/ios && pod install)",
-"ubrn:wasm": "ubrn build wasm2 --and-generate",
+"ubrn:wasm": "ubrn build wasm2 --release --and-generate",
 "ubrn:clean": "rm -rf cpp/ src/generated src/generated-napi src/generated-wasm src/bindings.tsx"
 ```
 
-Los dos primeros llevan `--release` por el mismo motivo de siempre: el Benchmark es el
-centro de la demo y un core en debug distorsiona la comparación. `ubrn:wasm` no lleva
-`--release` en este listado porque **`wasm2` no acepta perfil de build** — se resuelve
-cuando llegue esa fase, no acá. `ubrn:ios` todavía no se corrió ni una vez: se agrega el
-script porque el CONTEXT ya lo documenta como parte de la interfaz del paquete, pero
-generar para iOS es trabajo de otra tarea.
+Los tres primeros llevan `--release` por el mismo motivo de siempre: el Benchmark es el
+centro de la demo y un core en debug distorsiona la comparación, y el perfil de release es
+deliberado en todo el proyecto — el tamaño del binario es criterio de la demo.
+`pnpm exec ubrn build wasm2 --help` confirma que `wasm2` acepta `-r`/`--release` igual que
+`android` e `ios` (los tres subcomandos comparten los mismos `CommonBuildArgs` en el propio
+código de `ubrn`); no hay ninguna razón para que ese tercero se quede en debug. `ubrn:ios` y
+`ubrn:wasm` todavía no se corrieron ni una vez: se agregan los scripts porque el CONTEXT ya
+los documenta como parte de la interfaz del paquete, pero generar para esas plataformas es
+trabajo de otras tareas.
 
 ## Limpiar y regenerar — corrida real
 

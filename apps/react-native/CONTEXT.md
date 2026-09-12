@@ -101,10 +101,10 @@ que enlace `uniffi-runtime-wasm`, y que declare `uniffi_core` con el feature `si
 
 Scripts en `package.json`:
 
-    "ubrn:android": "ubrn build android --and-generate",
-    "ubrn:ios": "ubrn build ios --and-generate && (cd example/ios && pod install)",
-    "ubrn:wasm": "ubrn build wasm2 --and-generate",
-    "ubrn:clean": "rm -rf cpp/ src/generated src/generated-napi src/generated-wasm"
+    "ubrn:android": "ubrn build android --release --and-generate",
+    "ubrn:ios": "ubrn build ios --release --and-generate && (cd example/ios && pod install)",
+    "ubrn:wasm": "ubrn build wasm2 --release --and-generate",
+    "ubrn:clean": "rm -rf cpp/ src/generated src/generated-napi src/generated-wasm src/bindings.tsx"
 
 Dependencias que el código generado necesita, y que no son opcionales:
 
@@ -216,14 +216,26 @@ ellas—, y una guardia que falla siempre no distingue "está completo" de "falt
 
 **Por qué no `DomainError.instanceOf(e)`, aunque el binding lo ofrezca.** No hace un `instanceof`
 de JavaScript —no podría, porque no hay una única clase—: compara una **marca de tipo** que el
-propio módulo pone en el objeto, `obj[uniffiTypeNameSymbol] === 'DomainError'`, con el símbolo
-importado **de su propia copia** de `@ubjs/core`. Eso falla en los dos sitios donde esta fase lo
-necesita: los tests de las pantallas lanzan dobles de prueba —objetos planos con `tag`, sin esa
-marca—, y el test de contrato por WASM recibe errores de **otro módulo**, con **otra
-copia del símbolo**. En los dos casos devuelve `false` y el mapeo se rompe entero. Discriminar
-por `tag` funciona en los tres flavours y con dobles. Lo que **no** cambia es el `switch`: sigue
-exhaustivo y sigue llevando el `default` que asigna a `never`, que es lo que hace que una décima
-variante rompa `tsc` en vez de pasar en verde.
+binding pone en el objeto, `obj[uniffiTypeNameSymbol] === 'DomainError'`, contra el símbolo
+importado de `@ubjs/core`. Lo que sí está **verificado**, y alcanza de sobra para la decisión:
+**los dobles de prueba de los tests de pantalla son objetos planos con `tag`, sin esa marca** —
+`obj[uniffiTypeNameSymbol]` da `undefined` en ellos, así que `instanceOf` devuelve `false` y
+cualquier mapeo que dependiera de él se rompería ahí, con o sin WASM de por medio.
+
+`uniffiTypeNameSymbol` se declara como `Symbol.for('typeName')`, que usa el **registro global**
+de símbolos de JavaScript —no un `Symbol()` local por módulo—, así que dentro de un mismo proceso
+dos copias distintas del módulo que pidan ese mismo nombre comparten el símbolo. Si eso alcanza
+para que `instanceOf` funcione también entre el flavor JSI y el flavor WASM **es, hoy, una
+sospecha sin verificar**: esta app todavía no generó ningún binding WASM (`wasm2` es de la Fase
+4/5), así que no hay nada real contra lo qué probarlo. La decisión de discriminar por `tag` **no
+depende de esa respuesta** — se sostiene sola con el caso de los dobles de prueba, que sí está
+probado, y sigue siendo la regla aunque el caso WASM termine confirmando la sospecha o
+descartándola.
+
+Discriminar por `tag` funciona en los tres flavours y con dobles, sin apoyarse en ninguna
+suposición sobre símbolos compartidos. Lo que **no** cambia es el `switch`: sigue exhaustivo y
+sigue llevando el `default` que asigna a `never`, que es lo que hace que una décima variante
+rompa `tsc` en vez de pasar en verde.
 
 **El `message` del binding es diagnóstico, nunca texto de usuario**: uniffi no
 usa los `#[error("...")]` en español del core, arma el mensaje con los campos de
