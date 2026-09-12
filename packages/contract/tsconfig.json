@@ -20,5 +20,13 @@
     "verbatimModuleSyntax": true,
     "noEmit": true
   },
-  "include": ["src"]
+  "include": ["src"],
+  // Los tests importan `@jest/globals`, que a propósito NO se declara como dependency instalada
+  // de este paquete (ver el comentario en `contractName.test.ts`): declararla desvía la
+  // resolución de peers de pnpm en todo el workspace y rompe el augment de matchers de
+  // `@testing-library/react-native` en `apps/react-native` (hallazgo I2 del review de la Task 2,
+  // confirmado por bisección). Sin esa dependency, `tsc` no resuelve sus tipos de forma aislada
+  // acá. Los tests SÍ tipan y corren dentro del Jest de `apps/react-native`, que sí la tiene
+  // instalada — por eso quedan fuera del `typecheck` de este paquete, no del proyecto.
+  "exclude": ["src/__tests__"]
 }

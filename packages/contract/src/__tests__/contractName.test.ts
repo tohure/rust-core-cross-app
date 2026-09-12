@@ -25,4 +25,14 @@ describe('contractName', () => {
     }
     expect(contractName(new OtroModulo())).toBe('MismaCuenta');
   });
+
+  it('no cae en Object.prototype: un tag como "toString" no es una variante real', () => {
+    // Hallazgo I3 del review de la Task 2: indexar la tabla sin `Object.hasOwn` deja pasar
+    // cualquier propiedad heredada de `Object.prototype` (`toString`, `constructor`,
+    // `hasOwnProperty`, ...) como si fuera un nombre de contrato válido, y la firma de
+    // `contractName` dice `: string` — un `toString` heredado (una función) rompería esa
+    // invariante en silencio.
+    expect(() => contractName({ tag: 'toString' })).toThrow(/sin nombre de contrato/);
+    expect(() => contractName({ tag: 'constructor' })).toThrow(/sin nombre de contrato/);
+  });
 });

@@ -1,9 +1,19 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
-// Carga los archivos de contrato desde `contracts/`, que es la copia única que leen las cinco
-// bases de código. No se copian acá ni se transforman: las comparaciones son igualdad exacta de
-// strings contra este JSON.
+/**
+ * Sólo para Node, y sólo detrás del subpath `@banco/contract/testing`: usa `fs` para leer
+ * `contracts/` directo del disco, en la copia única que leen las cinco bases de código. No se
+ * copian acá ni se transforman: las comparaciones son igualdad exacta de strings contra este
+ * JSON.
+ *
+ * Este módulo **no** se reexporta desde el entrypoint por defecto (`.`) del paquete: un bundler
+ * de producción en el navegador (Angular, esbuild) no puede resolver `node:fs`, y no hace falta
+ * que lo intente — `messageFor`, que sí es código de producción para las cuatro apps, importa el
+ * JSON de forma estática en `messageFor.ts` y nunca llega hasta acá. Hallazgo C1 del review de la
+ * Task 2: importar sólo `contractName` desde el barrel fallaba con
+ * `Could not resolve "node:fs"` porque `index.ts` reexportaba este archivo.
+ */
 const CONTRACTS = join(__dirname, '..', '..', '..', 'contracts');
 
 export type ContractFile = Record<string, unknown>;
@@ -26,20 +36,4 @@ export function loadCases(): ContractFile {
 
 export function loadMessages(): MessagesFile {
   return JSON.parse(readFileSync(join(CONTRACTS, 'messages.es.json'), 'utf8'));
-}
-
-/**
- * Traduce un nombre del contrato (p. ej. `"MismaCuenta"`, salida de `contractName`) al mensaje
- * de usuario en español que define `messages.es.json`.
- *
- * `=== undefined`, no falsy: un mensaje vacío en el contrato existe, y tratarlo como ausente
- * mandaría el throw por un camino que escapa del catch del consumidor. Corregido en la Fase 4.
- */
-export function messageFor(name: string): string {
-  const { mensajes } = loadMessages();
-  const m = mensajes[name];
-  if (m === undefined) {
-    throw new Error(`no hay mensaje de usuario para "${name}"`);
-  }
-  return m;
 }

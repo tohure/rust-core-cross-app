@@ -10,9 +10,12 @@ import { CONTRACT_NAMES, type ContractTag } from './tags';
  */
 export function contractName(e: unknown): string {
   const tag = (e as { tag?: string }).tag;
-  const nombre = CONTRACT_NAMES[tag as ContractTag];
-  if (nombre === undefined) {
+  // `Object.hasOwn`, no un índice directo: `CONTRACT_NAMES[tag]` también "encuentra" cualquier
+  // propiedad heredada de `Object.prototype` (`toString`, `constructor`, `hasOwnProperty`, ...),
+  // y la firma de esta función dice `: string` — un `toString` heredado devolvería una función.
+  // Hallazgo I3 del review de la Task 2.
+  if (tag === undefined || !Object.hasOwn(CONTRACT_NAMES, tag)) {
     throw new Error(`variante de DomainError sin nombre de contrato: ${String(tag)}`);
   }
-  return nombre;
+  return CONTRACT_NAMES[tag as ContractTag];
 }
