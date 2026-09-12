@@ -24,6 +24,18 @@ export default defineConfig([
     },
   },
   {
-    ignores: ['node_modules/', 'lib/'],
+    // Todo lo que produce `ubrn` queda fuera del lint: no se edita a mano, así que un error de
+    // formato ahí no es accionable — la siguiente regeneración lo reescribe igual. Es el mismo
+    // criterio con que el repo los mantiene en `.gitignore`. `src/index.tsx` **no** entra acá:
+    // ese sí es nuestro desde la Task 8.
+    ignores: [
+      'node_modules/',
+      'lib/',
+      'src/generated/',
+      'src/generated-napi/',
+      'src/generated-wasm/',
+      'src/bindings.tsx',
+      'src/NativeCoreFinanciero.ts',
+    ],
   },
 ]);

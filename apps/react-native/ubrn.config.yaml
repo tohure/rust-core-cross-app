@@ -4,5 +4,7 @@ rust:
 bindings:
   cpp: cpp/bindings
   ts: src/generated
+turboModule:
+  entrypoint: src/bindings.tsx
 android:
   targets: [arm64-v8a, armeabi-v7a, x86_64]

@@ -904,12 +904,19 @@ Y ahora sí, escribir a mano `apps/react-native/src/index.tsx`:
 export * from './bindings';
 export { default } from './bindings';
 
-export { contractName } from './contractName';   // lo crea la Task 11
+// OJO: la línea `export { contractName } from './contractName';` NO va acá — la agrega la
+// Task 11 junto con el archivo. Ver Ruling T8-1.
 ```
 
 **Por qué no al revés** —generar en `index.tsx` y añadirle la línea de `contractName`—: `ubrn` reescribe ese archivo en cada `--and-generate`, así que la línea se perdería en la primera regeneración. `noOverwrite` existe en la config para congelarlo, pero congelar el archivo que contiene el registro de Hermes significa quedarse con una versión vieja del *glue* la próxima vez que ubrn lo cambie. Mover el generado y envolverlo cuesta un archivo y no congela nada.
 
-**`src/contractName.ts` todavía no existe** (lo crea la Task 11), así que hasta entonces `tsc` va a marcar esa línea. Es esperado: se comprueba en la Task 11, no acá.
+**Ruling T8-1 — corrección de este plan.** La versión original de este paso mandaba poner acá
+`export { contractName } from './contractName';`, afirmando que hasta la Task 11 "`tsc` va a
+marcar esa línea, y es esperado". **Está mal y rompe el gate**: no es un error de tipos, es un
+módulo que Metro no puede resolver, así que el bundle no se arma y la app ni carga JS — o sea
+que el Step 4 de esta misma tarea se vuelve imposible. La línea la agrega la Task 11 junto con
+el archivo. Efecto colateral bueno: preserva el rojo del TDD de la Task 11, que espera fallar
+porque `../src/contractName` **no existe**.
 
 - [ ] **Step 2: Poner `coreVersion()` en pantalla, y nada más**
 
@@ -1326,10 +1333,17 @@ export function contractName(e: unknown): string {
    que no son instancias de la clase del módulo JSI (Task 15). En los dos casos devuelve `false`
    y el mapeo se rompe entero. Discriminar por `tag` funciona en los tres flavours y con dobles.
 
-`src/index.tsx` **ya la exporta**: la línea la dejó puesta la Task 8. Comprobarlo y no duplicarla:
+`src/index.tsx` **NO la exporta todavía** — hay que agregarle la línea acá (Ruling T8-1: la
+Task 8 la omitió a propósito, porque un import a un archivo inexistente impide que Metro arme el
+bundle y habría bloqueado su gate de JSI). Comprobar que no esté, y agregarla:
 
 ```bash
-grep -n "contractName" apps/react-native/src/index.tsx
+grep -n "contractName" apps/react-native/src/index.tsx   # no debe haber nada todavía
+```
+
+```tsx
+// al final de src/index.tsx
+export { contractName } from './contractName';
 ```
 
 - [ ] **Step 5: Correr y verificar que pasan**

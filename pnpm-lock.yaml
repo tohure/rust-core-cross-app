@@ -8,6 +8,9 @@ importers:
 
   apps/react-native:
     dependencies:
+      '@babel/runtime':
+        specifier: ^7.25.0
+        version: 7.29.7
       '@ubjs/core':
         specifier: 0.31.0-5
         version: 0.31.0-5
@@ -136,6 +139,9 @@ importers:
       '@react-native/babel-preset':
         specifier: 0.87.0
         version: 0.87.0(@babel/core@7.29.7(supports-color@8.1.1))(supports-color@8.1.1)
+      '@react-native/gradle-plugin':
+        specifier: 0.87.0
+        version: 0.87.0
       '@react-native/jest-preset':
         specifier: 0.87.0
         version: 0.87.0(@babel/core@7.29.7(supports-color@8.1.1))(react@19.2.3)(supports-color@8.1.1)

@@ -26,6 +26,8 @@ __pycache__/
 /apps/react-native/android/src/
 /apps/react-native/src/NativeCoreFinanciero.ts
 /apps/react-native/src/bindings.tsx
+/apps/react-native/CoreFinanciero.podspec
+/apps/react-native/ios/
 # src/index.tsx NO va acá: a partir de la Task 8 es un archivo nuestro, escrito a
 # mano, que envuelve el bindings.tsx generado. Se commitea, no se ignora.
 

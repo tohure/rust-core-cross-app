@@ -50,15 +50,15 @@ type ValidCci = { bankCode: string; bankName: string; branch: string; account: s
 type ValidCard = { brand: string; masked: string };
 ```
 
-> **Estos nombres están derivados, no generados.** Los de Kotlin y Swift se leyeron de
-> bindings reales en la Fase 1; `ubrn` es toolchain de la Fase 4 y todavía no está
-> instalado, así que los de acá salen de la misma regla de uniffi ya verificada en las
-> otras dos plataformas —`snake_case` de Rust a lowerCamelCase, campos de Record
-> camelCase— y de la documentación de ubrn, que genera cada Record como un `type` de
-> objetos planos. **Al primer `ubrn build android --and-generate`, contrastá
-> `src/generated/` con esta lista antes de escribir `src/index.tsx`**: si algo difiere, manda el
-> archivo generado y se corrige acá. (El adapter de la app no entra en esto: consume el paquete,
-> no lo generado.)
+> **Estos nombres se derivaron primero y se contrastaron después, y la predicción acertó.**
+> Los de Kotlin y Swift se leyeron de bindings reales en la Fase 1; los de acá se dedujeron de la
+> misma regla de uniffi ya verificada en esas dos plataformas —`snake_case` de Rust a
+> lowerCamelCase, campos de Record camelCase— antes de que existiera `ubrn` en el proyecto.
+> Al primer `ubrn build android --and-generate` se contrastó contra `src/generated/core_financiero.ts`:
+> **las nueve funciones y los cinco Records coinciden campo por campo, tipo por tipo y en orden.**
+> Lo único que la deducción erró fue la forma de `DomainError` —es un `enum` de tags más una unión
+> discriminada, no una clase—, corregido más abajo en este mismo archivo.
+> (El adapter de la app no entra en esto: consume el paquete, no lo generado.)
 
 **Los identificadores están en inglés; los nombres del contrato, en español.**
 `contracts/cases.json` nombra los errores `"Longitud"`, `"DigitoControl"`, `"MismaCuenta"`…
@@ -128,7 +128,8 @@ frontera que la Fase 5 necesita: Angular consume un paquete instalable, no una a
     │   ├── generated/            bindings JSI · NO EDITAR
     │   ├── generated-napi/       bindings N-API · NO EDITAR
     │   ├── generated-wasm/       bindings wasm2 + .wasm · NO EDITAR
-    │   └── index.tsx             entrypoint: las nueve funciones
+    │   ├── bindings.tsx          entrypoint de ubrn · NO EDITAR
+    │   └── index.tsx             superficie pública: reexporta bindings.tsx
     ├── __tests__/                contrato N-API · contrato WASM · guardias
     ├── __benchmarks__/baseline.ts
     └── example/                  LA APP DE LA DEMO
@@ -163,10 +164,22 @@ export const core = {
 ```
 
 **No importa desde `src/generated/`, y ésa es la frontera entera.** El único archivo que toca lo
-generado es `src/index.tsx`, el entrypoint de la librería, que reexporta las nueve funciones. Así
-`example/` no sabe que debajo hay uniffi, y el nombre del archivo generado —que lo decide `ubrn`
-a partir del crate, y hay que **confirmarlo en la primera generación**— deja de ser asunto de la
-app.
+generado es `src/index.tsx`, la superficie pública de la librería. Así `example/` no sabe que
+debajo hay uniffi, y el nombre del archivo generado —`src/generated/core_financiero.ts`, que
+`ubrn` deriva del crate— deja de ser asunto de la app.
+
+**`src/index.tsx` es nuestro; `src/bindings.tsx` lo genera `ubrn`.** El entrypoint que genera
+`ubrn` no es un reexport inocente: contiene `installer.installRustCrate()`, que es lo que
+registra el crate con Hermes, y la inicialización de los checksums. Sin esa llamada el Turbo
+Module nunca se instala y JSI no resuelve nada — y el síntoma no aparece al compilar sino al
+abrir la app. Por eso no se edita a mano ni se congela: `turboModule.entrypoint: src/bindings.tsx`
+en `ubrn.config.yaml` manda el generado a ese nombre, y `index.tsx` queda libre para ser nuestro
+y reexportarlo, sumándole lo que la librería aporta por su cuenta (`contractName`).
+
+Generar en `index.tsx` y editarlo a mano no era opción: `ubrn build … --and-generate` lo reescribe
+entero en cada corrida. Congelarlo con `noOverwrite` tampoco: congelaría justo el archivo que
+lleva el registro de Hermes, y quedaríamos con una versión vieja del *glue* la próxima vez que
+`ubrn` lo cambie.
 
 El adapter **no traduce los nombres del core**: los reexporta. Una segunda nomenclatura en
 TypeScript es una capa que hay que mantener sincronizada a mano y que se desincroniza en la

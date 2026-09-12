@@ -189,7 +189,10 @@ coincide con lo que el CONTEXT venía prediciendo.
 `.so` de Turbo Module, en vez de cargarlo suelto con JNA como hace `apps/android`), y crea
 `android/build.gradle`, `android/cpp-adapter.cpp`, todo `android/src/`
 (`CoreFinancieroModule.kt`, `CoreFinancieroPackage.kt`, el `AndroidManifest.xml` y los
-`jniLibs/*.a`) y `src/NativeCoreFinanciero.ts`. Todo eso es artefacto generado — está en
+`jniLibs/*.a`) y `src/NativeCoreFinanciero.ts`. El paso de turbo-module escribe además
+`src/bindings.tsx`, `CoreFinanciero.podspec` e `ios/CoreFinanciero.{h,mm}` — el podspec llevaba
+comiteada la versión del esqueleto de bob hasta que la primera regeneración lo reescribió con la
+suya, que es la que vale. Todo eso es artefacto generado — está en
 `.gitignore` (no se comitea) y **nunca se edita a mano**: si algo ahí sale mal, se corrige en
 `rust-core` o en `ubrn.config.yaml` y se vuelve a correr este mismo comando.
 
@@ -297,3 +300,161 @@ siendo el único `number`. `ubrn:android` no toca `android/build.gradle`,
 `CMakeLists.txt`, `cpp-adapter.cpp` ni `android/src/main/java/` como archivos *nuevos* — los
 **reescribe** con el mismo contenido de siempre (mtime actualizado, contenido idéntico),
 consistente con que es un `--and-generate` completo y determinístico, no incremental.
+
+## El smoke JSI
+
+El gate de la fase, y el equivalente exacto de lo que la Fase 2 probó con `System.loadLibrary`
+y la Fase 3 con el slice `aarch64-apple-ios`: que el Turbo Module se registra y que los
+símbolos del core resuelven. Antes de esto, ninguna pantalla significa nada.
+
+```bash
+cd apps/react-native/example
+adb devices                                        # un aparato o emulador en estado `device`
+pnpm exec react-native start --reset-cache &       # Metro, en otra terminal
+pnpm exec react-native run-android --no-packager
+```
+
+**Qué se debe ver en la pantalla del aparato:** un único string con forma `1.0.0+<sha corto>`,
+centrado, y nada más. Corrida real sobre un emulador Pixel 9 Pro API 36 (arm64-v8a):
+
+```
+1.0.0+288ee44
+```
+
+El campo de error tiene que quedar **vacío**. Si aparece texto ahí, o si la pantalla queda en
+blanco, el Turbo Module no se registró o los símbolos no resolvieron.
+
+Para leer la pantalla sin mirarla —útil en CI o por ssh—:
+
+```bash
+adb shell uiautomator dump /sdcard/ui.xml >/dev/null
+adb shell cat /sdcard/ui.xml | tr '>' '>\n' | grep -o 'text="[^"]*"' | grep -v 'text=""'
+```
+
+### El SHA en pantalla puede ser anterior al HEAD, y es correcto
+
+```bash
+git rev-parse --short HEAD
+```
+
+`core_version()` **congela el SHA del momento en que se compiló el core**, no el del HEAD
+actual. En la corrida de arriba la pantalla decía `288ee44` con HEAD en `21b4553`: el `.a` se
+construyó bajo `288ee44` y los commits posteriores no tocaron `rust-core/`, cosa verificable:
+
+```bash
+git diff --stat 288ee44..HEAD -- rust-core/     # vacío ⇒ el core no cambió
+```
+
+O sea que el binario es funcionalmente el de HEAD y solo difiere el string. **Antes de la demo
+eso no alcanza:** los cuatro artefactos tienen que regenerarse desde el mismo HEAD para que los
+cuatro pies coincidan, que es el primer paso del [runbook](../../docs/demo-runbook.md).
+
+### Por qué este gate es manual y no una suite
+
+**React Native no tiene corredor de tests en dispositivo.** Jest mockea los módulos nativos, así
+que nada automatizado cruza JSI: un test verde en Jest no prueba absolutamente nada sobre el
+puente. Lo único que lo probaría es un e2e con Detox — una pila entera (build gris, servidor,
+sincronización de UI) que esta POC no necesita y que está fuera de alcance.
+
+Es una diferencia real con las otras dos apps, y conviene decirla en la demo: Android tiene
+`connectedAndroidTest` y iOS tiene XCTest sobre aparato, los dos cruzando la frontera de verdad.
+Acá el cruce se verifica a ojo, una vez, y lo que queda automatizado son las dos rutas de
+contrato por Node —N-API y WASM—, que sí corren en Jest.
+
+## Lo que hubo que arreglar para que el example compile
+
+El esqueleto que dejó `react-native-builder-bob` asume un monorepo de **yarn/npm con
+`node_modules` aplanado** y una línea base de toolchain más vieja que la de este repo. Nada de
+esto es opcional ni cosmético: sin cada una de estas piezas el build se cae. Están acá porque
+quien regenere el proyecto dentro de seis meses las va a volver a encontrar.
+
+| Qué falla | Por qué | Dónde quedó el arreglo |
+|---|---|---|
+| Metro no arranca: `No 'workspaces' field found` | `withMetroConfig` espera el campo `workspaces` de yarn/npm; pnpm los declara en `pnpm-workspace.yaml` y no escribe nada en ningún `package.json` | opción `workspaces` explícita en `example/metro.config.js` |
+| `Unable to resolve module @babel/runtime/helpers/…` | pnpm enlaza al store de la **raíz del repo**; Metro resuelve por realpath y no sirve archivos fuera de sus raíces vigiladas | `config.watchFolders` extendido con la raíz del repo, en `example/metro.config.js` |
+| lo mismo, pero desde `src/bindings.tsx` | la librería se consume **como fuente**, así que babel le inyecta helpers que resuelve desde `apps/react-native/`, donde no había `@babel` | `@babel/runtime` declarado en `dependencies` de la librería |
+| Gradle: `Included build '…/@react-native/gradle-plugin' does not exist` | es dependencia **transitiva** de `react-native` y pnpm no la aplana, así que no existe en `example/node_modules/` | declarada como `devDependency` directa del example, pinneada a la misma versión que `react-native` |
+| `Minimum supported Gradle version is 9.4.1` | AGP entra **sin versión** (`classpath("com.android.tools.build:gradle")`) y resuelve a 9.x; la plantilla congeló Gradle 9.3.1 | wrapper del example a **9.6.0**, la misma que ya usa `apps/android` |
+| `Cannot add extension with name 'kotlin'` | AGP 9 trae Kotlin integrado y registra él mismo esa extensión; la plantilla aplica `kotlin-android` encima | `android.builtInKotlin=false` + `android.newDsl=false` en `example/android/gradle.properties` |
+| `getDefaultProguardFile('proguard-android.txt') is no longer supported` | otro cambio rompiente de AGP 9 | `proguard-android-optimize.txt` en `example/android/app/build.gradle` |
+| ninja: falta `libcore_financiero.a`, y `fatal error: 'CoreFinancieroImpl.h' file not found` | **los dos son la misma causa**: ver abajo | tres claves borradas de `react-native.config.js` |
+
+### Por qué `android.builtInKotlin=false` y no la migración que recomienda Google
+
+La migración oficial a AGP 9 es quitar `kotlin-android` de cada módulo. Acá no se puede: el
+módulo librería lo genera `ubrn` (`apps/react-native/android/build.gradle`) y lo aplica en su
+plantilla. Editar ese archivo a mano lo perdería en el siguiente `--and-generate`, y este
+proyecto no edita generados. El opt-out es la salida que la propia guía prevé.
+
+**Horizonte: AGP 10 elimina el opt-out.** Para entonces la salida tiene que venir de `ubrn`
+generando un módulo sin `kotlin-android`, no de un parche nuestro.
+
+### Las tres claves `cxxModule*` de `react-native.config.js`
+
+El esqueleto de bob declaraba la librería como **C++ TurboModule**:
+
+```js
+cxxModuleCMakeListsModuleName: 'banco-core-financiero',
+cxxModuleCMakeListsPath: 'CMakeLists.txt',
+cxxModuleHeaderName: 'CoreFinancieroImpl',
+```
+
+**Y no lo es.** `ubrn` genera un TurboModule **Kotlin** (`CoreFinancieroModule.kt`) cuyo
+`installRustCrate()` instala los bindings JSI; no existe ninguna clase `CoreFinancieroImpl` ni
+el header que esa declaración prometía, y `ubrn` no menciona `cxxModule` en ninguna parte de sus
+templates ni de sus docs.
+
+Declararlas rompía de dos maneras a la vez, que es por qué aparecían como dos errores distintos:
+
+1. El autolinking metía nuestro `android/CMakeLists.txt` como **subdirectorio del build CMake de
+   la app** (`add_subdirectory(… CoreFinancieroSpec_cxxmodule_autolinked_build)`). Ahí
+   `CMAKE_SOURCE_DIR` deja de apuntar a nuestro módulo y pasa a apuntar al `default-app-setup`
+   de React Native, así que la línea `${CMAKE_SOURCE_DIR}/src/main/jniLibs/…` del CMakeLists
+   generado buscaba el `.a` de Rust en un directorio de React Native.
+2. Generaba un `autolinking.cpp` con `#include <CoreFinancieroImpl.h>`, que no compila.
+
+Sin esas claves, el módulo librería construye su propio `.so` con su `externalNativeBuild`
+—tareas `:banco_core-financiero:`—, que es el camino para el que `ubrn` genera ese CMakeLists y
+donde `CMAKE_SOURCE_DIR` sí es el correcto. Se conserva `cmakeListsPath`, que apunta al
+CMakeLists del codegen de React Native y es legítimo.
+
+### La trampa: `autolinking.json` está cacheado y no se invalida solo
+
+**Editar `react-native.config.js` y reconstruir no tiene ningún efecto visible.**
+`autolinkLibrariesFromCommand()` cachea su salida en `android/build/generated/autolinking/` y no
+la invalida cuando ese archivo cambia. El síntoma es cruel: el build sigue fallando con el error
+viejo y parece que el arreglo no sirvió. Hay que borrarla a mano:
+
+```bash
+cd apps/react-native/example
+rm -rf android/build/generated/autolinking \
+       android/app/build/generated/autolinking \
+       android/app/.cxx
+```
+
+Ojo con el primero: el que manda es `android/build/…` (raíz del proyecto Gradle), no el de
+`android/app/…`.
+
+### El APK, medido
+
+```bash
+cd apps/react-native/example/android
+APK=$(find . -name "app-debug.apk" | head -1)
+ls -lh "$APK"
+unzip -l "$APK" | grep -E "\.a$|\.so$"
+```
+
+**95 MB en debug**, contra los 32 MB del APK de debug de `apps/android`. La diferencia no es el
+core: son las tres ABIs completas de React Native (`libreactnative.so` sola pesa 23 MB en
+arm64) más Hermes, todo sin strippear.
+
+**Cero archivos `.a` en el APK**, que es lo que había que confirmar: `ubrn` deja en
+`android/src/main/jniLibs/` el *staticlib* de Rust —de 73 a 82 MB por ABI— y `jniLibs/` es justo
+el directorio que Gradle empaqueta. No se cuelan porque el merge de nativos de AGP filtra por
+`**/*.so`. El core viaja enlazado **dentro** de `libbanco-core-financiero.so`, 4,0 MB en arm64.
+
+Las ABIs empaquetadas son tres y **tienen que ser exactamente las de `android.targets` de
+`ubrn.config.yaml`**. La plantilla traía además `x86`, que `ubrn` no compila, y el APK salía con
+un `lib/x86/` **sin** `libbanco-core-financiero.so` adentro: un slice que instala y crashea al
+cargar el core. Alinearlas bajó el APK de 125 MB a 95 MB. El criterio es el mismo del
+`abiFilters` de `apps/android`.
