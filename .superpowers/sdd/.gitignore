@@ -1,0 +1,9 @@
+# El scratch de ejecución —briefs, reports, diffs de review— no entra: es transitorio, y los
+# diffs son redundantes con el historial de git.
+*
+# El ledger sí. Los rulings explican por qué el código quedó como quedó —desviaciones del plan,
+# hipótesis descartadas, hallazgos que sólo aparecieron en el aparato— y eso no se deduce del
+# diff. CLAUDE.md ya cita el de la Fase 1 como documento vigente; sin esto, la cita no resuelve
+# para quien clone el repo.
+!*/
+!*/progress.md
