@@ -378,6 +378,7 @@ quien regenere el proyecto dentro de seis meses las va a volver a encontrar.
 | `Cannot add extension with name 'kotlin'` | AGP 9 trae Kotlin integrado y registra él mismo esa extensión; la plantilla aplica `kotlin-android` encima | `android.builtInKotlin=false` + `android.newDsl=false` en `example/android/gradle.properties` |
 | `getDefaultProguardFile('proguard-android.txt') is no longer supported` | otro cambio rompiente de AGP 9 | `proguard-android-optimize.txt` en `example/android/app/build.gradle` |
 | ninja: falta `libcore_financiero.a`, y `fatal error: 'CoreFinancieroImpl.h' file not found` | **los dos son la misma causa**: ver abajo | tres claves borradas de `react-native.config.js` |
+| `pnpm test`: `SyntaxError: Cannot use import statement outside a module` | el `transformIgnorePatterns` del preset de RN está escrito para `node_modules` aplanado | `transformIgnorePatterns` propio en el `jest` de `package.json` |
 
 ### Por qué `android.builtInKotlin=false` y no la migración que recomienda Google
 
@@ -458,3 +459,53 @@ Las ABIs empaquetadas son tres y **tienen que ser exactamente las de `android.ta
 un `lib/x86/` **sin** `libbanco-core-financiero.so` adentro: un slice que instala y crashea al
 cargar el core. Alinearlas bajó el APK de 125 MB a 95 MB. El criterio es el mismo del
 `abiFilters` de `apps/android`.
+
+### `pnpm test` no corría, y la causa era la misma
+
+```bash
+cd apps/react-native
+pnpm test
+```
+
+Se esperan **2 tests en verde** (`src/__tests__/jest-setup.test.ts`). Hasta este cambio la suite
+no arrancaba: moría al cargar con `SyntaxError: Cannot use import statement outside a module`,
+antes de correr un solo test.
+
+El `transformIgnorePatterns` que trae `@react-native/jest-preset` es:
+
+```
+node_modules/(?!((jest-)?react-native|@react-native(-community)?)/)
+```
+
+«Ignorá todo bajo `node_modules/`, salvo que justo después venga `react-native/` o
+`@react-native/`». Con `node_modules` aplanado eso funciona. Con pnpm el paquete real vive en
+
+```
+node_modules/.pnpm/@react-native+jest-preset@0.87.0_…/node_modules/@react-native/jest-preset/…
+```
+
+y hay **dos** `node_modules/`. El patrón matchea en el **primero**, porque lo que le sigue es
+`.pnpm/`, que no está en la lista blanca. Y a `transformIgnorePatterns` le alcanza con que el
+patrón matchee en cualquier parte de la ruta, así que el segundo —el que sí va seguido de
+`@react-native/`— nunca se evalúa. Resultado: Babel no toca `jest/setup.js`, que está en ESM, y
+como corre en `setupFiles` —antes que cualquier test— se lleva puesta la suite entera.
+
+El arreglo agrega un solo *lookahead*, `(?!\.pnpm/)`, para que ese primer `node_modules/` no
+dispare nada y la decisión la tome el segundo. Conserva la lista blanca del preset tal cual:
+
+```json
+"transformIgnorePatterns": [
+  "node_modules/(?!\\.pnpm/)(?!((jest-)?react-native|@react-native(-community)?)/)"
+]
+```
+
+Verificado por mutación: quitándolo, la suite vuelve a morir con el mismo `SyntaxError`.
+
+**En el mismo cambio se corrigió `customExportConditions`**, que traía
+`"<%- project.sourceCondition -%>"` —un placeholder de plantilla que el andamio de bob nunca
+renderizó— donde debía decir `banco-core-financiero-source`. **No arregla nada observable**, y
+conviene decirlo con todas las letras: romperlo a propósito no cambia la resolución. Lo que
+gobierna que Jest cargue el paquete desde `src/` y no desde `lib/` es la clave
+`banco-core-financiero-source` del `exports` de `package.json` — borrarla sí manda la resolución
+a `lib/module/index.js`, y hay un test que lo guarda. El placeholder se corrigió porque una
+plantilla sin renderizar en un archivo de configuración está mal igual, no porque hiciera algo.

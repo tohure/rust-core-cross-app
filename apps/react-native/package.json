@@ -146,9 +146,12 @@
       "customExportConditions": [
         "require",
         "react-native",
-        "<%- project.sourceCondition -%>"
+        "banco-core-financiero-source"
       ]
     },
+    "transformIgnorePatterns": [
+      "node_modules/(?!\\.pnpm/)(?!((jest-)?react-native|@react-native(-community)?)/)"
+    ],
     "modulePathIgnorePatterns": [
       "<rootDir>/example/node_modules",
       "<rootDir>/lib/"
