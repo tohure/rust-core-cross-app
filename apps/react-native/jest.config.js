@@ -22,6 +22,10 @@ module.exports = {
       testEnvironment: 'node',
       testMatch: ['<rootDir>/__tests__/**/*.test.ts'],
       modulePathIgnorePatterns: ['<rootDir>/example/', '<rootDir>/lib/'],
+      // `@ubjs/wasm` y `@ubjs/core` se publican **sólo en ESM**, y este proyecto corre CommonJS.
+      // Mismo patrón de dos lookaheads que el proyecto de React Native: el primero evita que el
+      // `node_modules/.pnpm/` del store dispare el ignore, el segundo deja pasar el paquete.
+      transformIgnorePatterns: ['node_modules/(?!\\.pnpm/)(?!@ubjs/)'],
     },
     {
       displayName: 'react-native',

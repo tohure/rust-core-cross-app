@@ -674,3 +674,31 @@ Correrlos es un solo `pnpm test`; la salida los distingue por `displayName`.
 **No se usa `ts-jest`.** `babel.config.js` ya transpila TypeScript vía el preset de bob, y una
 segunda pila de transformación al lado de babel-jest es la clase de cosa que después nadie sabe
 por qué está.
+
+## Construir el WASM
+
+El artefacto que consumirá Angular en la Fase 5.
+
+```bash
+cd apps/react-native
+export PATH="$HOME/.cargo/bin:$PATH"
+rustup target add wasm32-unknown-unknown          # la primera vez
+pnpm exec ubrn build wasm2 --release --and-generate --config ubrn.wasm.yaml
+```
+
+Qué se debe ver en `src/generated-wasm/`: los `.ts` generados y un `core_financiero.wasm` de
+**178 KB** en release.
+
+**El `--config ubrn.wasm.yaml` no es opcional.** Todos los flavours de `ubrn` escriben en el
+directorio que diga `bindings.ts`, así que correrlo con `ubrn.config.yaml` **pisa los bindings JSI**
+de `src/generated/`: el build de la app queda roto y el síntoma aparece lejos del comando que lo
+causó. Ese archivo existe sólo para apuntar a `src/generated-wasm`.
+
+**Y el `.wasm` que sirve es el que `--and-generate` *stagea*,** no el que deja cargo en
+`rust-core/target/wasm32-unknown-unknown/`. El de cargo es la salida cruda y le faltan los símbolos
+que inyecta el paso de wasm-bindgen; cargarlo falla con
+`required export "__ubrn_alloc" not found in wasm module`.
+
+Todo lo que hizo falta para que esto funcionara —tres correcciones al plan, el cambio de
+`chacha20poly1305` que **sí** tocó a las cuatro plataformas, y el bloqueante de tipos que queda
+abierto— está en [PENDING.md](PENDING.md).

@@ -54,6 +54,9 @@ importers:
       '@ubjs/node':
         specifier: 0.31.0-5
         version: 0.31.0-5
+      '@ubjs/wasm':
+        specifier: 0.31.0-5
+        version: 0.31.0-5(@ubjs/core@0.31.0-5)
       commitlint:
         specifier: ^21.2.1
         version: 21.2.2(@types/node@22.20.2)(conventional-commits-filter@6.0.1)(conventional-commits-parser@7.1.2)(typescript@6.0.3)
@@ -2019,6 +2022,11 @@ packages:
 
   '@ubjs/node@0.31.0-5':
     resolution: {integrity: sha512-w1gyA/1H7TiJIQfHD6Zjr673IDfG+1a4hpM0f0krxJr9jlTkrwouFCoNTwpLmSxSWJXtUxkB19Bk0ekxAepOHQ==}
+
+  '@ubjs/wasm@0.31.0-5':
+    resolution: {integrity: sha512-dO7i67DQ1UKBSegznLVjVrYowmxY7gaXXluBdtJXPYgcR5vzwYf2ZbxAUqj4qL1JkqxRmeTKgXtuesFI+D5dPg==}
+    peerDependencies:
+      '@ubjs/core': ^0.31.0-5
 
   '@vitejs/plugin-react@5.2.0':
     resolution: {integrity: sha512-YmKkfhOAi3wsB1PhJq5Scj3GXMn3WvtQ/JC0xoopuHoXSdmtdStOpFrYaT1kie2YgFBcIe64ROzMYRjCrYOdYw==}
@@ -7446,6 +7454,10 @@ snapshots:
       '@ubjs/node-linux-x64-musl': 0.31.0-5
       '@ubjs/node-win32-arm64-msvc': 0.31.0-5
       '@ubjs/node-win32-x64-msvc': 0.31.0-5
+
+  '@ubjs/wasm@0.31.0-5(@ubjs/core@0.31.0-5)':
+    dependencies:
+      '@ubjs/core': 0.31.0-5
 
   '@vitejs/plugin-react@5.2.0(supports-color@8.1.1)(vite@7.3.6(@types/node@22.20.2)(jiti@2.7.0)(terser@5.51.2)(yaml@2.9.0))':
     dependencies:
