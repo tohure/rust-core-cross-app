@@ -44,7 +44,7 @@
     "ubrn:android": "ubrn build android --release --and-generate",
     "ubrn:ios": "ubrn build ios --release --and-generate && (cd example/ios && pod install)",
     "napi:generate": "RN=$PWD && EXT=$([ \"$(uname)\" = Darwin ] && echo dylib || echo so) && cargo build --release --manifest-path ../../rust-core/Cargo.toml && mkdir -p src/generated-napi && cp \"../../rust-core/target/release/libcore_financiero.$EXT\" src/generated-napi/ && cd ../../rust-core/crates/ffi && ubrn generate napi bindings --library --ts-dir \"$RN/src/generated-napi\" --lib-colocated \"$RN/src/generated-napi/libcore_financiero.$EXT\"",
-    "wasm:generate": "ubrn build wasm2 --release --and-generate --config ubrn.wasm.yaml && node -e \"const fs=require('fs'),f='src/generated-wasm/index.ts',s=fs.readFileSync(f,'utf8');if(!s.includes('@ts-nocheck'))fs.writeFileSync(f,'// @ts-nocheck\\n'+s)\"",
+    "wasm:generate": "ubrn build wasm2 --release --and-generate --config ubrn.wasm.yaml && node -e \"const fs=require('fs'),f='../../packages/core-financiero-wasm/generated/index.ts',s=fs.readFileSync(f,'utf8');if(!s.includes('@ts-nocheck'))fs.writeFileSync(f,'// @ts-nocheck\\n'+s)\" && pnpm --filter @banco/core-financiero-wasm run build",
     "ubrn:clean": "rm -rf cpp/ src/generated src/generated-napi src/generated-wasm src/bindings.tsx"
   },
   "keywords": [

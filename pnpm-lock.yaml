@@ -200,6 +200,25 @@ importers:
         specifier: ^6.0.3
         version: 6.0.3
 
+  packages/core-financiero-wasm:
+    dependencies:
+      '@banco/contract':
+        specifier: workspace:*
+        version: link:../contract
+      '@ubjs/core':
+        specifier: 0.31.0-5
+        version: 0.31.0-5
+      '@ubjs/wasm':
+        specifier: 0.31.0-5
+        version: 0.31.0-5(@ubjs/core@0.31.0-5)
+    devDependencies:
+      esbuild:
+        specifier: ^0.28.2
+        version: 0.28.2
+      typescript:
+        specifier: ^6.0.3
+        version: 6.0.3
+
 packages:
 
   '@ark/schema@0.56.2':
