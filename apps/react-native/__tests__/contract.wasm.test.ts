@@ -3,13 +3,13 @@
 // y no en el core — y eso se quiere leer de un vistazo, no deducirlo de un log. Factorizarlo en una
 // función parametrizada por runtime ahorraría líneas y costaría justo esa lectura.
 //
-// Éste es el artefacto que consumirá Angular en la Fase 5: probarlo acá es lo que hace que esa fase
-// arranque sin deuda.
+// Éste es el artefacto que consume Angular desde la Fase 5 (Task 4: `@banco/core-financiero-wasm`).
+// Probarlo acá, contra el paquete y no contra un generado local de esta app, es lo que hace que esa
+// fase arranque sin deuda: el mismo import que usa Angular es el que prueba este archivo.
 import { beforeAll, describe, expect, it } from '@jest/globals';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { group, loadCases, loadMessages } from './contractFixtures';
-import { uniffiInitAsync } from '../src/generated-wasm';
 // `contractName` se importa directo de `@banco/contract`, no de `../src` (el entrypoint de la
 // librería): este archivo también corre bajo el proyecto "napi" de Jest, Node puro, y
 // `../src/index.tsx` arrastra `bindings.tsx` — que registra el turbo module vía Hermes y muere
@@ -21,10 +21,11 @@ import {
   decrypt,
   encrypt,
   executeTransfer,
+  initCore,
   subtract,
   validateCard,
   validateCci,
-} from '../src/generated-wasm/core_financiero';
+} from '@banco/core-financiero-wasm';
 
 const CASES = loadCases();
 const KEY = CASES._clave_demo_hex as string;
@@ -32,11 +33,21 @@ const NONCE = CASES._nonce_demo_hex as string;
 
 // A diferencia de N-API, el módulo WASM se abre de forma asíncrona y el host tiene que decirle
 // dónde está el `.wasm`: no hay default, porque el nombre del asset sólo lo sabe el entorno — un
-// bundler reescribe la URL al copiarlo. Acá se leen los bytes del archivo stageado.
+// bundler reescribe la URL al copiarlo. Acá se leen los bytes del archivo stageado por
+// `ubrn build wasm2 --and-generate` en el paquete, no los que deja `cargo` crudos.
 beforeAll(async () => {
-  await uniffiInitAsync(
+  await initCore(
     readFileSync(
-      join(__dirname, '..', 'src', 'generated-wasm', 'core_financiero.wasm')
+      join(
+        __dirname,
+        '..',
+        '..',
+        '..',
+        'packages',
+        'core-financiero-wasm',
+        'generated',
+        'core_financiero.wasm'
+      )
     )
   );
 });

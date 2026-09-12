@@ -1,23 +1,32 @@
 // El generado lleva `@ts-nocheck`: `tsc` no lo chequea, pero sí infiere su forma de la
 // implementación (`@ts-nocheck` suprime diagnósticos, no la inferencia), así que este `import`
 // no produce un error que un `@ts-expect-error` pueda capturar — se verificó: agregarlo deja
-// `tsc` en rojo con TS2578 ("Unused '@ts-expect-error' directive"). Lo que sí hace falta, y es
-// lo que sostiene esta fachada, es no reexportar `generado` tal cual: sus tipos inferidos no son
-// los contratos reales de `apps/web-angular/CONTEXT.md` y no le dan a `guard.ts` un
-// `DomainError` estable para comparar.
+// `tsc` en rojo con TS2578 ("Unused '@ts-expect-error' directive"). El porqué real de envolver
+// `generado` a mano, en vez de reexportarlo, está en el docblock de abajo — no es que reexportar
+// diera `any` (no lo hace: sus tipos se infieren igual de la implementación).
 import * as generado from '../generated/index';
 
 /**
  * **Fachada tipada sobre el módulo generado, escrita a mano y a propósito.**
  *
- * El entrypoint que produce `ubrn build wasm2` lleva `@ts-nocheck`: no typechequea. Reexportarlo
- * tal cual le daría `any` a todo consumidor en las nueve funciones, y con eso se cae la guardia
- * 4 — el `Equal<DomainError['tag'], ContractTag>` de `guard.ts` no tendría un tipo real contra
- * el que verificar, y una décima variante del core pasaría en verde.
+ * El entrypoint que produce `ubrn build wasm2` lleva `@ts-nocheck` **porque lo necesita**: sin
+ * esa directiva, `tsc` rompe sobre ese archivo — verificado quitándosela, `TS2345` en la línea
+ * que registra las definiciones del player contra `@ubjs/wasm` (un choque entre las tuplas
+ * `readonly` que emite el generador y el `FfiTypeDesc[]` mutable que espera `ModuleDefinitions`).
+ * Es una directiva *load-bearing*, no cosmética, y el logro real de esta fachada es confinarla a
+ * un archivo que nadie edita a mano: todo lo que sí se toca en este paquete (`index.ts`,
+ * `guard.ts`) queda bajo chequeo completo de `tsc`.
  *
- * Acá el `@ts-nocheck` queda **confinado al archivo generado**. Estas firmas son las de
- * `apps/web-angular/CONTEXT.md`, ya verificadas contra Kotlin y Swift en la Fase 1 y contra el
- * flavour JSI de React Native en la Fase 4.
+ * Dos razones más para envolver a mano en vez de reexportar `generado` tal cual:
+ * - Una **superficie estable** frente al churn del generador: si `ubrn` reordena o renombra algo
+ *   internamente entre corridas, el contrato hacia afuera no se mueve.
+ * - `initCore` **angosta el tipo**. El `WasmSource` del generado admite seis formas
+ *   (`WebAssembly.Module | ArrayBuffer | Uint8Array | Response | URL | string`); esta fachada
+ *   acepta sólo bytes. Eso vuelve la independencia del MIME del `.wasm` una propiedad del tipo,
+ *   no una convención que alguien puede romper sin que nada avise.
+ *
+ * Estas firmas son las de `apps/web-angular/CONTEXT.md`, ya verificadas contra Kotlin y Swift en
+ * la Fase 1 y contra el flavour JSI de React Native en la Fase 4.
  */
 export type Account = { id: string; holder: string; balance: string };
 export type TransferRequest = { origin: string; destination: string; amount: string };

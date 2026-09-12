@@ -4,6 +4,14 @@
 //
 // Corre bajo el proyecto "napi" de Jest (Node puro): ver `apps/react-native/jest.config.js`,
 // cuyo `roots`/`testMatch` recogen `packages/*/src/**/*.test.ts`.
+//
+// **La cobertura de tipos no vive acá.** TypeScript se borra en runtime: ningún `expect` puede
+// distinguir un `string` real de un `any` que resultó ser un string en este caso concreto — se
+// intentó (`export const boom: number = coreVersion()` dentro de un test) y ni el `tsc` de este
+// paquete ni el de `apps/react-native` lo vieron, porque `tsconfig.json` excluye
+// `src/__tests__` y `apps/react-native` no compila este paquete. La garantía de que las nueve
+// funciones tienen tipos reales la da `src/index.ts` — sus firmas escritas a mano — y la
+// verifica `tsc --noEmit` sobre ese archivo, no un test de este archivo.
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { beforeAll, describe, expect, it } from '@jest/globals';
@@ -22,11 +30,10 @@ describe('fachada tipada', () => {
     expect(validateCard('4111111111111111').brand).toBe('Visa');
   });
 
-  it('los tipos son reales, no `any`', () => {
-    // Si la fachada reexportara el generado con @ts-nocheck, esto compilaría igual y el test no
-    // diría nada. Lo que lo hace valer es que `tsc --noEmit` corre sobre este paquete y ve un
-    // tipo real acá, no `any`.
-    const marca: string = validateCard('4111111111111111').brand;
-    expect(typeof marca).toBe('string');
+  // Cubre un campo distinto del test anterior (`masked`, no `brand`) contra el mismo caso
+  // `tj-001` de `contracts/cases.json`: no es el mismo assert repetido con otro nombre, y si el
+  // formateo de la máscara se rompe en el flavour WASM, éste es el que avisa.
+  it('validateCard enmascara el número, no sólo detecta la marca', () => {
+    expect(validateCard('4111111111111111').masked).toBe('4111 **** **** 1111');
   });
 });

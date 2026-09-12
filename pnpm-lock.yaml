@@ -21,6 +21,9 @@ importers:
         specifier: 0.31.0-5
         version: 0.31.0-5
     devDependencies:
+      '@banco/core-financiero-wasm':
+        specifier: workspace:*
+        version: link:../../packages/core-financiero-wasm
       '@commitlint/config-conventional':
         specifier: ^21.2.0
         version: 21.2.2
@@ -202,9 +205,6 @@ importers:
 
   packages/core-financiero-wasm:
     dependencies:
-      '@banco/contract':
-        specifier: workspace:*
-        version: link:../contract
       '@ubjs/core':
         specifier: 0.31.0-5
         version: 0.31.0-5
@@ -212,6 +212,9 @@ importers:
         specifier: 0.31.0-5
         version: 0.31.0-5(@ubjs/core@0.31.0-5)
     devDependencies:
+      '@banco/contract':
+        specifier: workspace:*
+        version: link:../contract
       esbuild:
         specifier: ^0.28.2
         version: 0.28.2

@@ -46,7 +46,7 @@ flowchart TD
 
     ffi -->|"pnpm ubrn:android / ubrn:ios"| jsi["src/generated/ + cpp/<br/>turbo module JSI"]
     ffi -->|"pnpm napi:generate"| napi["src/generated-napi/<br/>cdylib + N-API"]
-    ffi -->|"pnpm wasm:generate"| wasm["src/generated-wasm/<br/>.wasm"]
+    ffi -->|"pnpm wasm:generate"| wasmgen["packages/core-financiero-wasm/generated/<br/>.wasm + bindings, @ts-nocheck"]
 
     jsi --> bindings["src/bindings.tsx<br/>generado, no se edita"]
     bindings --> index["src/index.tsx<br/>superficie pública<br/>reexporta bindings + contractName"]
@@ -54,9 +54,11 @@ flowchart TD
     adapter --> hooks["useArithmetic · useTransfer<br/>useCard · useBenchmark"]
     hooks --> screens["cuatro pantallas<br/>+ pie coreVersion()"]
 
+    wasmgen --> wasmfacade["packages/core-financiero-wasm/src/index.ts<br/>fachada tipada · nueve funciones + initCore"]
+
     napi --> tnapi["__tests__/contract.napi.test.ts<br/>28/28"]
-    wasm --> twasm["__tests__/contract.wasm.test.ts<br/>28/28"]
-    wasm -.->|"Fase 5"| angular["apps/web-angular"]
+    wasmfacade --> twasm["__tests__/contract.wasm.test.ts<br/>28/28"]
+    wasmfacade -.->|"esbuild --bundle · dist/index.js"| angular["apps/web-angular"]
 
     contratoPkg[("packages/contract<br/>CONTRACT_NAMES · contractName · messageFor")]
     contratoPkg -->|"export { contractName }"| index

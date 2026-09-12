@@ -59,15 +59,18 @@ deliberada: los dos runtimes tienen que poder fallar por separado. Si sólo romp
 está en ese flavour y no en el core — y eso se quiere leer de un vistazo, no deducir de un log.
 Factorizarlo en una función parametrizada por runtime ahorraría líneas y costaría justo esa lectura.
 
-**Éste es el artefacto que consumirá Angular en la Fase 5.** Probarlo acá es lo que hace que esa
-fase arranque sin deuda: 28/28, contra los mismos vectores y con la misma igualdad exacta de
-strings.
+**Éste importa de `@banco/core-financiero-wasm` (Fase 5, Task 4), el paquete que también
+consumirá Angular** — no de un generado local de esta app. Probarlo acá contra el mismo paquete
+es lo que hace que esa fase arranque sin deuda: 28/28, contra los mismos vectores y con la misma
+igualdad exacta de strings.
 
 Dos diferencias con la ruta N-API, las dos en el arranque y ninguna en las comparaciones:
 
-- El módulo WASM **se abre de forma asíncrona** (`uniffiInitAsync`), y el host tiene que decirle
-  dónde está el `.wasm`. No hay default, porque el nombre del asset sólo lo sabe el entorno: un
-  bundler reescribe la URL al copiarlo. El test le pasa los bytes leídos del archivo stageado.
+- El módulo WASM **se abre de forma asíncrona** (`initCore`, la fachada del paquete sobre
+  `uniffiInitAsync` del generado), y el host tiene que decirle dónde está el `.wasm`. No hay
+  default, porque el nombre del asset sólo lo sabe el entorno: un bundler reescribe la URL al
+  copiarlo. El test le pasa los bytes leídos del archivo stageado en
+  `packages/core-financiero-wasm/generated/`.
 - El `.wasm` que sirve es el que `--and-generate` **stagea**, no el que deja cargo. Ver
   [BUILD.md](BUILD.md#construir-el-wasm).
 
@@ -78,9 +81,10 @@ error. Discriminar por la presencia de `tag` es lo que hace que el mismo mapeo s
 flavours sin parametrizar nada y sin escribir una segunda copia.
 
 Si alguna vez falla con un error de mapeo, comparar los valores de `DomainError_Tags` entre
-`src/generated/` y `src/generated-wasm/` **antes que ninguna otra cosa**: si difieren, el problema
-es de generación y no del mapeo. Y si falla **sólo** el grupo de `tarjeta`, el sospechoso es el
-manejo de bytes en la frontera wasm, no la criptografía — el core es el mismo binario lógico.
+`src/generated/` y `packages/core-financiero-wasm/generated/` **antes que ninguna otra cosa**: si
+difieren, el problema es de generación y no del mapeo. Y si falla **sólo** el grupo de `tarjeta`,
+el sospechoso es el manejo de bytes en la frontera wasm, no la criptografía — el core es el mismo
+binario lógico.
 
 **Ningún valor esperado se corrigió para que pasara.** Si un caso falla, el sospechoso es el
 código. Corregir un valor esperado va siempre en su propio commit, con la justificación

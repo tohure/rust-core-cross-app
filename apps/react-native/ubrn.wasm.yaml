@@ -6,9 +6,10 @@
 # flavour escribe en el suyo y pueden convivir.
 #
 # `ts` apunta fuera de esta app, a `packages/core-financiero-wasm/generated`: el artefacto WASM
-# vive donde vive su dueño (Task 4 de la Fase 5), y no en `apps/react-native`, que solo lo
-# consumía para probar el flavour. Verificado en un spike previo: `ubrn build wasm2` sí acepta
-# escribir fuera de este directorio y no toca `src/generated-wasm/`.
+# vive donde vive su dueño (Task 4 de la Fase 5), no en `apps/react-native`, que antes lo generaba
+# acá sólo para probar el flavour (`src/generated-wasm/`, borrado — el test de contrato por WASM
+# ahora importa el paquete). Verificado en un spike previo: `ubrn build wasm2` sí acepta escribir
+# fuera de este directorio sin pisar nada de esta app.
 rust:
   directory: ../../rust-core
   manifestPath: crates/ffi/Cargo.toml
