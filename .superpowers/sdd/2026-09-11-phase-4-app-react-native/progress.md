@@ -1196,3 +1196,96 @@ documentadas en `BUILD.md` con su síntoma, su causa y dónde quedó el arreglo.
      tres. En React Native quedó «Android, iOS o Angular». Ese texto no está entre los labels
      normativos, así que no rompe nada, pero en iOS es sencillamente incorrecto.
 - **Task 21: complete.**
+
+### Task 22
+
+- **Verde: 109 tests, 12 suites.** `tsc` y `lint` en cero. **Verificada en emulador y simulador.**
+  Se ejecutó en dos mitades paralelas —la pantalla acá, la baseline y su test en un subagente—
+  porque no comparten un solo archivo.
+- Labels contrastados por script contra `docs/ui-spec.md`: `Iteraciones`, `Ejecutar`,
+  `Core (Rust · Decimal)`, `Punto flotante nativo`, `Tiempo típico (p50)`, `Peor caso (p95)`,
+  cabecera `Benchmark` / `Core vs. implementación nativa`, y **los dos párrafos completos**.
+  Verificado además que los nombres de las dos implementaciones son **los mismos** que usa la
+  pantalla de Aritmética, que es lo que `ui-spec.md` exige explícitamente.
+- **Ruling T22-1 (las filas se pintan SIEMPRE, con `—`; el plan las ponía condicionales).**
+  Android (`BenchmarkUiState.kt`) e iOS (`BenchmarkUiState.swift`) inicializan las cuatro
+  medidas en `"—"` y pintan filas y párrafos desde el arranque; el plan las envolvía en
+  `{state.coreP50 !== '' && (...)}`. Además de romper la paridad, eso reintroduce **el patrón
+  exacto que disparó el defecto de aplanado de Fabric** en las Tasks 20 y 21: un bloque que se
+  inserta encima de filas ya montadas. Pintarlas siempre lo esquiva de raíz.
+  Efecto secundario útil: el test «produce las cuatro medidas» ya no puede conformarse con
+  «distinto de vacío» —el estado arranca en `—`— y exige la forma real de una medida,
+  `/^\d+\.\d{2} µs$/`.
+- **Ruling T22-2 (`setTimeout(0)` NO saca la medición del hilo principal, y el comentario lo
+  dice).** `ui-spec.md` afirma que ésta es «la única pantalla donde las llamadas al core van
+  fuera del hilo principal». En Android eso es `withContext(worker)` y en iOS `Task.detached`:
+  hilos de verdad. **En React Native no se puede cumplir:** el JS corre en un solo hilo y acá no
+  hay worker. Lo único que hace el `setTimeout(0)` es ceder el turno para que el spinner alcance
+  a pintarse antes de que el bucle lo bloquee. Es una diferencia de plataforma, no una decisión,
+  y queda escrita en el hook en vez de fingir paridad. Con 1000 iteraciones la UI se congela unos
+  milisegundos y no se nota; con 999999 sí se notaría — el tope de 6 dígitos es lo único que
+  acota eso, igual que en las otras dos apps.
+- **Ruling T22-3 (`percentile` del plan no compila).** `tsconfig.json` tiene
+  `noUncheckedIndexedAccess: true`, así que `sorted[i]` es `number | undefined`. El `?? 0` va con
+  el comentario de por qué el índice nunca se sale: `run()` corta antes si `n <= 0`.
+- **Ruling T22-4 (`PrimaryButton` con `loading`, cuarta vez).** El plan volvía a usar el `Button`
+  de React Native y a hacer desaparecer el botón durante la corrida. Ver T19-2, T20-4, T21-1.
+- **Divergencia deliberada con Android e iOS: acá el error se MUESTRA.** Los dos vuelven en
+  silencio cuando `n <= 0` (`?: return` y `guard ... else { return }`), así que el botón no hace
+  nada y parece roto. React Native dice «Ingresa un número de iteraciones mayor que cero.».
+  `ui-spec.md` no fija nada para este caso y no toca ningún label normativo. **Queda anotado para
+  la revisión de la fase: es una mejora que las otras dos apps podrían adoptar.**
+- **Una mutación volvió a encontrar un hueco que los tests del plan no cubrían:** si una corrida
+  falla, las medidas de la corrida anterior se quedaban en pantalla **debajo del error**, como si
+  fueran de ésta. Es la misma clase de guardia que «una transferencia fallida limpia el resultado
+  anterior» (Task 20) y «un número que el core rechaza limpia el resultado» (Task 21). Siete
+  mutaciones, las siete cazadas.
+- **Verificado en el aparato:** con 1000 iteraciones salen las cuatro medidas en µs y el core es
+  más lento que la baseline, que es el punto. Con `0` y con el campo vacío aparece el mensaje, el
+  botón sigue diciendo `Ejecutar` —**no queda el spinner colgado**, que es la trampa que Android
+  pagó en `ad45cac`— y las medidas se quedan en `—`. Confirmado de paso que `performance.now()`
+  existe en Hermes. Y una confirmación en vivo del Ruling T21-6: el mensaje de error **sí** se
+  inserta encima de las filas y éstas se corren bien (706 → 799), o sea que el arreglo de los
+  cuatro contenedores aguanta.
+
+**Números medidos, 1000 iteraciones** (provisionales: emulador y simulador, no aparatos):
+
+| | p50 | p95 |
+|---|---|---|
+| React Native / Android (Pixel 9 Pro API 36) — core | 3,96 µs | 5,00 µs |
+| React Native / Android — float nativo | 0,62 µs | 0,67 µs |
+| React Native / iOS (sim. iPhone 17 Pro) — core | 8,75 µs | 10,83 µs |
+| React Native / iOS — float nativo | 0,87 µs | 1,00 µs |
+
+**Vale la pena mirarlo contra las otras dos apps, con cuidado.** El ledger de la Fase 3 anota
+**172 µs para Android nativo (JNA) y 0,33 µs para iOS nativo (`.a` estático)**. Los 3,96 µs de
+React Native en Android sugieren que **JSI es unas 43× más barato que el puente JNA** que usa la
+app nativa de Android, lo cual es un dato fuerte para la demo. **Pero no es una comparación
+limpia:** distinto arnés de medición, emulador contra aparato, y `performance.now()` de Hermes
+contra `System.nanoTime()`. Antes de afirmarlo en la presentación hay que medir las tres con el
+mismo criterio. Anotado para la Task 23 / PENDING.
+
+#### La mitad del subagente (baseline y test de divergencia)
+
+- **Defecto A del plan confirmado en vivo:** `__benchmarks__/` no lo recogía ningún proyecto de
+  Jest, y se comprobó que `--listTests` **no** lo nombraba antes del arreglo. Un test que nunca
+  corre y no avisa — el peor modo de fallar para uno cuyo propósito es ser material de
+  presentación. Se suma al proyecto `napi` (no al `react-native`): lee `contracts/cases.json`
+  desde Node y no toca nada que el preset de RN mockee, el mismo criterio con que ya está
+  `__tests__/` ahí.
+- **Defecto nuevo, que no estaba en el brief y lo cazó el gate de `tsc`:** el snippet del plan usa
+  los globals de Jest, pero **este repo no tiene `@types/jest`** — todos los tests existentes
+  importan de `@jest/globals` explícitamente. Sin ese import, `tsc --noEmit` falla con
+  `TS2593`/`TS2304`.
+- `ContractCase` es `Record<string, any>` a propósito (los grupos tienen formas distintas de
+  `esperado`); los nombres de campo que asumía el plan —`op`, `a`, `b`, `esperado`— resultaron
+  correctos.
+- **Divergencia real: 6/6**, que coincide con lo que afirma `CLAUDE.md`. Verificado por mí
+  aparte, caso por caso: `ar-005` es el más brutal (`100.00 − 99.99` da `0.010000000000005116`
+  contra `0.01`).
+- **Mutación verificada por mí, no sólo reportada:** reemplacé la baseline por aritmética exacta
+  en centavos con `BigInt` y los dos tests se pusieron **rojos**. O sea que el test detecta de
+  verdad que TypeScript dejó de diverger, que es para lo que existe.
+- **Ruling P3 comprobado:** las dos baselines siguen separadas, ninguna importa a la otra, y cada
+  una conserva su comentario obligatorio.
+- **Task 22: complete.**

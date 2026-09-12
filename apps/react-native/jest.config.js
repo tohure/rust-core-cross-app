@@ -20,7 +20,12 @@ module.exports = {
       displayName: 'napi',
       rootDir: __dirname,
       testEnvironment: 'node',
-      testMatch: ['<rootDir>/__tests__/**/*.test.ts'],
+      // `__benchmarks__` vive acá y no en el proyecto `react-native`: lee `contracts/cases.json`
+      // con `fs` directo desde Node y no toca nada mockeado por el preset de RN.
+      testMatch: [
+        '<rootDir>/__tests__/**/*.test.ts',
+        '<rootDir>/__benchmarks__/**/*.test.ts',
+      ],
       modulePathIgnorePatterns: ['<rootDir>/example/', '<rootDir>/lib/'],
       // `@ubjs/wasm` y `@ubjs/core` se publican **sólo en ESM**, y este proyecto corre CommonJS.
       // Mismo patrón de dos lookaheads que el proyecto de React Native: el primero evita que el
