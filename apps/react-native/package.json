@@ -45,6 +45,7 @@
     "ubrn:ios": "ubrn build ios --release --and-generate && (cd example/ios && pod install)",
     "ubrn:wasm": "ubrn build wasm2 --release --and-generate",
     "napi:generate": "RN=$PWD && cargo build --release --manifest-path ../../rust-core/Cargo.toml && mkdir -p src/generated-napi && cp ../../rust-core/target/release/libcore_financiero.dylib src/generated-napi/ && cd ../../rust-core/crates/ffi && ubrn generate napi bindings --library --ts-dir \"$RN/src/generated-napi\" --lib-colocated \"$RN/src/generated-napi/libcore_financiero.dylib\"",
+    "wasm:generate": "ubrn build wasm2 --release --and-generate --config ubrn.wasm.yaml && node -e \"const fs=require('fs'),f='src/generated-wasm/index.ts',s=fs.readFileSync(f,'utf8');if(!s.includes('@ts-nocheck'))fs.writeFileSync(f,'// @ts-nocheck\\n'+s)\"",
     "ubrn:clean": "rm -rf cpp/ src/generated src/generated-napi src/generated-wasm src/bindings.tsx"
   },
   "keywords": [

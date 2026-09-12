@@ -100,11 +100,18 @@ mutable type 'FfiTypeDesc[]'.
 ```
 
 Rompe `tsc --noEmit` y también `bob build`, o sea el `prepare` que corre en **cada
-`pnpm install`**. Por eso `src/generated-wasm/` **no quedó generado** al cerrar el spike: se
-regenera en la Task 15, que es la que tiene que resolverlo.
+`pnpm install`**.
 
-La salida no es editar el generado a mano —se pierde en la próxima corrida— sino que el script
-`wasm:generate` aplique la corrección después de generar, o parchear el template de `ubrn`.
+**Resuelto**, y no editando el generado a mano —eso se pierde en la próxima corrida— sino en el
+script, que aplica la corrección **después de generar, en cada corrida**:
+
+```json
+"wasm:generate": "ubrn build wasm2 --release --and-generate --config ubrn.wasm.yaml && node -e \"… si no tiene @ts-nocheck, se lo antepone …\""
+```
+
+Es reproducible y sobrevive a cualquier regeneración. Sigue siendo un **bug de `ubrn` 0.31.0-5**:
+si una versión futura agrega el `@ts-nocheck` que le falta, la segunda mitad del script queda
+inerte —comprueba antes de escribir— y se puede borrar.
 
 ### `@ubjs/wasm` se publica sólo en ESM
 

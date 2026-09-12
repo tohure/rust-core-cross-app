@@ -12,7 +12,7 @@ export type ContractFile = Record<string, unknown>;
  * —`esperado` es un string en `aritmetica` y un objeto en `cci`— y la comparación real la hace
  * `toBe` contra el JSON, no el tipo. Tiparlo fino acá sería una segunda copia del contrato.
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+
 export type ContractCase = Record<string, any>;
 export type MessagesFile = {
   version: string;

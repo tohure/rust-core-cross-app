@@ -7,7 +7,7 @@
 
 | Proyecto | Entorno | Qué corre | Qué prueba |
 |---|---|---|---|
-| `napi` | Node | `__tests__/**` | El contrato contra el **core real**, por N-API |
+| `napi` | Node | `__tests__/**` | El contrato contra el **core real**, por N-API **y por WASM** |
 | `react-native` | preset de RN | `src/__tests__/**` | La infraestructura de test, y más adelante los hooks |
 
 Los entornos son incompatibles y los dos hacen falta. El de React Native **mockea los módulos
@@ -18,10 +18,11 @@ está explicada en [`jest.config.js`](jest.config.js).
 ```bash
 cd apps/react-native
 pnpm run napi:generate   # la primera vez, o después de tocar rust-core
+pnpm run wasm:generate   # idem, para la ruta WASM
 pnpm test
 ```
 
-Salida esperada: **35 tests en verde**, 3 suites.
+Salida esperada: **67 tests en verde**, 4 suites.
 
 ## El test de contrato: 28/28
 
@@ -38,6 +39,36 @@ tolerancia numérica. Que eso pase en las cuatro plataformas *es* la demostraci�
 | `transferencia` | 7 | Comisión, total debitado, comprobante y saldos resultantes |
 
 Más las 4 guardias que son `it`, dan los **32** de esa suite.
+
+### Y los mismos 28 otra vez, por WASM
+
+`__tests__/contract.wasm.test.ts` es **el mismo archivo con otro import**, y la duplicación es
+deliberada: los dos runtimes tienen que poder fallar por separado. Si sólo rompe uno, el problema
+está en ese flavour y no en el core — y eso se quiere leer de un vistazo, no deducir de un log.
+Factorizarlo en una función parametrizada por runtime ahorraría líneas y costaría justo esa lectura.
+
+**Éste es el artefacto que consumirá Angular en la Fase 5.** Probarlo acá es lo que hace que esa
+fase arranque sin deuda: 28/28, contra los mismos vectores y con la misma igualdad exacta de
+strings.
+
+Dos diferencias con la ruta N-API, las dos en el arranque y ninguna en las comparaciones:
+
+- El módulo WASM **se abre de forma asíncrona** (`uniffiInitAsync`), y el host tiene que decirle
+  dónde está el `.wasm`. No hay default, porque el nombre del asset sólo lo sabe el entorno: un
+  bundler reescribe la URL al copiarlo. El test le pasa los bytes leídos del archivo stageado.
+- El `.wasm` que sirve es el que `--and-generate` **stagea**, no el que deja cargo. Ver
+  [BUILD.md](BUILD.md#construir-el-wasm).
+
+**El modo de fallar que este test habría tenido, y por qué no lo tiene.** Un error lanzado por el
+módulo wasm **no es instancia** de la clase del módulo JSI. Si `contractName` se hubiera escrito
+con `DomainError.instanceOf(e)`, habría devuelto `false` y roto los **ocho** casos que esperan
+error. Discriminar por la presencia de `tag` es lo que hace que el mismo mapeo sirva en los tres
+flavours sin parametrizar nada y sin escribir una segunda copia.
+
+Si alguna vez falla con un error de mapeo, comparar los valores de `DomainError_Tags` entre
+`src/generated/` y `src/generated-wasm/` **antes que ninguna otra cosa**: si difieren, el problema
+es de generación y no del mapeo. Y si falla **sólo** el grupo de `tarjeta`, el sospechoso es el
+manejo de bytes en la frontera wasm, no la criptografía — el core es el mismo binario lógico.
 
 **Ningún valor esperado se corrigió para que pasara.** Si un caso falla, el sospechoso es el
 código. Corregir un valor esperado va siempre en su propio commit, con la justificación
