@@ -8,3 +8,9 @@
 // `bindings.tsx` y deja este nombre libre.
 export * from './bindings';
 export { default } from './bindings';
+
+// `contractName` no viene de `ubrn`: traduce las variantes de `DomainError` a los nombres en
+// español que usa `contracts/cases.json`, un mapeo que no cruza el FFI. Vive en la librería
+// porque la consumen el test de contrato y la app, y escribir dos copias es justo lo que la
+// spec prohíbe.
+export { contractName } from './contractName';
