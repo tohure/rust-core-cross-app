@@ -5,7 +5,10 @@ import { messageFor } from '../contract/sources';
  * Convierte un error del core en el texto que ve el usuario.
  *
  * Reusa `contractName` del paquete en vez de escribir su propio mapeo: una segunda copia se
- * desincroniza, y además el test de contrato verifica esa misma función.
+ * desincroniza, y además el test de contrato verifica esa misma función. `contractName` y
+ * `messageFor` viven las dos en `@banco/contract` —la primera reexportada desde
+ * `@banco/core-financiero`, la segunda desde `../contract/sources`— así que no hay ninguna
+ * lógica de mapeo propia de esta app entre el error y el string que ve el usuario.
  *
  * El `message` del binding **no se usa**: uniffi no propaga los `#[error("...")]` en español del
  * core, arma el mensaje con los campos de la variante y lo deja vacío para las que no tienen. Es

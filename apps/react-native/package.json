@@ -182,6 +182,7 @@
   },
   "dependencies": {
     "@babel/runtime": "^7.25.0",
+    "@banco/contract": "workspace:*",
     "@ubjs/core": "0.31.0-5",
     "uniffi-bindgen-react-native": "0.31.0-5"
   }

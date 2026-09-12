@@ -1,7 +1,6 @@
 import type { Account } from '@banco/core-financiero';
 // Cinco niveles: contract -> src -> example -> react-native -> apps -> raíz del repo.
 import cases from '../../../../../contracts/cases.json';
-import messages from '../../../../../contracts/messages.es.json';
 
 /**
  * Las dos cuentas salen del contrato y no de constantes en TypeScript: hardcodearlas las haría
@@ -24,12 +23,8 @@ export function demoNonce(): string {
   return cases._nonce_demo_hex;
 }
 
-export function messageFor(contractName: string): string {
-  const m = messages.mensajes[contractName as keyof typeof messages.mensajes];
-  // `=== undefined`, no falsy: un mensaje vacío en el contrato existe, y reportarlo como
-  // "no hay mensaje" mandaría el throw por un camino que escapa del catch del hook.
-  if (m === undefined) {
-    throw new Error(`no hay mensaje de usuario para "${contractName}"`);
-  }
-  return m;
-}
+// `messageFor` ya no se reimplementa acá: era una copia exacta de la de `@banco/contract`, que
+// importa `messages.es.json` de forma estática (segura para el bundle de Metro y de Vite) por el
+// mismo motivo que este archivo lo hacía a mano. Se reexporta para no romper a quien ya la
+// importaba de `./sources`.
+export { messageFor } from '@banco/contract';
