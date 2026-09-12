@@ -14,8 +14,8 @@ import { theme } from '../theme';
 // Los cinco componentes de `docs/ui-spec.md`, con la **misma descomposición** que Android e iOS:
 // es lo que hace que las pantallas sean comparables el día de la demo.
 //
-// `collapsable={false}` EN LOS TRES CONTENEDORES DE FILA — NO ES COSMÉTICO, NO SE QUITA.
-// ------------------------------------------------------------------------------------
+// `collapsable={false}` EN LOS CUATRO CONTENEDORES — NO ES COSMÉTICO, NO SE QUITA.
+// ---------------------------------------------------------------------------------
 // Un `View` que sólo aporta layout es "aplanado" por Fabric en Android: no se crea vista
 // nativa y sus hijos se cuelgan del padre. Cuando encima de una lista de estas filas se
 // INSERTA otro bloque de filas aplanadas —en Transferencia, el bloque `Resultado` al llegar
@@ -31,7 +31,11 @@ import { theme } from '../theme';
 // Ver el Ruling T20-7 del ledger de la fase. En iOS la prop se ignora, así que no cambia nada.
 //
 // Ponerlo en UNO SOLO no alcanza: con la prop sólo en `ResultRow` el defecto no desaparece,
-// se MUEVE de la primera fila a la segunda. Verificado.
+// se MUEVE de la primera fila a la segunda. Y con TRES tampoco: `ScreenHeader` —un `View`
+// pelado, sin una sola propiedad visual, o sea el más aplanable de todos— quedó sin proteger
+// y la pantalla de Tarjeta salía con el bloque «Descifrar un hex de otra plataforma» pintado
+// encima de «Resultado». Tienen que ser los cuatro: la regla es que **ningún contenedor
+// compartido quede aplanado**, no que se parchee el que falla hoy. Ver Ruling T21-6.
 //
 // Convención de firma, tomada de la práctica de Compose y aplicable a las cuatro plataformas: el
 // componente aporta tipografía y espaciado **internos**, y el padding **posicional** lo pone quien
@@ -48,7 +52,7 @@ export function ScreenHeader({
   style?: StyleProp<ViewStyle>;
 }) {
   return (
-    <View style={style}>
+    <View collapsable={false} style={style}>
       <Text style={{ fontSize: 24, fontWeight: '700', color: theme.text }}>
         {title}
       </Text>

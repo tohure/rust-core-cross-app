@@ -7,6 +7,7 @@ import {
   LabeledField,
   PrimaryButton,
   ResultRow,
+  ScreenHeader,
   SectionDivider,
 } from '../src/ui/components';
 
@@ -33,15 +34,18 @@ describe('PrimaryButton', () => {
 });
 
 describe('contenedores de fila', () => {
-  it('LabeledField, ResultRow y SectionDivider no se dejan aplanar', async () => {
+  it('ScreenHeader, LabeledField, ResultRow y SectionDivider no se dejan aplanar', async () => {
     // Guarda de regresión de un defecto que **sólo se ve en el aparato**: sin
     // `collapsable={false}`, Fabric aplana estos contenedores y, al insertarse el bloque
     // `Resultado` encima de la lista de saldos, el label de una fila termina pintado sobre
     // otra. RNTL no tiene layout nativo, así que no puede reproducirlo; lo único que este
     // test puede hacer —y hace— es impedir que alguien quite la prop sin leer por qué está.
-    // Ver el comentario largo en `ui/components/index.tsx` y el Ruling T20-7.
+    // Tienen que ser los CUATRO: con sólo tres —`ScreenHeader` sin proteger— la pantalla de
+    // Tarjeta seguía rota en el emulador, con el segundo bloque pintado encima del primero.
+    // Ver el comentario largo en `ui/components/index.tsx` y los Rulings T20-7 y T21-6.
     await render(
       <>
+        <ScreenHeader title="Tarjeta" subtitle="x" />
         <LabeledField label="Origen" value="1" onChangeText={() => {}} />
         <ResultRow label="Comisión ITF" value="S/ 0.01" />
         <SectionDivider title="Saldos" />
@@ -59,6 +63,6 @@ describe('contenedores de fila', () => {
     };
     const arbol = screen.toJSON();
     const nodos = Array.isArray(arbol) ? arbol : [arbol];
-    expect(nodos.reduce<number>((acc, n) => acc + contar(n), 0)).toBe(3);
+    expect(nodos.reduce<number>((acc, n) => acc + contar(n), 0)).toBe(4);
   });
 });

@@ -1100,3 +1100,99 @@ documentadas en `BUILD.md` con su síntoma, su causa y dónde quedó el arreglo.
   una diferencia visible entre las dos plataformas de la MISMA app. Viene de la Task 18 y
   tocarlo desde acá cambiaría un archivo compartido por las cuatro pantallas.
 - **Task 20: complete.**
+
+### Regeneración de artefactos (fuera del plan, a pedido, en subagente)
+
+- **Las cuatro apps muestran `1.0.0+b5b1388`**, que es HEAD exacto: Android nativo, iOS nativo,
+  y React Native en Android y en iOS. Verificado leyendo el string en pantalla en las cuatro,
+  no deducido. Cierra la deuda que anotó la Task 18.
+- Estado previo: Android nativo, iOS nativo y RN-Android estaban en `eb87650`; sólo el
+  xcframework de RN-iOS estaba en `05a4195`. El commit que faltaba propagar era `7f7956f`
+  (`chore(ffi): el crate declara lo que wasm2 necesita`), verificado con
+  `git diff --stat <sha>..HEAD -- rust-core/`.
+- Ningún comando de los `BUILD.md` falló: salieron tal como están escritos. Única limpieza
+  previa obligatoria no documentada: `xcodebuild -create-xcframework` falla si el directorio
+  de salida ya existe, así que hay que borrar el `CoreFinanciero.xcframework/` viejo.
+- **`pod install` modificó `Podfile.lock`, que está trackeado**: sólo la línea
+  `COCOAPODS: 1.15.2 → 1.16.2`, cero cambios de dependencias. **Revertido**: registra qué gem
+  tenía esta máquina, no una decisión del proyecto, y mezclado con la Task 21 quedaría
+  invisible. Si el proyecto quiere mover CocoaPods, que sea su propio commit.
+- **Warning preexistente anotado, no investigado:** `./gradlew :app:assembleDebug` de Android
+  nativo dice `Unable to strip the following libraries, packaging them as they are:
+  libcore_financiero.so`. No bloquea y no es de esta tarea, pero el perfil de release del core
+  declara `strip = true` y el tamaño del binario es criterio de la demo: vale mirarlo en la
+  Fase 5 o en el cierre.
+- **Metro muere con el shell del subagente.** Al volver, la app quedó cayendo a
+  `loadJSBundleFromAssets` y mostrando pantalla roja — que NO es un fallo del build, es que no
+  había Metro. Hay que relevantarlo con `--reset-cache` antes de verificar nada.
+
+### Task 21
+
+- **Verde: 100 tests, 10 suites.** `tsc` y `lint` en cero. **Verificado en el emulador y en el
+  simulador**, y otra vez el aparato mostró lo que los tests no podían (Ruling T21-6).
+- Los **once labels** de `docs/ui-spec.md` y las **dos líneas de ayuda obligatorias**
+  contrastadas por script contra el archivo, carácter por carácter, antes de verificar nada.
+- **Ruling T21-1 (`PrimaryButton`, otra vez).** El plan volvía a usar el `Button` de React
+  Native en los dos botones, que el Ruling T19-2 prohíbe. iOS distingue primario
+  (`.borderedProminent`) de secundario (`.bordered`); Android usa el mismo estilo para los dos.
+  `ui-spec.md` no fija estilo de botón, así que se sigue a Android: los dos `PrimaryButton`,
+  sin inventar una variante para una diferencia que la spec no pide.
+- **Ruling T21-2 (cada bloque consume SU error).** El plan no limpiaba el error al editar.
+  Acá pesa más que en Transferencia: son dos bloques independientes, así que editar el número
+  no puede apagar el error del bloque de abajo. Android e iOS tienen `clearError` y
+  `clearForeignError`/`decryptError` separados. Hay test, y la mutación que los une lo caza.
+- **Ruling T21-3 (monoespaciado en las tres filas).** `Enmascarado`, `Descifrado` y `Número
+  recuperado` van `monospace`: Android pasa `mono = true` e iOS `monospaced: true` en las tres,
+  y el plan no pasaba ninguna.
+- **Ruling T21-4 (el hex va en caja).** `ui-spec.md` lo dibuja en recuadro, Android usa un
+  `Card` e iOS un fondo redondeado; el plan lo dejaba como dos `<Text>` sueltos.
+- **Ruling T21-5 (`theme.mono` era `'Courier'`, que en Android no existe).** Se había anotado
+  como observación cosmética al cerrar la Task 20. **Dejó de ser cosmética acá:** `ui-spec.md`
+  exige que el hex "pueda compararse a simple vista contra las otras tres pantallas", y con
+  tipografía proporcional no se puede. `'Courier'` es una familia real en iOS y **no** en
+  Android, donde React Native cae silenciosamente a la de por defecto. Ahora es
+  `Platform.select({ ios: 'Courier', default: 'monospace' })`, el equivalente del
+  `FontFamily.Monospace` que usa Android nativo. Efecto colateral verificado: el `Comprobante`
+  de Transferencia también quedó monoespaciado en Android, como su app nativa.
+- **Ruling T21-6 (el Ruling T20-7 estaba INCOMPLETO: son los CUATRO contenedores, no tres).**
+  Con los 100 tests en verde, la pantalla en el emulador salía rota otra vez y de otra forma:
+  el divisor `Descifrar un hex de otra plataforma` pintado **encima** de `Resultado` (los dos
+  en y=918), y `Hex cifrado` y `Descifrar` varados entre las filas del bloque de arriba.
+  Misma causa raíz que el T20-7, pero el arreglo de entonces no la cubría: `ScreenHeader` es un
+  `<View style={style}>` **sin una sola propiedad visual** —el más aplanable de los cinco
+  componentes— y había quedado sin `collapsable={false}`. Con los cuatro protegidos la pantalla
+  queda bien. **La lección es la regla, no el parche:** el criterio no es "proteger el
+  contenedor que falla hoy" sino **que ningún contenedor compartido quede aplanado**; de lo
+  contrario el defecto reaparece en la próxima pantalla que inserte un bloque, que es
+  exactamente lo que pasó entre la Task 20 y la 21. La guarda pasa de 3 a 4 y el comentario del
+  componente lo explica.
+- **Una mutación destapó que mi propio test mentía, y era EL test de la pantalla.** «Cifra y
+  descifra en el mismo gesto» pasaba igual con `core.decrypt(...)` reemplazado por
+  `state.number`: el fake devolvía justo el número tecleado, así que el test no distinguía
+  «lo descifró el core» de «la pantalla repitió lo que tecleaste» — que es *la* propiedad que
+  esta pantalla existe para demostrar. Ahora el fake devuelve un centinela distinto del input y
+  además se verifica que descifra **el hex que acaba de producir**. Es el mismo error de forma
+  que el Ruling T20-1: un test cuyo verde depende de que dos valores coincidan por casualidad.
+- **Un tag inventado por mí lo cazó el código, no un revisor.** El primer test usaba
+  `{ tag: 'InvalidCard' }`, que no es una variante de `DomainError`; `contractName` lo rechazó
+  con «variante de DomainError sin nombre de contrato: InvalidCard». Es la guardia del Ruling
+  P1 funcionando. Los tags reales de tarjeta son `CheckDigit` (tj-004, tj-005) y `Length`
+  (tj-006).
+- **Verificado en el aparato, no sólo en tests:** con `4111111111111111` el hex es exactamente
+  `bdca39311826947186b20ec2a92c3f521aacff902e37d519bcd2754fc7c7c0dd`, que es `tj-001` del
+  contrato, y la vuelta completa devuelve el número. **La demostración en vivo de la tesis
+  funciona:** pegando el hex de `tj-002` en el segundo bloque sale `5555555555554444`. Con
+  `41111` (`tj-006`) el core responde «El número ingresado no tiene la cantidad de dígitos
+  correcta.» **y el resultado del bloque de abajo queda intacto** — la independencia de bloques,
+  verificada en pantalla y no sólo en Jest. Aritmética y Transferencia se volvieron a verificar
+  después de tocar los componentes compartidos: las dos siguen bien.
+- **Observaciones para la revisión de la fase, ninguna arreglada acá:**
+  1. **Android acepta el hex en MAYÚSCULAS y lo baja a minúsculas; iOS lo rechaza.**
+     `ui-spec.md` dice `[0-9a-f]`, así que React Native sigue la spec y a iOS. Android diverge
+     de su propia spec. Es inofensivo para la demo —el core sólo emite minúsculas, así que
+     pegar entre apps siempre entra— pero es una diferencia real de comportamiento.
+  2. **El texto de ayuda de iOS se lista a sí mismo:** dice «el hex que produjo la app de iOS,
+     React Native o Angular» **en la app de iOS**. Android lo tiene bien y nombra a las otras
+     tres. En React Native quedó «Android, iOS o Angular». Ese texto no está entre los labels
+     normativos, así que no rompe nada, pero en iOS es sencillamente incorrecto.
+- **Task 21: complete.**
