@@ -185,6 +185,15 @@ importers:
         specifier: ^0.10.4
         version: 0.10.4
 
+  packages/contract:
+    devDependencies:
+      '@types/node':
+        specifier: ^22.20.2
+        version: 22.20.2
+      typescript:
+        specifier: ^6.0.3
+        version: 6.0.3
+
 packages:
 
   '@ark/schema@0.56.2':

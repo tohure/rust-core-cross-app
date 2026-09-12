@@ -2,6 +2,7 @@ packages:
   - "apps/react-native"
   - "apps/react-native/example"
   - "apps/web-angular" # todavía no existe; lo consumirá en la Fase 5
+  - "packages/*"
 allowBuilds:
   esbuild: true
   lefthook: false

@@ -20,13 +20,24 @@ module.exports = {
       displayName: 'napi',
       rootDir: __dirname,
       testEnvironment: 'node',
+      // `packages/*` vive fuera de `apps/react-native` (dos niveles arriba), pero sus tests
+      // corren acá: mismo Node puro, misma pila de transformación, sin sumar un segundo runner
+      // por paquetes chicos y neutrales que ni siquiera dependen de React Native. `roots` hace
+      // falta además de `testMatch`: Jest sólo rastrea archivos dentro de esos directorios, y sin
+      // él un `testMatch` que apunta fuera de `rootDir` no encuentra nada — y no avisa.
+      roots: ['<rootDir>', '<rootDir>/../../packages'],
       // `__benchmarks__` vive acá y no en el proyecto `react-native`: lee `contracts/cases.json`
       // con `fs` directo desde Node y no toca nada mockeado por el preset de RN.
       testMatch: [
         '<rootDir>/__tests__/**/*.test.ts',
         '<rootDir>/__benchmarks__/**/*.test.ts',
+        '<rootDir>/../../packages/*/src/**/*.test.ts',
       ],
-      modulePathIgnorePatterns: ['<rootDir>/example/', '<rootDir>/lib/'],
+      modulePathIgnorePatterns: [
+        '<rootDir>/example/',
+        '<rootDir>/lib/',
+        '<rootDir>/../../packages/.*/node_modules/',
+      ],
       // `@ubjs/wasm` y `@ubjs/core` se publican **sólo en ESM**, y este proyecto corre CommonJS.
       // Mismo patrón de dos lookaheads que el proyecto de React Native: el primero evita que el
       // `node_modules/.pnpm/` del store dispare el ignore, el segundo deja pasar el paquete.

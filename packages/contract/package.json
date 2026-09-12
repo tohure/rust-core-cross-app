@@ -1,0 +1,15 @@
+{
+  "name": "@banco/contract",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Mapeo DomainError -> nombre del contrato en español, y lectores de contracts/. Paquete neutral: no depende de ningún flavour (uniffi/napi/wasm).",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/node": "^22.20.2",
+    "typescript": "^6.0.3"
+  }
+}
