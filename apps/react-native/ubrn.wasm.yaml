@@ -1,0 +1,12 @@
+# Config propio del flavour WASM. Existe por una sola razón: `bindings.ts`.
+#
+# Todos los flavours de `ubrn` escriben en el directorio que diga `bindings.ts`, así que correr
+# `build wasm2` con `ubrn.config.yaml` **pisa los bindings JSI** de `src/generated/` — el build de
+# la app queda roto y el síntoma aparece lejos del comando que lo causó. Con este archivo, cada
+# flavour escribe en el suyo y pueden convivir.
+rust:
+  directory: ../../rust-core
+  manifestPath: crates/ffi/Cargo.toml
+bindings:
+  cpp: cpp/bindings
+  ts: src/generated-wasm

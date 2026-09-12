@@ -1,5 +1,16 @@
 #![forbid(unsafe_code)]
 
+// Sólo en wasm: `uniffi-runtime-wasm` aporta el allocator (`__ubrn_alloc` / `__ubrn_free`) y el
+// panic hook que el player de `wasm2` llama. Declararlo como dependencia **no alcanza**: nada de
+// este crate lo referencia, así que rustc no enlaza sus símbolos `#[no_mangle]` y el módulo sale
+// sin ellos. El síntoma aparece lejos, al abrirlo:
+// `UniffiNativeModule.open: required export "__ubrn_alloc" not found in wasm module`.
+// Es el mismo `extern crate … as _` que llevan todos los fixtures de ubrn.
+//
+// El `cfg` lo confina: Android e iOS ni lo compilan.
+#[cfg(target_arch = "wasm32")]
+extern crate uniffi_runtime_wasm as _;
+
 uniffi::setup_scaffolding!();
 
 // ---------- error: se define en `domain` una sola vez y acá se le pone la piel de uniffi

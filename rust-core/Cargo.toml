@@ -9,10 +9,25 @@ rust-version = "1.98"
 
 [workspace.dependencies]
 rust_decimal = "1.43"
-chacha20poly1305 = "0.11"
+# `default-features = false` NO es una optimización: es lo que hace posible el build de wasm.
+# Las defaults son `alloc` + `getrandom`, y `getrandom` arrastra `js-sys`, que exige un
+# `wasm-bindgen` más nuevo que el `=0.2.100` que `uniffi-bindgen-react-native` lleva compilado
+# adentro. Con ese desajuste `ubrn build wasm2` muere por versión de esquema, y no hay salida: no
+# se puede bajar `wasm-bindgen` mientras `getrandom` esté, ni subir el binario, porque ubrn usa la
+# librería y no un ejecutable del PATH.
+#
+# Es seguro apagarlo porque el core **no usa aleatoriedad**: `crates/domain/src/crypto.rs` no
+# menciona `OsRng` ni nada parecido — la clave y el nonce llegan como hex del llamador, y el nonce
+# es fijo a propósito para que las cuatro plataformas produzcan el mismo hex. `getrandom` entraba
+# transitivamente por `aead` y nunca se invocaba.
+#
+# A diferencia del bloque wasm de `crates/ffi`, esto **sí** toca a las cuatro plataformas, y por eso
+# se reverificaron Android e iOS al introducirlo. Ver apps/react-native/PENDING.md.
+chacha20poly1305 = { version = "0.11", default-features = false, features = ["alloc"] }
 hex = "0.4"
 thiserror = "2.0"
-uniffi = "0.32"
+# Anclado a 0.31 por uniffi-bindgen-react-native, que fija `=0.31`. Ver PENDING.md.
+uniffi = "0.31"
 proptest = "1.11"
 serde_json = "1.0"
 

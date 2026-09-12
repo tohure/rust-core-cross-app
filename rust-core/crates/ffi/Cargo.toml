@@ -22,3 +22,24 @@ thiserror = { workspace = true }
 
 [dev-dependencies]
 serde_json = { workspace = true }
+
+# Sólo para wasm. `ubrn build wasm2` valida tres cosas antes de compilar: que el crate produzca
+# cdylib —ya lo hacía por Android—, que enlace `uniffi-runtime-wasm`, que aporta el allocator y el
+# panic hook que llama el player, y que uniffi lleve `wasm-unstable-single-threaded`, porque wasm
+# es monohilo y sin eso uniffi exige `Send + Sync` sobre los objetos exportados.
+#
+# **El feature es inerte para este crate**: sólo levanta ese requisito, y acá no hay ningún objeto
+# exportado — funciones libres, Records y un enum de error. Verificado igual, no supuesto.
+#
+# Va condicionado por target y no en `[dependencies]` porque el chequeo de ubrn **sí ve** las
+# dependencias por target; su propio mensaje de error recomienda esta forma. Android e iOS no
+# resuelven nada de esto.
+#
+# La versión es prerelease: `uniffi-runtime-wasm` no publica una `0.31` estable, y `0.31.0-5` es la
+# misma que fija `uniffi-bindgen-react-native`.
+#
+# Declararlo no alcanza: `src/lib.rs` lleva el `extern crate ... as _` que obliga al linker a
+# incluir sus símbolos. Ver el comentario ahí.
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+uniffi = { workspace = true, features = ["wasm-unstable-single-threaded"] }
+uniffi-runtime-wasm = "0.31.0-5"

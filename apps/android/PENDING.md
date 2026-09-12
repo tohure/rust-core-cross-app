@@ -135,6 +135,46 @@ cada build.
 - Los tiempos del benchmark se formatean con `"%.2f µs".format(...)`, que usa el locale por
   defecto: en un dispositivo es-PE mostraría coma decimal.
 
+## Camino a producción: lo que una evaluación técnica marcó
+
+Estas siete no son defectos de la POC: son la distancia entre una POC correcta y una app de
+producción. Ninguna bloquea la demo. Salieron de una evaluación técnica de la integración
+`rust-core` ↔ Android, y se anotan aquí porque **una recomendación que vive sólo en una
+conversación no existe**.
+
+| # | Hoy | Recomendación | Prioridad |
+|---|---|---|---|
+| 1 | UniFFI 0.31 + JNA Direct | **Mantener UniFFI.** JNI puro bajaría la latencia de ~150-450 µs a <5 µs, pero obliga a mantener a mano las firmas `Java_dev_...` y los bindings de las cuatro plataformas. El riesgo de desincronización pasa de mínimo a alto | — |
+| 2 | Monolito en `:app` | **Extraer `:core-financiero` como Android Library.** `:app` deja de conocer JNA y de ver las `.so`; los cambios de UI no reevalúan la capa FFI; y si algún día se adopta KMP, `:core-financiero` se vuelve el `androidMain` sin tocar la UI | **Alta** |
+| 3 | Comandos manuales de terminal | **Automatizar `cargo ndk` y `uniffi-bindgen` como tareas Gradle `Exec`** | Media |
+| 4 | Generados en `src/main/` | **Generar en `build/generated/`**, que es donde el sistema de build sabe que son artefactos | Media |
+| 5 | Todos los ABI de JNA | **Configurar `ndk.abiFilters`** con los tres que se usan. En producción, empaquetar como **Android App Bundle (`.aab`)** entrega sólo el slice de la arquitectura del dispositivo destino, y baja la descarga del usuario final a ~3-5 MB | **Alta** |
+| 6 | `@Immutable` a mano sobre los `var` de uniffi | **Regla de lint, o mappers inmutables con `val`** | Media |
+| 7 | `remember` volátil | **`viewModel()` / `rememberSaveable`** para sobrevivir a la rotación | Baja en POC / Alta en producción |
+
+**Cómo quedaría separado el módulo (recomendación #2):**
+
+```
+apps/android/
+├── app/                        # Presentación pura (Compose, ViewModels, Theme)
+│   ├── build.gradle.kts        # Depende de :core-financiero
+│   └── src/main/java/          # Solo UI
+└── core-financiero/            # Módulo Android Library
+    ├── build.gradle.kts        # JNA (@aar), tareas de cargo-ndk y uniffi
+    └── src/main/
+        ├── jniLibs/            # .so generados
+        └── java/
+            ├── uniffi/         # Bindings generados por uniffi
+            └── dev/tohure/...  # CoreFinanciero, UniffiCoreFinanciero, ContractMessages
+```
+
+La #2 es la que más lejos llega, y **`apps/react-native` ya nace con ella**: su librería es la
+frontera nativa y su `example/` es la app, que nunca importa uniffi. Es el mismo desacople,
+conseguido por frontera de paquete en vez de módulo Gradle. Ver
+[apps/react-native/README.md](../react-native/README.md).
+
+La #7 ya está anotada arriba, en "El estado no sobrevive a la rotación".
+
 ## Fuera de alcance por diseño
 
 Esto **no** son pendientes: son cosas que la POC decidió no hacer.

@@ -61,6 +61,23 @@ La consecuencia es que **nada obliga a que el seam exista**. En Android, un test
 intente tocar el core real falla al cargar la librería; aquí compila y pasa. La disciplina de
 inyectar `CoreFinanciero` la sostiene la revisión, no el compilador.
 
+### La app es un solo target, y el argumento para partirla vale igual que en Android
+
+Una evaluación técnica de Android marcó como prioridad **Alta** extraer la capa FFI a su propio
+módulo, para que la capa de presentación no conozca ni el binario nativo ni los bindings
+generados. Aquí la situación es la misma —`ios-rust-test` es un único target que contiene el
+`Generated/`, el XCFramework, el adapter y las cuatro pantallas— y los tres beneficios se
+trasladan sin cambios: aislamiento, caché de compilación, y que un futuro `androidMain`/`iosMain`
+de KMP tenga dónde encajar sin tocar la UI.
+
+Aquí además cerraría el hueco ya anotado en "El seam de `CoreFinanciero` es más débil que en
+Android": si `Generated/` y el XCFramework vivieran en otro target, un test de presentación que
+intentara llamar al core real **no compilaría**, y la disciplina dejaría de depender de la
+revisión.
+
+No se hace en la Fase 4: es trabajo de iOS, en su propia rama. `apps/react-native` sí nace ya
+con esa separación, y sirve de referencia de a qué se parece.
+
 ### Dos huecos conocidos de `MoneyFormatter`, verificados contra Kotlin
 
 El formateador reproduce la gramática de `BigDecimal` para las entradas alcanzables, pero hay

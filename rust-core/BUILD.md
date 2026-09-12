@@ -206,7 +206,7 @@ Los comandos de exportación completos, con su salida real, están en
 
 ### El modulemap de Swift no se llama `module.modulemap`
 
-uniffi 0.32 nombra el modulemap según el crate: genera **`core_financieroFFI.modulemap`**.
+uniffi 0.31 nombra el modulemap según el crate: genera **`core_financieroFFI.modulemap`**.
 Pero `xcodebuild -create-xcframework -headers <dir>` exige que el directorio de headers
 contenga un archivo llamado **`module.modulemap`**. Con el nombre generado tal cual, el
 XCFramework se construye sin error y después `import core_financieroFFI` no resuelve — el
@@ -237,3 +237,50 @@ module core_financieroFFI {
     use "_Builtin_stdint"
 }
 ```
+
+## El target de wasm, y la red que ahí no existe
+
+La Fase 4 agregó un cuarto consumidor del núcleo: el paquete WASM que consumirá Angular en la
+Fase 5.
+
+```bash
+rustup target add wasm32-unknown-unknown
+rustup target list --installed        # los seis anteriores más éste
+```
+
+El crate declara lo que ese flavour necesita bajo un bloque **condicionado por target**, así que
+Android e iOS no resuelven nada de esto (ver `crates/ffi/Cargo.toml` y el `extern crate ... as _`
+de `crates/ffi/src/lib.rs`, los dos comentados en el lugar).
+
+El build no se corre desde acá sino desde `apps/react-native`; el comando exacto está en
+[apps/react-native/BUILD.md](../apps/react-native/BUILD.md) y el resultado del spike que lo
+habilitó, en [apps/react-native/PENDING.md](../apps/react-native/PENDING.md).
+
+### `panic = "abort"` es obligatorio en wasm, y eso quita una red
+
+El perfil de release de este workspace fija `panic = "unwind"` a propósito: uniffi envuelve cada
+llamada en `catch_unwind` para convertir un pánico de Rust en un error del FFI, y con `abort` esa
+red se desactiva. **En wasm la regla no se puede cumplir**, y no es una decisión nuestra — el
+target la impone. Verificable sin compilar nada:
+
+```bash
+rustc --print cfg --target wasm32-unknown-unknown | grep panic   # panic="abort"
+rustc --print cfg --target aarch64-linux-android  | grep panic   # panic="unwind"
+rustc --print cfg --target aarch64-apple-ios      | grep panic   # panic="unwind"
+```
+
+Salida real, verificada:
+
+```
+wasm32-unknown-unknown     panic="abort"
+aarch64-linux-android      panic="unwind"
+aarch64-apple-ios          panic="unwind"
+```
+
+**La consecuencia es para la Fase 5.** La app Angular no va a tener la red del `catch_unwind`: un
+pánico del core ahí no vuelve como error del FFI, es un **trap de WebAssembly que deja la instancia
+del módulo inutilizable**. Lo único que la protege es la disciplina de la regla 5 —cero
+`panic!`/`unwrap()`/`expect()` en producción— y los proptests `*_never_panics`. **No hay segunda
+red: no la debilites.**
+
+La regla sigue valiendo tal cual para Android e iOS, que es donde hay algo que elegir.

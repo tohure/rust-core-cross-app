@@ -270,7 +270,8 @@ cargo build --release --target aarch64-apple-ios-sim
 cargo run --bin uniffi-bindgen -- generate --library target/release/libcore_financiero.a \
   --language swift --out-dir ../apps/ios/Generated
 
-# uniffi 0.32 emite el modulemap como `core_financieroFFI.modulemap`, pero
+# uniffi 0.31 (anclado por React Native, ver PENDING.md) emite el modulemap
+# como `core_financieroFFI.modulemap`, pero
 # `-create-xcframework -headers <dir>` exige que el directorio traiga uno llamado
 # exactamente `module.modulemap`. Sin este paso el XCFramework se construye SIN ERROR
 # y después `import core_financieroFFI` no resuelve. Verificado en la Fase 1.
