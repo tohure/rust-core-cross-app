@@ -32,8 +32,8 @@ module.exports = {
       rootDir: __dirname,
       preset: '@react-native/jest-preset',
       testMatch: [
-        '<rootDir>/src/__tests__/**/*.test.ts',
-        '<rootDir>/example/__tests__/**/*.test.ts',
+        '<rootDir>/src/__tests__/**/*.test.ts?(x)',
+        '<rootDir>/example/__tests__/**/*.test.ts?(x)',
       ],
       // Bajo test, el entrypoint generado por ubrn se sirve con los bindings **N-API** del mismo
       // core. Sin esto, importar `@banco/core-financiero` en cualquier test muere en
