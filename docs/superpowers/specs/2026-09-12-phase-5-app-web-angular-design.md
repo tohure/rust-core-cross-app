@@ -86,15 +86,24 @@ consume, no una copia.
 El entrypoint que genera `ubrn` lleva `@ts-nocheck`: no typechequea, y la Fase 4 lo documentó
 como bloqueante conocido y lo tapó.
 
-**Reexportarlo tal cual le daría `any` a Angular en las nueve funciones**, y con eso se cae la
-guardia 4 — el `satisfies Record<DomainError['tag'], string>` de `contractName` deja de tener un
-tipo real contra el que verificar, y una décima variante del core pasaría en verde en vez de
-romper `tsc`.
+> **Corrección (Ruling T4-2).** La primera versión de esta decisión decía que reexportar el
+> generado «le daría `any` a Angular en las nueve funciones y con eso se cae la guardia 4».
+> **Las dos mitades eran falsas**, y el review de la Task 4 lo probó: `@ts-nocheck` suprime
+> diagnósticos pero **no borra los tipos exportados** —importar `add` del generado y asignarlo a
+> un `number` da `TS2322`—, y la guardia 4 **no pasa por el entrypoint**: `guard.ts` lee el tipo
+> del generado por su cuenta. La decisión sigue en pie; lo que cambia es por qué.
 
-Ahora que el paquete es nuestro, se escribe a mano una fachada de nueve firmas sobre el módulo
-generado. Son ~30 líneas. El `@ts-nocheck` queda **confinado al archivo generado** y Angular
-recupera el compilador sosteniendo la frontera, que es la propiedad que el proyecto usa en las
-otras tres plataformas.
+Las razones reales, las tres verificadas:
+
+1. **El generado no typechequea.** Quitarle el `@ts-nocheck` inyectado pone el `tsc` del paquete
+   en rojo. O sea que esa directiva es *load-bearing*, y confinarla a un archivo que nadie edita
+   —en vez de dejarla gobernando la superficie pública— es un logro real.
+2. **Da una superficie estable escrita a mano** frente al churn del generador, que se reescribe
+   entero en cada regeneración.
+3. **`initCore` angosta el tipo de entrada.** El `WasmSource` del generado admite seis formas
+   (`WebAssembly.Module | ArrayBuffer | Uint8Array | Response | URL | string`); la fachada acepta
+   **sólo bytes**, que es lo que hace que el D3 —y con él la independencia del MIME— sea una
+   propiedad del tipo y no una convención que alguien puede romper sin enterarse.
 
 ### D3 — El WASM se carga por **bytes**, y por eso el MIME deja de importar
 
