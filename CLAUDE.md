@@ -148,7 +148,8 @@ construyó, así que hay que regenerar los cuatro desde el mismo HEAD antes de l
 
 ## Estado actual y flujo de trabajo (SDD con superpowers)
 
-**Fases 0, 1, 2 y 3 completadas.** El núcleo existe, funciona, y Android e iOS lo consumen.
+**Fases 0, 1, 2, 3 y 4 completadas.** El núcleo existe, funciona, y Android, iOS y React Native
+lo consumen.
 `rust-core/` tiene dos crates —`domain` (Rust puro, siete módulos) y `ffi` (paquete
 `core_financiero`, la fachada uniffi)— con ~1930 líneas de Rust, **67 tests en verde** y el
 **test de contrato pasando 28/28** contra `contracts/cases.json` **v2.3.0**. Los bindings Kotlin
@@ -169,8 +170,20 @@ las cifras exactas son provisionales —la brecha es demasiado grande para que l
 chip, pero hay que repetirlo en un iPhone con iOS 17+—. Ver
 [apps/ios/README.md](apps/ios/README.md) y [apps/ios/PENDING.md](apps/ios/PENDING.md).
 
-Lo que **no** existe todavía: ni una línea de TypeScript. Lo que sigue es la Fase 4,
-`apps/react-native`.
+`apps/react-native/` es el tercer consumidor y el **único que produce tres salidas** del mismo
+crate: el turbo module JSI que usa la app, los bindings N-API con que el test de contrato llama
+al core desde Node, y **el `.wasm` del que depende la Fase 5**. Las cuatro pantallas andan en
+Android y en iOS, con **109 tests en verde** y el contrato **28/28 por N-API y 28/28 por WASM**.
+
+Tiene una diferencia real con las otras dos que conviene decir en la demo: **ninguna prueba
+automatizada cruza JSI.** React Native no tiene corredor de tests en dispositivo —Jest mockea los
+nativos y un e2e con Detox está fuera de alcance—, así que el cruce se verifica con un smoke
+manual. Android tiene 15 tests instrumentados y iOS corre XCTest sobre aparato; acá no. Ver
+[apps/react-native/README.md](apps/react-native/README.md) y
+[apps/react-native/TESTING.md](apps/react-native/TESTING.md).
+
+Lo que **no** existe todavía: ni una línea de Angular. Lo que sigue es la Fase 5,
+`apps/web-angular`, que ya no está bloqueada porque el `.wasm` existe.
 
 Este proyecto se desarrolla con **Spec-Driven Development** usando el plugin
 `superpowers`. El flujo por fase es:
@@ -249,7 +262,17 @@ El orden no es negociable: lo impone el grafo de dependencias de build de arriba
   cuesta 0,33 µs contra los 172 µs de Android, 521× menos.** El mismo núcleo; lo que cambia es
   el puente. Provisional hasta repetirlo en un iPhone —está medido en un iPad M1—, pero la
   brecha no la explica el chip. Ver [apps/ios/PENDING.md](apps/ios/PENDING.md).
-- **Fase 4 — `apps/react-native`.** Turbo Module vía `ubrn`. Desbloquea la fase 5.
+- **Fase 4 — `apps/react-native`.** ✅ **Completada.** Turbo Module vía `ubrn` 0.31.0-5 sobre
+  React Native 0.87 con Fabric y Hermes. Entregó **109 tests en verde** —el contrato 28/28 por
+  N-API y otros 28/28 por WASM, más los hooks y componentes— y las cuatro pantallas de
+  [docs/ui-spec.md](docs/ui-spec.md) andando en Android y en iOS. **Desbloqueó la Fase 5:** el
+  `.wasm` se construye acá, no en `rust-core`.
+  Es la primera fase donde **el aparato encontró lo que los tests no podían**: con todo en verde,
+  dos pantallas salían visiblemente rotas porque Fabric aplana los `View` que sólo aportan layout
+  y descoloca las filas de abajo al insertarse un bloque. RNTL renderiza un árbol JSON y no tiene
+  layout nativo, así que ningún test de Jest puede cazarlo — la guarda está en que los cuatro
+  contenedores compartidos lleven `collapsable={false}`, y la verificación real es mirar la
+  pantalla. Ver [apps/react-native/PENDING.md](apps/react-native/PENDING.md).
 - **Fase 5 — `apps/web-angular`.** Consume el WASM producido en la fase 4.
 
 Cada fase termina con tres cosas, no una:
@@ -327,8 +350,8 @@ y cada instalación se verifica antes de seguir.
 | 1 | nada — ✅ **hecho** (crates puros, se testean en el host) | `cargo test --workspace` → 67 passed |
 | 2 | `cargo install cargo-ndk` + 3 targets Android — ✅ **hecho** (cargo-ndk 4.1.2, NDK 30.0.16248370) | `cargo ndk --version`; `./gradlew :app:connectedDebugAndroidTest` → 15 passed |
 | 3 | 2 targets iOS (`aarch64-apple-ios`, `-sim`) — ✅ **hecho** (XCFramework con los dos slices) | `rustup target list --installed`; `xcodebuild test …` → **47 passed en simulador y en aparato** |
-| 4 | `uniffi-bindgen-react-native` 0.31.0-5 en `apps/react-native` (trae el CLI `ubrn`, que se compila con cargo al primer uso) | desde `apps/react-native/`: `pnpm ls uniffi-bindgen-react-native` (imprime `uniffi-bindgen-react-native@0.31.0-5`) y `pnpm exec ubrn --help` (prueba que el CLI compiló y responde; este build no tiene `--version`) |
-| 5 | target `wasm32-unknown-unknown` + Angular CLI | `ng version` |
+| 4 | `uniffi-bindgen-react-native` 0.31.0-5 (trae el CLI `ubrn`, que se compila con cargo al primer uso) + el target `wasm32-unknown-unknown`, que se adelantó acá porque el `.wasm` se construye en este subproyecto — ✅ **hecho** | desde `apps/react-native/`: `pnpm exec ubrn --help` (este build no tiene `--version`); `pnpm test` → 109 passed |
+| 5 | Angular CLI (el target `wasm32-unknown-unknown` ya lo instaló la Fase 4) | `ng version` |
 
 Los comandos exactos están en el plan de cada fase.
 

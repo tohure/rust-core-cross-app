@@ -1289,3 +1289,64 @@ mismo criterio. Anotado para la Task 23 / PENDING.
 - **Ruling P3 comprobado:** las dos baselines siguen separadas, ninguna importa a la otra, y cada
   una conserva su comentario obligatorio.
 - **Task 22: complete.**
+
+### Task 23 — cierre
+
+- **Verificación completa corrida entera sobre `b5b1388`, toda en verde**, y con los números
+  reales, no los que el plan esperaba:
+
+| Base | Comando | Esperado | Real |
+|---|---|---|---|
+| `rust-core` | `cargo test --workspace` | 67 | **67** |
+| `apps/android` | `./gradlew :app:testDebugUnitTest --rerun` | 28 | **28** |
+| `apps/android` | `./gradlew :app:connectedDebugAndroidTest` | 15 | **15** |
+| `apps/ios` | `xcodebuild test … 'iPhone 17 Pro'` | 47 | **47** |
+| `apps/react-native` | `pnpm test` | — | **109**, 12 suites |
+
+- **El pie coincide en las cuatro pantallas: `1.0.0+b5b1388`** — Android nativo, iOS nativo, y
+  React Native en Android y en iOS. Y las **dos** condiciones del criterio se cumplen: los cuatro
+  strings son idénticos **y** `git diff --stat b5b1388..HEAD -- rust-core/` sale vacío. El SHA es
+  anterior a HEAD porque los dos commits posteriores son pantallas de TypeScript; eso es correcto
+  y ahora está explicado en el runbook, que sólo decía «tiene que ser el mismo».
+- **Ruling T23-1 (el verde de Gradle puede ser falso: `UP-TO-DATE` no corre nada).** La primera
+  corrida de `:app:testDebugUnitTest` devolvió `BUILD SUCCESSFUL` en 405 ms con la tarea
+  **`UP-TO-DATE`**: reusó un resultado cacheado sin ejecutar un solo test. Un verde así no prueba
+  nada el día de la demo, que es el único que importa. El conteo bueno salió con `--rerun`, y se
+  cruzó además contra los XML de `app/build/test-results/`. **Queda escrito en el README con el
+  `--rerun` incluido**, porque el comando del plan, copiado tal cual, da un verde que no
+  significa nada.
+- **Ruling T23-2 (había un script destructivo en `package.json`, y el cierre lo encontró).**
+  `pnpm ubrn:wasm` corría `ubrn build wasm2 --and-generate` **sin** `--config ubrn.wasm.yaml`.
+  Como cada flavour de `ubrn` escribe donde diga su config, eso mete los bindings de WASM dentro
+  de `src/generated/` y **pisa los del turbo module JSI**: el build de la app queda roto y el
+  síntoma aparece lejos del comando que lo causó. `PENDING.md` ya documentaba ese modo de fallar
+  —le pasó al spike de la Task 13— y el script seguía ahí igual, porque se había agregado desde
+  el `CONTEXT` **antes** de que se descubriera el problema; `BUILD.md` incluso admitía que nunca
+  se había corrido. Le faltaba además el `@ts-nocheck` que `wasm:generate` inyecta y sin el cual
+  `tsc` no pasa. **Eliminado**, con `wasm:generate` como único camino, y alineados `package.json`,
+  `BUILD.md` y `CONTEXT.md`. Es exactamente lo que un cierre debe cazar: un comando documentado
+  que nadie ejecutó nunca.
+- **`TESTING.md` mentía: decía «67 tests, 4 suites».** Esa cifra era de cuando sólo existían las
+  suites del proyecto `napi`; las ocho de hooks y componentes se agregaron después y el archivo
+  no se actualizó. Corregido a **109 / 12**, con la tabla de qué cubre cada suite. Lo encontró la
+  corrida de verificación, no una lectura — que es justamente para lo que sirve correrlo todo al
+  cerrar.
+- **El README anterior era el scaffold intacto de `create-react-native-library`**: documentaba
+  `npm install @banco/core-financiero` y un `multiply(3, 7)` que no existe. Reemplazado entero,
+  con el diagrama Mermaid de las **tres salidas** del crate, los comandos efectivamente
+  ejecutados con sus tiempos medidos, y la sección que el plan pide sobre por qué el turbo module
+  es agnóstico del bundler y por qué **el core no se puede federar** — viaja dentro del `.apk` y
+  del `.ipa`; se federan las pantallas, nunca el core.
+- **PENDING.md** suma la deuda de las Tasks 19-22: el workaround de aplanado de Fabric con su
+  bisección y las cuatro hipótesis descartadas, el `setTimeout(0)` que no es un hilo, los números
+  del benchmark con la salvedad de que **no son comparables todavía** con los de Android e iOS, y
+  las tres divergencias que aparecieron al comparar con las otras dos apps.
+- **El runbook se extendió, no se reescribió**, como pedía el plan: React Native en la tabla de
+  arranque con la advertencia de Metro, «las dos apps» pasa a «las tres» donde corresponde, el
+  gesto del hex ahora se hace **en cadena entre tres stacks de UI distintos**, y el Acto 4 suma
+  los números de React Native **con la salvedad de que no son medición comparable**.
+- Verificado que no quede ni un enlace ni un ancla rota en README, PENDING, TESTING, BUILD,
+  CONTEXT, `CLAUDE.md` y el runbook.
+- **Fase 4: completa.** Las tres cosas que `CLAUDE.md` exige para cerrar una fase: el contrato en
+  verde (28/28 por N-API y 28/28 por WASM), el README con los comandos efectivamente ejecutados,
+  y su diagrama de arquitectura en Mermaid.

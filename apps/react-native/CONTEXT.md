@@ -103,8 +103,12 @@ Scripts en `package.json`:
 
     "ubrn:android": "ubrn build android --release --and-generate",
     "ubrn:ios": "ubrn build ios --release --and-generate && (cd example/ios && pod install)",
-    "ubrn:wasm": "ubrn build wasm2 --release --and-generate",
+    "wasm:generate": "ubrn build wasm2 --release --and-generate --config ubrn.wasm.yaml && …",
     "ubrn:clean": "rm -rf cpp/ src/generated src/generated-napi src/generated-wasm src/bindings.tsx"
+
+El de WASM **necesita su propio `--config`**: sin él, `ubrn` escribe los bindings de wasm2
+dentro de `src/generated/` y pisa los del turbo module JSI. Antes se llamaba `ubrn:wasm` y no
+lo llevaba; se eliminó por destructivo. Ver `BUILD.md` y `PENDING.md`.
 
 Dependencias que el código generado necesita, y que no son opcionales:
 

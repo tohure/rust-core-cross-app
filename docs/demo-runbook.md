@@ -24,16 +24,24 @@ Vale la pena decirlo antes de tocar nada, porque si no la audiencia ve cuatro ca
 
 ## Antes de empezar: el chequeo que hay que hacer sí o sí
 
-**Las cuatro apps tienen que correr el mismo build del núcleo.** No es automático: cada
+**Todas las apps tienen que correr el mismo build del núcleo.** No es automático: cada
 artefacto congela el SHA del commit con el que se construyó. Si alguien regeneró una sola app
 después de tocar `rust-core`, los pies no coinciden y la comparación deja de valer.
 
+Hoy son **tres**: Android, iOS y React Native —y ésta cuenta doble, porque se muestra en Android
+y en iOS—. Angular llega en la Fase 5.
+
 1. Abrir cada app.
-2. Mirar **el pie de cualquier pantalla** — está en las cuatro, no en una pantalla "Acerca de".
+2. Mirar **el pie de cualquier pantalla** — está en las cuatro pantallas, no en una "Acerca de".
 3. Verificar que el string sea **idéntico entre las apps**. Al momento de escribir esto es
-   `1.0.0+b719da3`, pero el SHA cambia cada vez que se regenera el artefacto: **lo que importa
+   `1.0.0+b5b1388`, pero el SHA cambia cada vez que se regenera el artefacto: **lo que importa
    no es qué valor tiene, sino que sea el mismo en todas.** Va sin prefijo ni reformateo — es
    lo que devuelve `core_version()` y nada más.
+
+**El SHA del pie puede ser anterior al `HEAD` de git, y eso es correcto:** `core_version()`
+congela el commit con que se compiló el core, y los commits que sólo tocan documentación o
+TypeScript no lo cambian. El criterio no es «coincide con HEAD» sino: los pies coinciden entre
+sí **y** `git diff --stat <sha-del-pie>..HEAD -- rust-core/` sale vacío.
 
 Si no coinciden, regenerar todos los artefactos desde el mismo HEAD antes de seguir. El
 procedimiento por plataforma está en [`../rust-core/BUILD.md`](../rust-core/BUILD.md) y en el
@@ -50,6 +58,11 @@ procedimiento por plataforma está en [`../rust-core/BUILD.md`](../rust-core/BUI
 |---|---|---|
 | Android | `./gradlew :app:installDebug` desde `apps/android/` | [apps/android/README.md](../apps/android/README.md) |
 | iOS | `open ios-rust-test.xcodeproj` desde `apps/ios/` y ⌘R | [apps/ios/README.md](../apps/ios/README.md) |
+| React Native | `pnpm exec react-native start --reset-cache` y después `run-android` / `run-ios`, desde `apps/react-native/example/` | [apps/react-native/README.md](../apps/react-native/README.md) |
+
+**React Native necesita Metro corriendo**, en su propia terminal, y **Metro muere con la
+terminal que lo lanzó**. Si la app arranca en pantalla roja diciendo `loadJSBundleFromAssets`,
+no es un fallo del build: falta Metro. Levantarlo **antes** de la demo, no durante.
 
 En iOS, sobre un aparato físico la cuenta de desarrollador es gratuita y **los perfiles vencen
 a los 7 días**: si hace más de una semana que no se corre ahí, hay que rehacer el
@@ -68,7 +81,7 @@ terminar en `.999999`.
 | **Pestaña** | Aritmética |
 | **Se tipea** | Operando A `0.1`, Operando B `0.2`, radio `Sumar`, botón `Calcular` |
 
-Lo que sale en **las dos apps**:
+Lo que sale en **las tres apps**:
 
 | Fila | Valor |
 |---|---|
@@ -95,7 +108,7 @@ Si hay tiempo, `ar-005` es el caso que más incomoda: `100.00 − 99.99` debe da
 | **Se tipea** | Origen `00219100123456789047`, Destino `01122000987654321065`, Monto `100.00` |
 
 Las dos cuentas arrancan en `S/ 5,000.00` (Ana Quispe) y `S/ 1,200.50` (Luis Ramos). Después de
-tocar `Transferir`, en **las dos apps**:
+tocar `Transferir`, en **las tres apps**:
 
 | Fila | Valor |
 |---|---|
@@ -106,7 +119,7 @@ tocar `Transferir`, en **las dos apps**:
 | Saldo Luis Ramos | `S/ 1,300.50` |
 
 **Qué decir.** Sumar los dos saldos finales da exactamente los `S/ 6,200.50` iniciales menos el
-ITF. **El dinero se conserva**, y se conserva igual en las dos plataformas porque la resta la
+ITF. **El dinero se conserva**, y se conserva igual en las tres plataformas porque la resta la
 hizo el mismo código.
 
 El comprobante importa más de lo que parece: es un string **derivado** de los datos de entrada.
@@ -144,7 +157,7 @@ Y el `10000.50` del primer mensaje tiene su propia gracia: son los `10000.00` m�
 Tipear `0.001` en Monto. **El campo no deja escribir el tercer decimal.**
 
 Eso es un filtro de **texto**, no una validación — la app no parsea ni redondea nada. Quien
-rechaza el monto sigue siendo el core, y el caso `tr-007` del contrato lo prueba en las dos
+rechaza el monto sigue siendo el core, y el caso `tr-007` del contrato lo prueba en las tres
 suites de test. El filtro solo existe para que la pantalla se vea bien en la demo.
 
 ---
@@ -159,7 +172,7 @@ directamente, sin intermediarios.
 | **Pestaña** | Tarjeta |
 | **Se tipea** | Número `4111111111111111` (el caso `tj-001`), botón `Validar y cifrar` |
 
-En **las dos apps**:
+En **las tres apps**:
 
 | Fila | Valor |
 |---|---|
@@ -168,16 +181,20 @@ En **las dos apps**:
 | `Cifrado (hex)` | `bdca39311826947186b20ec2a92c3f521aacff902e37d519bcd2754fc7c7c0dd` |
 | `Descifrado` | `4111111111111111` |
 
-**Qué decir, en este orden.** Primero: los 64 caracteres del hex son idénticos en las dos
+**Qué decir, en este orden.** Primero: los 64 caracteres del hex son idénticos en las tres
 pantallas. Segundo: la fila `Descifrado` muestra el número original de vuelta, o sea que **es
 cifrado reversible, no un hash** — sin esa fila, un hex no demuestra nada.
 
 ### El momento que cierra la demostración
 
-**Copiar el hex de una app y pegarlo en la otra**, en el bloque de abajo (`Descifrar un hex de
+**Copiar el hex de una app y pegarlo en otra**, en el bloque de abajo (`Descifrar un hex de
 otra plataforma`). Sale el número original.
 
-Eso es la tesis en vivo: las dos apps comparten clave, nonce y algoritmo **porque comparten el
+**Ahora que hay tres pantallas, el gesto gana fuerza si se hace en cadena:** cifrar en Android,
+pegar en iOS, y pegar el mismo hex en React Native. Tres stacks de UI distintos —Compose,
+SwiftUI y Hermes— devolviendo el mismo número, sin que ninguno sepa nada del algoritmo.
+
+Eso es la tesis en vivo: las tres apps comparten clave, nonce y algoritmo **porque comparten el
 core**, no porque alguien copió una implementación. Para hacerlo sin tipear 64 caracteres, el
 hex de `tj-002` (Mastercard) es:
 
@@ -232,6 +249,19 @@ resultado** — es la misma aritmética en `Double` del Acto 1.
 Desgloses en [apps/ios/TESTING.md](../apps/ios/TESTING.md) y
 [apps/android/TESTING.md](../apps/android/TESTING.md).
 
+**React Native mide su propio par en la misma pantalla**, y el número es llamativo: `add` cuesta
+**3,96 µs** en Android y **8,75 µs** en iOS (p50, 1000 iteraciones). Si se lo pone al lado de los
+444 µs de la app nativa de Android, sugiere que **JSI es órdenes de magnitud más barato que
+JNA** — que es exactamente lo que uno esperaría, porque JSI llama C++ directo sin reflexión ni
+marshalling de `Structure`.
+
+> **Pero no lo afirmes como medición comparable, porque no lo es.** Los números de React Native
+> están tomados en un **emulador y un simulador**, no en aparatos, y con otro reloj
+> (`performance.now()` de Hermes contra `System.nanoTime()`). Si alguien pregunta, la respuesta
+> honesta es: «la diferencia apunta fuerte a favor de JSI, y todavía no la medimos con el mismo
+> criterio en el mismo hardware». Anotado en
+> [apps/react-native/PENDING.md](../apps/react-native/PENDING.md).
+
 **El número que importa es el piso**, porque es una función sin argumentos y sin cómputo: lo
 único que mide es cruzar. En Android son 172 µs; en iOS, 0,33. **El mismo núcleo, y el puente
 elegido cuesta 500 veces más.**
@@ -263,7 +293,7 @@ una o dos llamadas por interacción.
 |---|---|
 | *¿Por qué no Kotlin Multiplatform?* | KMP comparte también el ViewModel; acá **no hay ViewModel compartido y es deliberado**. Se comparte el dominio y nada más, así cada UI es nativa de su plataforma. La tabla está en [docs/ui-spec.md](ui-spec.md) |
 | *¿Y si las apps se copian la lógica y nadie se entera?* | No pueden: `crates/domain` es Rust puro y un `#[uniffi::export]` ahí **no compila**. La frontera la sostiene el compilador, no la disciplina |
-| *¿Cómo saben que los valores coinciden de verdad?* | [`contracts/cases.json`](../contracts/cases.json), 28 casos comparados con **igualdad exacta de strings**, nunca con tolerancia numérica. Corre en las dos apps más el propio `rust-core` |
+| *¿Cómo saben que los valores coinciden de verdad?* | [`contracts/cases.json`](../contracts/cases.json), 28 casos comparados con **igualdad exacta de strings**, nunca con tolerancia numérica. Corre en las tres apps más el propio `rust-core` — y en React Native **dos veces**, por N-API y por WASM |
 | *¿Los montos son `float` en algún lado?* | En ningún lado, ni en los tests. Van como `String` desde `rust_decimal` hasta el widget de texto; el formateo ocurre solo al pintar. La única excepción es `NativeBaseline`, que existe **para exhibir** el problema |
 | *¿Esto sirve para una app real?* | La POC no tiene red, persistencia, ni almacenamiento seguro, y lo dice. Demuestra que **el dominio se comparte**, no que esté lista para producción. Los límites están en el `PENDING.md` de cada app |
 | *¿Las tasas son reales?* | No. Tasas, códigos de banco y montos son inventados; los algoritmos sí son internamente consistentes. Ver [contracts/README.md](../contracts/README.md) |

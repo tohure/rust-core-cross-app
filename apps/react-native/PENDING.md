@@ -208,3 +208,111 @@ no existe porque es transitiva de `react-native`. Se declara como devDependency 
 **Advertencia para quien agregue otra librería nativa:** después de instalarla hay que **reiniciar
 Metro con `--reset-cache`**. Sin eso el bundle viejo sigue sirviéndose y el síntoma es engañoso —
 acá dio `ReferenceError: Property 'window' doesn't exist`, que no tiene nada que ver con la causa.
+
+---
+
+## `collapsable={false}` en los cuatro contenedores compartidos: un defecto de Fabric, no una preferencia
+
+**Es la deuda más importante de este archivo**, porque es un workaround de un bug de React
+Native que alguien va a querer "limpiar".
+
+Un `View` que sólo aporta layout lo **aplana** Fabric en Android: no crea vista nativa y cuelga
+sus hijos del padre. Cuando encima de una lista de esas filas se **inserta** otro bloque —el
+`Resultado` de Transferencia al llegar el comprobante, el de Tarjeta al cifrar—, la contabilidad
+de índices nativos se corre y las filas de abajo quedan con su `<Text>` de label **pegado a la
+vista equivocada**: se pinta encima de otra fila y su valor queda huérfano.
+
+Acotado por bisección en el emulador (Pixel 9 Pro API 36, RN 0.87, Fabric):
+
+- **Sin los tres `LabeledField` el defecto desaparece.**
+- Con tres `<Text>` o tres `<TextInput>` **pelados** en su lugar, tampoco aparece.
+- O sea: no es el `TextInput` ni la cantidad de hermanos. Lo dispara tener **varios
+  contenedores de fila aplanados**.
+
+Cuatro hipótesis quedaron descartadas con evidencia, no abandonadas: envolver el bloque en un
+`View`, quitar el `gap` del contenedor raíz, darle a la lista su propio `View`, y un contenedor
+estable y no aplanado (esa **empeoró** el síntoma). Forzar el remonte con `key` **arreglaba** la
+pantalla y no era la causa — era el síntoma tapado.
+
+**Reglas que quedan, y no son negociables:**
+
+1. `ScreenHeader`, `LabeledField`, `ResultRow` y `SectionDivider` llevan `collapsable={false}`.
+   **Los cuatro.** Con tres —`ScreenHeader` sin proteger, que es un `View` sin una sola
+   propiedad visual— la pantalla de Tarjeta seguía rota. Con uno solo, el defecto no desaparece:
+   se **mueve** de una fila a la siguiente.
+2. **Todo contenedor compartido que se agregue tiene que llevarlo.** El criterio es «ningún
+   contenedor compartido queda aplanado», no «parchear el que falla hoy». Parchear el que falla
+   fue exactamente lo que hizo que reapareciera entre una pantalla y la siguiente.
+3. **Ningún test de Jest puede cazar esto.** RNTL renderiza un árbol JSON y no tiene layout
+   nativo. La guarda de `example/__tests__/PrimaryButton.test.tsx` sólo comprueba que la prop
+   siga puesta; **la verificación real es mirar la pantalla en el aparato.**
+
+En iOS la prop se ignora, así que no cambia nada ahí. Si una versión futura de React Native
+arregla el aplanado, esto se puede quitar — pero hay que **volver a verificarlo en el emulador**,
+no deducirlo del changelog.
+
+---
+
+## El benchmark no saca las mediciones del hilo principal, y no puede
+
+`docs/ui-spec.md` dice que el Benchmark es «la única pantalla donde las llamadas al core van
+fuera del hilo principal». En Android eso es `withContext(worker)` y en iOS `Task.detached`:
+hilos de verdad.
+
+**Acá no se cumple, y no es una omisión.** El JavaScript de React Native corre en un solo hilo y
+esta app no tiene worker. El `setTimeout(0)` del hook sólo **cede el turno** para que el spinner
+alcance a pintarse antes de que el bucle lo bloquee; mientras mide, la UI está congelada. Con
+1000 iteraciones no se nota; con 999999 sí. Lo único que acota eso es el tope de 6 dígitos del
+campo, igual que en las otras dos apps.
+
+Si alguna vez importa de verdad, la salida sería un worker (`react-native-worklets` o similar),
+que es una dependencia que esta POC no necesita.
+
+## Los números del benchmark, y por qué no son comparables todavía
+
+Medido con 1000 iteraciones, **en emulador y simulador, no en aparatos**:
+
+| | p50 | p95 |
+|---|---|---|
+| React Native / Android (Pixel 9 Pro API 36) — core | 3,96 µs | 5,00 µs |
+| React Native / Android — float nativo | 0,62 µs | 0,67 µs |
+| React Native / iOS (sim. iPhone 17 Pro) — core | 8,75 µs | 10,83 µs |
+| React Native / iOS — float nativo | 0,87 µs | 1,00 µs |
+
+La Fase 3 anotó **172 µs para Android nativo (JNA)** y **0,33 µs para iOS nativo** (`.a`
+estático). Poniendo los números uno al lado del otro, los 3,96 µs de acá sugieren que **JSI es
+unas 43× más barato que el puente JNA** de la app nativa de Android, lo cual sería un dato
+fuerte para la demo.
+
+**No lo afirmes todavía.** No es una comparación limpia: distinto arnés de medición, emulador
+contra aparato, y `performance.now()` de Hermes contra `System.nanoTime()` de la JVM. Antes de
+decirlo en una presentación hay que medir las tres con el mismo criterio y sobre el mismo tipo
+de hardware.
+
+## Tres divergencias entre las apps, encontradas al escribir ésta
+
+Ninguna rompe la comparación de strings, y ninguna se tocó desde acá porque son código de otras
+fases. Quedan anotadas para la revisión:
+
+1. **El campo `Hex cifrado` acepta mayúsculas en Android y no en iOS.** Android las convierte a
+   minúscula; iOS las rechaza. `docs/ui-spec.md` dice `[0-9a-f]`, así que React Native sigue la
+   spec y a iOS — **Android diverge de su propia spec**. Es inofensivo (el core sólo emite
+   minúsculas, así que pegar entre apps siempre entra), pero es comportamiento distinto.
+2. **El texto de ayuda de iOS se lista a sí mismo:** dice «el hex que produjo la app de iOS,
+   React Native o Angular» **dentro de la app de iOS**. Android nombra correctamente a las otras
+   tres. No está entre los labels normativos, pero es incorrecto.
+3. **Con cero iteraciones, Android e iOS vuelven en silencio** (`?: return` y `guard … else
+   { return }`), así que el botón no hace nada y parece roto. React Native muestra «Ingresa un
+   número de iteraciones mayor que cero.». `ui-spec.md` no fija nada para ese caso; es una
+   mejora que las otras dos podrían adoptar.
+
+## `theme.mono` tuvo que partirse por plataforma
+
+`'Courier'` es una familia real en iOS y **no existe en Android**, donde React Native cae en
+silencio a la tipografía por defecto. Se descubrió en la pantalla de Tarjeta, donde
+`ui-spec.md` exige que el hex «pueda compararse a simple vista contra las otras tres pantallas»
+—con proporcional no se puede—. Ahora es `Platform.select({ ios: 'Courier', default:
+'monospace' })`, el equivalente del `FontFamily.Monospace` que usa Android nativo.
+
+**Si se agrega otra fuente al tema, verificarla en las dos plataformas antes de darla por
+buena:** el modo de fallar es silencioso y sólo se ve mirando la pantalla.

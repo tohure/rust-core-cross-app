@@ -210,19 +210,25 @@ esa tarea defina cómo queda la configuración de `ubrn.config.yaml` para eso.
 ```json
 "ubrn:android": "ubrn build android --release --and-generate",
 "ubrn:ios": "ubrn build ios --release --and-generate && (cd example/ios && pod install)",
-"ubrn:wasm": "ubrn build wasm2 --release --and-generate",
+"wasm:generate": "ubrn build wasm2 --release --and-generate --config ubrn.wasm.yaml && …",
 "ubrn:clean": "rm -rf cpp/ src/generated src/generated-napi src/generated-wasm src/bindings.tsx"
 ```
+
+**Había un quinto script, `ubrn:wasm`, y se eliminó porque era destructivo.** Corría
+`ubrn build wasm2 --and-generate` **sin** `--config ubrn.wasm.yaml`, así que escribía los
+bindings de WASM dentro de `src/generated/` y **pisaba los del turbo module JSI**: el build de
+la app quedaba roto y el síntoma aparecía lejos del comando que lo causó. Se había agregado
+desde el `CONTEXT` antes de que el spike de la Task 13 descubriera el problema, y nunca llegó a
+correrse. El camino del WASM es **`wasm:generate`, y es el único**; además inyecta el
+`@ts-nocheck` que el `index.ts` de wasm2 necesita para que `tsc` pase. Ver
+[PENDING.md](PENDING.md).
 
 Los tres primeros llevan `--release` por el mismo motivo de siempre: el Benchmark es el
 centro de la demo y un core en debug distorsiona la comparación, y el perfil de release es
 deliberado en todo el proyecto — el tamaño del binario es criterio de la demo.
 `pnpm exec ubrn build wasm2 --help` confirma que `wasm2` acepta `-r`/`--release` igual que
 `android` e `ios` (los tres subcomandos comparten los mismos `CommonBuildArgs` en el propio
-código de `ubrn`); no hay ninguna razón para que ese tercero se quede en debug. `ubrn:ios` y
-`ubrn:wasm` todavía no se corrieron ni una vez: se agregan los scripts porque el CONTEXT ya
-los documenta como parte de la interfaz del paquete, pero generar para esas plataformas es
-trabajo de otras tareas.
+código de `ubrn`); no hay ninguna razón para que el de wasm se quede en debug.
 
 ## Limpiar y regenerar — corrida real
 

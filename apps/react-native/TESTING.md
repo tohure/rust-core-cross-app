@@ -7,8 +7,8 @@
 
 | Proyecto | Entorno | Qué corre | Qué prueba |
 |---|---|---|---|
-| `napi` | Node | `__tests__/**` | El contrato contra el **core real**, por N-API **y por WASM** |
-| `react-native` | preset de RN | `src/__tests__/**` | La infraestructura de test, y más adelante los hooks |
+| `napi` | Node | `__tests__/**` y `__benchmarks__/**` | El contrato contra el **core real**, por N-API **y por WASM**, y que la baseline de TypeScript diverge |
+| `react-native` | preset de RN | `src/__tests__/**` y `example/__tests__/**` | Los hooks de las cuatro pantallas, los componentes compartidos y el formateador |
 
 Los entornos son incompatibles y los dos hacen falta. El de React Native **mockea los módulos
 nativos**: el contrato corriendo ahí cruzaría a un doble y no probaría nada. El de Node no puede
@@ -22,7 +22,19 @@ pnpm run wasm:generate   # idem, para la ruta WASM
 pnpm test
 ```
 
-Salida esperada: **67 tests en verde**, 4 suites.
+Salida esperada: **109 tests en verde**, 12 suites — 4 del proyecto `napi` y 8 del
+`react-native`.
+
+| Suite | Qué cubre |
+|---|---|
+| `__tests__/contract.napi.test.ts` | los 28 casos del contrato, por N-API |
+| `__tests__/contract.wasm.test.ts` | los mismos 28, por WASM |
+| `__tests__/core.napi.test.ts` | que el `cdylib` carga y las nueve funciones responden |
+| `__benchmarks__/divergence.test.ts` | que la baseline de TypeScript **sigue divergiendo** del contrato |
+| `example/__tests__/useArithmetic` · `useTransfer` · `useCard` · `useBenchmark` | las transiciones de estado de las cuatro pantallas, contra `FakeCore` |
+| `example/__tests__/ContractMessages` · `money` | el mensaje de usuario y el formateador sobre el string |
+| `example/__tests__/PrimaryButton` | el label sin transformar, y que los contenedores compartidos no se aplanen |
+| `src/__tests__/jest-setup` | las dos guardias de la configuración de Jest bajo pnpm |
 
 ## El test de contrato: 28/28
 
