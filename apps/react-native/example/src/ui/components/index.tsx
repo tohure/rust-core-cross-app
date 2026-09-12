@@ -1,4 +1,5 @@
 import {
+  Pressable,
   Text,
   TextInput,
   View,
@@ -138,5 +139,44 @@ export function CoreVersionFooter({ style }: { style?: StyleProp<ViewStyle> }) {
         {coreVersion()}
       </Text>
     </View>
+  );
+}
+
+/**
+ * El botón primario de las cuatro pantallas.
+ *
+ * **No se usa el `Button` de React Native**, y no es preferencia: en Android renderiza el estilo
+ * Material, que **pone el texto en mayúsculas**. El label saldría `CALCULAR` mientras Android
+ * Compose e iOS muestran `Calcular`, y `docs/ui-spec.md` fija los labels **exactos** porque la
+ * demo pone las cuatro pantallas lado a lado. Un `Pressable` no transforma el texto.
+ */
+export function PrimaryButton({
+  title,
+  onPress,
+  disabled,
+  style,
+}: {
+  title: string;
+  onPress: () => void;
+  disabled?: boolean;
+  style?: StyleProp<ViewStyle>;
+}) {
+  return (
+    <Pressable
+      onPress={onPress}
+      disabled={disabled}
+      accessibilityRole="button"
+      style={[
+        {
+          backgroundColor: disabled ? theme.muted : theme.orange,
+          borderRadius: 6,
+          paddingVertical: 12,
+          alignItems: 'center',
+        },
+        style,
+      ]}
+    >
+      <Text style={{ color: theme.white, fontWeight: '600' }}>{title}</Text>
+    </Pressable>
   );
 }
