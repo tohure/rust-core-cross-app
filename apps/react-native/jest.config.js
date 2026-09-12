@@ -31,7 +31,21 @@ module.exports = {
       displayName: 'react-native',
       rootDir: __dirname,
       preset: '@react-native/jest-preset',
-      testMatch: ['<rootDir>/src/__tests__/**/*.test.ts'],
+      testMatch: [
+        '<rootDir>/src/__tests__/**/*.test.ts',
+        '<rootDir>/example/__tests__/**/*.test.ts',
+      ],
+      // Bajo test, el entrypoint generado por ubrn se sirve con los bindings **N-API** del mismo
+      // core. Sin esto, importar `@banco/core-financiero` en cualquier test muere en
+      // `TurboModuleRegistry.getEnforcing('CoreFinanciero')`: el turbo module es C++ atado a
+      // Hermes y en Jest no existe.
+      //
+      // Es deliberadamente más real que un stub — las nueve funciones responden de verdad, contra
+      // el mismo Rust—, pero **no prueba el cruce de JSI**, que no se puede probar acá. Eso lo
+      // prueba el smoke manual de BUILD.md.
+      moduleNameMapper: {
+        '^\\./bindings$': '<rootDir>/src/generated-napi/core_financiero',
+      },
       testEnvironmentOptions: {
         customExportConditions: [
           'require',
