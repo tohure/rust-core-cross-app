@@ -117,6 +117,9 @@ importers:
 
   apps/react-native/example:
     dependencies:
+      '@banco/contract':
+        specifier: workspace:*
+        version: link:../../../packages/contract
       react:
         specifier: 19.2.3
         version: 19.2.3

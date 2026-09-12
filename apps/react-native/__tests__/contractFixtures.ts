@@ -9,11 +9,6 @@ import {
 } from '@banco/contract/testing';
 
 export { loadCases, loadMessages };
-export type {
-  ContractFile,
-  ContractCase,
-  MessagesFile,
-} from '@banco/contract/testing';
 
 export function group(name: string): ContractCase[] {
   const g = loadCases()[name];

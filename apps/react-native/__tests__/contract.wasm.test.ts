@@ -11,8 +11,9 @@ import { join } from 'node:path';
 import { group, loadCases, loadMessages } from './contractFixtures';
 import { uniffiInitAsync } from '../src/generated-wasm';
 // `contractName` se importa directo de `@banco/contract`, no de `../src` (el entrypoint de la
-// librería): éste es el proyecto "napi" de Jest, Node puro, y `../src/index.tsx` arrastra
-// `bindings.tsx` — que registra el turbo module vía Hermes y muere fuera de React Native.
+// librería): este archivo también corre bajo el proyecto "napi" de Jest, Node puro, y
+// `../src/index.tsx` arrastra `bindings.tsx` — que registra el turbo module vía Hermes y muere
+// fuera de React Native.
 import { contractName } from '@banco/contract';
 import {
   add,

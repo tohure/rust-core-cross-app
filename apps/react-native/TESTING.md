@@ -142,34 +142,74 @@ Así que acá la guardia 2 no protege contra un grupo **vacío** —de eso ya se
 contra uno **incompleto**: cinco casos donde debería haber seis pasarían en verde sin que nada
 avise.
 
-### Guardia 4: la sostiene `tsc`, y está verificada por mutación en los dos sentidos
+### Guardia 4: ya no la sostiene un `satisfies` local, la sostiene `src/guard.ts`
 
-[`src/contractName.ts`](src/contractName.ts) traduce cada variante de `DomainError` al nombre en
-español del contrato con una tabla cerrada por
-`satisfies Record<DomainError['tag'], string>`.
+La tabla (`CONTRACT_NAMES`) se mudó a `@banco/contract` — la necesitan también el paquete WASM y
+Angular, y dos copias se desincronizan. Un paquete neutral no puede importar el `DomainError`
+generado (dependería de un flavour), así que ya no puede llevar el
+`satisfies Record<DomainError['tag'], string>` que tenía acá. La equivalencia se aserta del otro
+lado, donde sí se conoce el tipo real: [`src/guard.ts`](src/guard.ts), que no exporta nada en
+runtime — existe sólo para que `tsc` lo mire.
 
-Quitando `SameAccount` de la tabla, `pnpm exec tsc --noEmit` dice:
-
-```
-error TS1360: Type '{ … }' does not satisfy the expected type 'Record<DomainError_Tags, string>'.
-  Property '[DomainError_Tags.SameAccount]' is missing in type '{ … }'
-  but required in type 'Record<DomainError_Tags, string>'.
-```
-
-Y agregando una clave mal escrita:
-
-```
-error TS2561: Object literal may only specify known properties, but 'OutOfRangeee' does not exist
-in type 'Record<DomainError_Tags, string>'. Did you mean to write 'OutOfRange'?
+```ts
+type Equal<A, B> = [A] extends [B] ? ([B] extends [A] ? true : never) : never;
+const _guardia: Equal<`${DomainError['tag']}`, ContractTag> = true;
 ```
 
-Los dos sentidos importan: una décima variante en el core rompe el build nombrando la que falta,
-y un nombre mal tipeado no compila. Un `switch` con `default: never` sólo cazaba el primero.
+**El detalle que alguien va a querer "simplificar" sin entenderlo: la plantilla de string
+`` `${...}` `` no es cosmética.** `DomainError['tag']` no es una unión de literales de string, es
+una unión de miembros de un `enum` de TypeScript (`DomainError_Tags`, generado igual en los tres
+flavours — JSI, N-API y WASM). Un miembro de un string enum **sí** es asignable a su literal
+equivalente (`DomainError_Tags.Length` → `'Length'`), pero **no al revés**: TypeScript rechaza un
+literal plano donde espera ese enum nominal. Sin la plantilla, la mitad
+`[ContractTag] extends [DomainError['tag']]` de `Equal` falla **siempre**, con la tabla completa y
+correcta incluida, y la guardia no protegería nada porque nunca podría estar en verde. Se
+verificó con un archivo de debug temporal separando las dos mitades del `extends`: la dirección
+`enum → literal` pasa, la dirección `literal → enum` no. La plantilla fuerza el enum a sus
+literales subyacentes antes de comparar; la forma de `Equal` queda intacta.
 
-**`contractName` no depende de ningún flavour en runtime.** Importa `DomainError` con `import
-type`, que babel borra, así que la misma función atiende JSI, N-API y WASM. Eso no es un detalle
-de estilo: importar el enum en runtime arrastra React Native al proyecto `napi`, que corre en
-Node, y ahí muere con `Cannot use import statement outside a module`.
+**Precisión fina: la guardia sigue a la unión de clases exportada (`DomainError`), no al `enum`
+(`DomainError_Tags`) por sí solo.** El tipo `DomainError` se arma como
+`InstanceType<(typeof DomainError)['Length' | 'CheckDigit' | ...]>` — una unión de **claves de
+string escritas a mano** sobre el objeto de clases, no `keyof typeof DomainError_Tags`. Agregarle
+un miembro al `enum` sin agregar la clase correspondiente a esa unión **no** dispara la guardia;
+agregar la clase (y por lo tanto una variante nueva a `DomainError['tag']`) sí. En la práctica no
+hay hueco: `ubrn generate` emite el `enum`, la interfaz, la clase y la entrada en la unión juntos
+en cada regeneración, nunca por separado. Verificado con dos mutaciones sobre
+`src/generated/core_financiero.ts` (revertidas con un backup, `diff` confirmó archivo idéntico):
+
+- **Sólo el `enum`** (agregar `ExtraSoloEnum = 'ExtraSoloEnum'` a `DomainError_Tags`, sin tocar la
+  clase ni la unión de claves): `pnpm exec tsc --noEmit` → **`EXIT: 0`**, limpio. La guardia no lo
+  vio.
+- **La unión real** (agregar la interfaz, la clase `Extra_`, su entrada en `Object.freeze` y la
+  clave `'Extra'` a la unión de `DomainError`, como emitiría `uniffi` de verdad):
+  ```
+  src/guard.ts(27,7): error TS2322: Type 'true' is not assignable to type 'never'.
+  ```
+  Rompe, nombrando `_guardia`.
+
+**Verificado también por mutación en los dos sentidos sobre la tabla**, en
+`packages/contract/src/tags.ts` (revertidas, `git diff` vacío después):
+
+- **Agregar una décima clave** a `CONTRACT_NAMES`:
+  ```
+  src/guard.ts(27,7): error TS2322: Type 'true' is not assignable to type 'never'.
+  ```
+- **Borrar una clave existente** (`Encryption`):
+  ```
+  src/guard.ts(27,7): error TS2322: Type 'true' is not assignable to type 'never'.
+  ```
+
+Las cuatro mutaciones —dos sobre la tabla, dos sobre el `DomainError` generado— rompen `tsc`
+nombrando `_guardia`, salvo la que toca sólo el `enum` sin tocar la unión de clases, que es
+exactamente lo que se espera dado cómo se define `DomainError['tag']`. Un `switch` con
+`default: never` sólo hubiera cazado la mitad que falta una clave, nunca la que sobra.
+
+**`contractName` no depende de ningún flavour en runtime.** Vive en `@banco/contract` e importa
+`ContractTag` sólo como tipo; `src/guard.ts` importa `DomainError` con `import type`, que babel
+borra, así que nada de esto arrastra un flavour concreto a runtime. Eso no es un detalle de
+estilo: importar el enum en runtime arrastra React Native al proyecto `napi`, que corre en Node, y
+ahí muere con `Cannot use import statement outside a module`.
 
 Y discrimina por la **presencia de `tag`**, no con `DomainError.instanceOf(e)`. `instanceOf`
 compara contra la clase de **su propio módulo**, y esta fase lo rompe en dos sitios: los tests de
