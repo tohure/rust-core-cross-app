@@ -1,6 +1,20 @@
 import { describe, expect, it } from '@jest/globals';
 import { group, loadCases, loadMessages } from './contractFixtures';
 import { contractName } from '../src/contractName';
+import {
+  add,
+  calculateItf,
+  decrypt,
+  encrypt,
+  executeTransfer,
+  subtract,
+  validateCard,
+  validateCci,
+} from '../src/generated-napi/core_financiero';
+
+const CASES = loadCases();
+const KEY = CASES._clave_demo_hex as string;
+const NONCE = CASES._nonce_demo_hex as string;
 
 describe('guardias del contrato', () => {
   it('1 — la versión y la moneda son las esperadas', () => {
@@ -61,5 +75,110 @@ describe('guardias del contrato', () => {
     );
     // Y que `contractName` produzca exactamente esos nombres, no otros parecidos.
     expect(contractName({ tag: 'SameAccount' })).toBe('MismaCuenta');
+  });
+});
+
+// Los 28 vectores de `contracts/cases.json`. Las comparaciones son **igualdad exacta de strings**
+// con `toBe`, nunca numéricas con tolerancia: que eso pase en las cuatro plataformas *es* la
+// demostración de la POC. Si un caso falla, el sospechoso es el código, no el contrato.
+//
+// Cada grupo va con `it.each` para que un fallo diga **cuál** caso falló sin leer el log.
+
+describe('aritmetica', () => {
+  // Los seis divergen bajo IEEE-754: `0.1 + 0.2` es `0.30000000000000004` en JavaScript y
+  // `"0.30"` en el core. Ésa es toda la demostración.
+  it.each(group('aritmetica'))('$id: $a $op $b = $esperado', (c) => {
+    const r = c.op === 'sumar' ? add(c.a, c.b) : subtract(c.a, c.b);
+    expect(r).toBe(c.esperado);
+  });
+});
+
+describe('cci', () => {
+  it.each(group('cci'))('$id: $entrada', (c) => {
+    if (c.valido) {
+      const r = validateCci(c.entrada);
+      expect(r.bankCode).toBe(c.esperado.codigo_banco);
+      expect(r.bankName).toBe(c.esperado.nombre_banco);
+      expect(r.branch).toBe(c.esperado.oficina);
+      expect(r.account).toBe(c.esperado.cuenta);
+    } else {
+      expect(() => validateCci(c.entrada)).toThrow();
+      try {
+        validateCci(c.entrada);
+      } catch (e) {
+        expect(contractName(e)).toBe(c.error);
+      }
+    }
+  });
+});
+
+describe('itf', () => {
+  // `itf-005` ("2500.00" -> "0.13") es el único que distingue `MidpointAwayFromZero` de banker's
+  // rounding. Si falla sólo ése, el redondeo está mal; los otros cuatro no lo distinguen.
+  it.each(group('itf'))('$id: $entrada -> $esperado', (c) => {
+    expect(calculateItf(c.entrada)).toBe(c.esperado);
+  });
+});
+
+describe('tarjeta', () => {
+  // El nonce es fijo **a propósito**, para que las cuatro plataformas produzcan el mismo hex. En
+  // producción eso sería catastrófico; está documentado en `contracts/README.md`.
+  it.each(group('tarjeta'))('$id: $entrada', (c) => {
+    if (c.valido) {
+      const r = validateCard(c.entrada);
+      expect(r.brand).toBe(c.esperado.marca);
+      expect(r.masked).toBe(c.esperado.enmascarado);
+      expect(encrypt(c.entrada, KEY, NONCE)).toBe(c.esperado.cifrado_hex);
+      // La vuelta completa: es cifrado reversible, no un hash.
+      expect(decrypt(c.esperado.cifrado_hex, KEY, NONCE)).toBe(c.entrada);
+    } else {
+      try {
+        validateCard(c.entrada);
+        throw new Error(`${c.id} debió fallar y no falló`);
+      } catch (e) {
+        expect(contractName(e)).toBe(c.error);
+      }
+    }
+  });
+});
+
+describe('transferencia', () => {
+  // Se reconstruyen desde el contrato en cada caso: `executeTransfer` es pura y devuelve cuentas
+  // nuevas, pero reusar el mismo array entre casos escondería un aliasing si alguna vez dejara
+  // de serlo.
+  const cuentas = () =>
+    group('cuentas_iniciales').map((a) => ({
+      id: a.id,
+      holder: a.titular,
+      balance: a.saldo,
+    }));
+
+  // `tr-007` ("0.001" -> MontoInvalido) es la guardia de escala: sin esa puerta el redondeo al
+  // formatear movía la suma de saldos y el invariante de conservación del dinero dejaba de valer.
+  it.each(group('transferencia'))('$id: $entrada.monto', (c) => {
+    const req = {
+      origin: c.entrada.origen,
+      destination: c.entrada.destino,
+      amount: c.entrada.monto,
+    };
+    if (c.valido) {
+      const r = executeTransfer(cuentas(), req);
+      expect(r.itfFee).toBe(c.esperado.comision_itf);
+      expect(r.totalDebited).toBe(c.esperado.total_debitado);
+      expect(r.receipt).toBe(c.esperado.comprobante);
+      // El **único** campo de toda la superficie que se compara como número, porque es
+      // milisegundos y no dinero.
+      expect(r.simulatedLatencyMs).toBe(c.esperado.latencia_simulada_ms);
+      expect(r.accounts.map((a) => a.balance)).toEqual(
+        c.esperado.cuentas.map((a: { saldo: string }) => a.saldo)
+      );
+    } else {
+      try {
+        executeTransfer(cuentas(), req);
+        throw new Error(`${c.id} debió fallar y no falló`);
+      } catch (e) {
+        expect(contractName(e)).toBe(c.error);
+      }
+    }
   });
 });

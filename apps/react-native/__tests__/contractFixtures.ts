@@ -7,6 +7,13 @@ import { join } from 'node:path';
 const CONTRACTS = join(__dirname, '..', '..', '..', 'contracts');
 
 export type ContractFile = Record<string, unknown>;
+/**
+ * Un caso del contrato. Se tipa laxo a propósito: los grupos tienen formas distintas entre sí
+ * —`esperado` es un string en `aritmetica` y un objeto en `cci`— y la comparación real la hace
+ * `toBe` contra el JSON, no el tipo. Tiparlo fino acá sería una segunda copia del contrato.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export type ContractCase = Record<string, any>;
 export type MessagesFile = {
   version: string;
   mensajes: Record<string, string>;
@@ -20,7 +27,7 @@ export function loadMessages(): MessagesFile {
   return JSON.parse(readFileSync(join(CONTRACTS, 'messages.es.json'), 'utf8'));
 }
 
-export function group(name: string): Record<string, string>[] {
+export function group(name: string): ContractCase[] {
   const g = loadCases()[name];
   if (!Array.isArray(g)) {
     throw new Error(
