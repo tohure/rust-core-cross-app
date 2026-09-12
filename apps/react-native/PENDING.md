@@ -151,3 +151,38 @@ Cuando Angular haga `import { calculateItf } from '@banco/core-financiero'` va a
 El artefacto va a estar construido y probado, pero **sin la puerta por la que la Fase 5 entra a
 buscarlo**. Corresponde resolverlo en el Bloque 3, cuando `src/generated-wasm/` exista y se sepa a
 qué archivo apuntar.
+
+## `Intl.NumberFormat` y por qué el formateador está escrito a mano
+
+El plan asumía que había que escribirlo a mano porque **Hermes no garantiza** pasar un string a
+`format()`. Se comprobó sobre los tres runtimes y **esa premisa es falsa**: los tres lo soportan y
+además coinciden entre sí.
+
+| Runtime | Resultado | Code points |
+|---|---|---|
+| Hermes / Android (emulador Pixel 9, API 36) | `S/ 4,899.99` | `53 2f a0 34 2c 38 39 39 2e 39 39` |
+| Hermes / iOS (simulador iPhone 17 Pro) | `S/ 4,899.99` | `53 2f a0 34 2c 38 39 39 2e 39 39` |
+| Node / V8 (proxy del navegador) | `S/ 4,899.99` | `53 2f a0 34 2c 38 39 39 2e 39 39` |
+
+**Y sin embargo la decisión del plan era la correcta, por una razón mucho más fuerte.** Mirá el
+tercer code point: `a0`. Es **U+00A0, espacio duro**, no un espacio normal (`20`).
+
+Las otras dos apps formatean a mano:
+
+- `apps/android/.../format/MoneyFormatter.kt` → `"S/ $sign$grouped.$decimals"`
+- `apps/ios/.../Format/MoneyFormatter.swift` → `"S/ \(parsed.sign)\(grouped).\(...)"`
+
+Las dos con **espacio normal**. O sea que usar `Intl` acá produciría `S/\u00A04,899.99` donde
+Android y iOS producen `S/ 4,899.99`: **una diferencia de un byte, invisible en pantalla, que
+rompe exactamente la comparación carácter por carácter que la POC existe para demostrar.** El
+peor modo de fallar posible — el que se ve bien en la demo y está mal.
+
+Hay además una razón de fondo: la coincidencia entre los tres runtimes **no es contractual**. Sale
+de que hoy, en esta máquina, los tres empaquetan datos de ICU compatibles. Android delega en el
+ICU del sistema, que cambia con la versión de Android; iOS en el de Apple; cada navegador en el
+suyo. Apostar la tesis central de la POC a que cuatro plataformas mantengan ICU alineado es una
+apuesta que no hace falta tomar.
+
+`formatPEN` replica la semántica de las otras dos, incluido separar el signo **antes** de agrupar
+—sin eso, `-123456.78` sale como `S/ -,123,456.78`, que es un bug que Android ya encontró y dejó
+documentado en su formateador—.
