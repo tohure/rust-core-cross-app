@@ -42,6 +42,11 @@ local.properties
 android.iml
 
 # Cocoapods
+# El workspace lo crea `pod install` y referencia `Pods/`, que también está ignorado, así que se
+# regenera con el mismo comando. `Podfile.lock` **sí** se comitea: es el lockfile de las 87 pods,
+# y este repo comitea sus lockfiles (pnpm-lock.yaml, Cargo.lock) para que el build sea el mismo
+# en otra máquina.
+example/ios/CoreFinancieroExample.xcworkspace
 #
 example/ios/Pods
 
@@ -84,3 +89,7 @@ android/generated
 
 # React Native Nitro Modules
 nitrogen/
+
+# XCFramework del core, producido por `pnpm run ubrn:ios`. Mismo criterio que los `.a` de
+# Android: artefacto de build, no fuente. Se regenera con ese comando.
+BancoCoreFinancieroFramework.xcframework/

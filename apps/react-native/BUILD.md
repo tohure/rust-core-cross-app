@@ -509,3 +509,83 @@ gobierna que Jest cargue el paquete desde `src/` y no desde `lib/` es la clave
 `banco-core-financiero-source` del `exports` de `package.json` — borrarla sí manda la resolución
 a `lib/module/index.js`, y hay un test que lo guarda. El placeholder se corrigió porque una
 plantilla sin renderizar en un archivo de configuración está mal igual, no porque hiciera algo.
+
+## El mismo smoke en iOS
+
+```bash
+cd apps/react-native
+export PATH="$HOME/.cargo/bin:$PATH"
+pnpm run ubrn:ios        # build en release + pod install
+
+cd example
+pnpm exec react-native start --reset-cache &
+pnpm exec react-native run-ios --no-packager
+```
+
+`ubrn:ios` produce `BancoCoreFinancieroFramework.xcframework/` con **los dos slices**, igual que
+la Fase 3:
+
+```
+BancoCoreFinancieroFramework.xcframework/
+├── ios-arm64/libcore_financiero.a             ← aparato
+├── ios-arm64-simulator/libcore_financiero.a   ← simulador
+└── Info.plist
+```
+
+Después corre `pod install` — **87 pods**, cerca de un minuto.
+
+**Qué se debe ver en el simulador:** el mismo string que Android, carácter por carácter. Corrida
+real sobre un iPhone 17 Pro (iOS 26.5):
+
+```
+1.0.0+05a4195      ← iOS
+1.0.0+05a4195      ← Android, regenerado desde el mismo HEAD
+```
+
+Esa igualdad **es** la verificación: si difieren, uno de los dos artefactos se construyó desde
+otro HEAD. Es justo el modo de fallar que el pie de `coreVersion()` existe para exhibir, y es el
+primer paso del [runbook de la demo](../../docs/demo-runbook.md).
+
+Para leer la pantalla sin mirarla:
+
+```bash
+xcrun simctl io <udid> screenshot /tmp/gate.png
+```
+
+### `run-ios` cierra con `error code '65'` y aun así funcionó
+
+El CLI construye para el simulador, instala, lanza —hasta ahí todo bien, y la app queda
+corriendo— y **después** arranca una segunda pasada contra un **aparato físico** que nadie pidió,
+eligiéndolo de la lista de destinos disponibles. Esa segunda falla por firma y devuelve 65.
+
+O sea que el `error` final no dice nada sobre el gate. Lo que hay que mirar en el log es:
+
+```
+▸ Build Succeeded
+success Successfully built the app
+success Successfully launched the app
+```
+
+y confirmar que la app está instalada donde corresponde:
+
+```bash
+xcrun simctl listapps <udid> | grep banco.corefinanciero.example
+```
+
+Para evitar la segunda pasada se le puede pasar el destino a mano con
+`--simulator "iPhone 17 Pro"`.
+
+### Qué se comitea de todo esto
+
+`pod install` toca tres archivos **trackeados** del proyecto Xcode del example —`RCTNewArchEnabled`
+en el `Info.plist`, la agregación del manifiesto de privacidad, y `CLANG_CXX_LANGUAGE_STANDARD` a
+c++20 en el `pbxproj`—. Son configuración del proyecto, no artefactos: se comitean.
+
+Lo que **no** se comitea, por el mismo criterio que el resto del *glue*:
+
+- `BancoCoreFinancieroFramework.xcframework/` — lo produce `ubrn:ios`, igual que los `.a` de Android.
+- `example/ios/CoreFinancieroExample.xcworkspace` — lo crea `pod install` y referencia `Pods/`, que ya estaba ignorado.
+
+`Podfile.lock` y `Gemfile.lock` **sí** se comitean: este repo comitea sus lockfiles
+—`pnpm-lock.yaml`, `Cargo.lock`— para que el build sea el mismo en otra máquina, y no hay razón
+para tratar a CocoaPods distinto.
