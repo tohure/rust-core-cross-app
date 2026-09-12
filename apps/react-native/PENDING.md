@@ -186,3 +186,25 @@ apuesta que no hace falta tomar.
 `formatPEN` replica la semántica de las otras dos, incluido separar el signo **antes** de agrupar
 —sin eso, `-123456.78` sale como `S/ -,123,456.78`, que es un bug que Android ya encontró y dejó
 documentado en su formateador—.
+
+## `react-native-safe-area-context` en vez del `SafeAreaView` del core
+
+El plan usaba el `SafeAreaView` de React Native. **No alcanza, y el motivo no es cosmético.**
+
+1. Está **deprecado** en RN 0.87 y emite un `console.warn` en cada render. En builds de desarrollo
+   eso levanta el banner de LogBox, que **tapa el pie de `coreVersion()`** — justo el elemento que
+   la demo compara entre las cuatro apps.
+2. **En Android no aplica inset inferior**, así que la barra de cuatro pestañas quedaba pegada al
+   borde, solapada con la zona de gestos del sistema. Medido: la barra estaba en `y[2727-2856]`
+   sobre una pantalla de 2856 px de alto. Con la librería pasa a `y[2655-2784]`, despejada.
+
+Costo: un módulo nativo más, o sea reconstruir las dos apps. `pod install` pasó de 87 a 88 pods.
+
+Y destapó otra vez la estrictez de pnpm: cualquier librería con `codegenConfig` dispara
+`generateCodegenSchemaFromJavaScript`, que invoca `example/node_modules/@react-native/codegen`, que
+no existe porque es transitiva de `react-native`. Se declara como devDependency directa, igual que
+`@react-native/gradle-plugin`.
+
+**Advertencia para quien agregue otra librería nativa:** después de instalarla hay que **reiniciar
+Metro con `--reset-cache`**. Sin eso el bundle viejo sigue sirviéndose y el síntoma es engañoso —
+acá dio `ReferenceError: Property 'window' doesn't exist`, que no tiene nada que ver con la causa.

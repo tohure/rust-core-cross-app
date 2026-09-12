@@ -379,6 +379,7 @@ quien regenere el proyecto dentro de seis meses las va a volver a encontrar.
 | `getDefaultProguardFile('proguard-android.txt') is no longer supported` | otro cambio rompiente de AGP 9 | `proguard-android-optimize.txt` en `example/android/app/build.gradle` |
 | ninja: falta `libcore_financiero.a`, y `fatal error: 'CoreFinancieroImpl.h' file not found` | **los dos son la misma causa**: ver abajo | tres claves borradas de `react-native.config.js` |
 | `pnpm test`: `SyntaxError: Cannot use import statement outside a module` | el `transformIgnorePatterns` del preset de RN está escrito para `node_modules` aplanado | `transformIgnorePatterns` propio en el `jest` de `package.json` |
+| Gradle: `Cannot find module '.../@react-native/codegen/lib/cli/combine/combine-js-to-schema-cli.js'` | transitiva de `react-native`; la dispara cualquier librería con `codegenConfig` | declarada como `devDependency` directa del example |
 
 ### Por qué `android.builtInKotlin=false` y no la migración que recomienda Google
 
