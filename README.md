@@ -51,34 +51,59 @@ rust-core/crates/ffi        (único crate exportado; domain/calculation/validati
 
 ## Estado
 
+**Las seis fases están completadas: la POC está cerrada.**
+
 | Fase | Entregable | Estado |
 |---|---|---|
 | 0 | Toolchain + `contracts/cases.json` | ✅ Completada |
 | 1 | `rust-core` — dominio, cálculo, validación, cifrado, FFI | ✅ Completada |
 | 2 | `apps/android` — Kotlin + Compose | ✅ Completada |
-| 3 | `apps/ios` — Swift + SwiftUI | ⬜ |
-| 4 | `apps/react-native` — Turbo Module | ⬜ |
-| 5 | `apps/web-angular` — WASM | ⬜ |
+| 3 | `apps/ios` — Swift + SwiftUI | ✅ Completada |
+| 4 | `apps/react-native` — Turbo Module, y origen del WASM | ✅ Completada |
+| 5 | `apps/web-angular` — WASM | ✅ Completada |
 
-Cada fase termina con su test de contrato en verde contra el contrato **y** con el `README.md`
-de su subproyecto: comandos ya ejecutados (no deducidos) más un diagrama de arquitectura
-en Mermaid. Una fase sin las dos cosas no está terminada, por bien que se vea la UI.
+Cada fase terminó con su test de contrato en verde **y** con el `README.md` de su subproyecto:
+comandos ya ejecutados (no deducidos) más un diagrama de arquitectura en Mermaid.
+
+**El cierre de la Fase 5 verificó lo que sólo se podía comprobar con las cuatro apps a la
+vez:** las cuatro mostrando el mismo `coreVersion()` en pantalla. Antes de regenerar los
+artefactos estaban en tres SHA de git distintos, así que nunca habrían coincidido en una demo
+armada sin ese chequeo — el procedimiento está en
+[docs/demo-runbook.md](docs/demo-runbook.md), y no es opcional.
 
 ## Arranque
 
 ```bash
 # El núcleo, desde rust-core/
 cargo test --workspace          # 67 tests
-cargo test --test contract      # solo los 28 vectores del contrato
+cargo test -p core_financiero --test contract   # solo los 28 vectores del contrato
 
-# La app Android, desde apps/android/
-./gradlew :app:testDebugUnitTest          # 25 tests, en la JVM
-./gradlew :app:connectedDebugAndroidTest  # 15 tests, sobre un dispositivo
-./gradlew :app:installDebug               # y a correrla
+# Android, desde apps/android/
+./gradlew :app:testDebugUnitTest --rerun          # 28 tests, en la JVM
+./gradlew :app:connectedDebugAndroidTest          # 15 tests, sobre dispositivo/emulador
+./gradlew :app:installDebug                       # y a correrla
+
+# iOS, desde apps/ios/ — 47 tests, en simulador o aparato real
+xcodebuild test -project ios-rust-test.xcodeproj -scheme ios-rust-test \
+  -destination 'platform=iOS Simulator,name=iPhone 17 Pro'
+open ios-rust-test.xcodeproj   # y a correrla con ⌘R
+
+# React Native, desde apps/react-native/ — 120 tests (N-API + WASM)
+pnpm test
+cd example && pnpm exec react-native start --reset-cache   # Metro, en su propia terminal
+# y en otra terminal: pnpm exec react-native run-android | run-ios
+
+# Angular, desde apps/web-angular/ — 99 tests
+pnpm test
+pnpm exec ng build --configuration development   # ng serve no funciona, ver su PENDING.md
+cd dist/web-angular/browser && python3 -m http.server 4311
 ```
 
-Si es la primera vez, cada subproyecto tiene su README con los requisitos y el paso a paso:
-[rust-core/README.md](rust-core/README.md) y [apps/android/README.md](apps/android/README.md).
+Cada subproyecto tiene su README con los requisitos y el paso a paso completo:
+[rust-core/README.md](rust-core/README.md), [apps/android/README.md](apps/android/README.md),
+[apps/ios/README.md](apps/ios/README.md),
+[apps/react-native/README.md](apps/react-native/README.md) y
+[apps/web-angular/README.md](apps/web-angular/README.md).
 
 Cada fase instala solo el toolchain y las skills que necesita: ver
 [docs/superpowers/skills-by-phase.md](docs/superpowers/skills-by-phase.md).
