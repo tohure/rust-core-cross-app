@@ -157,8 +157,8 @@ construyó, así que hay que regenerar los cuatro desde el mismo HEAD antes de l
 
 ## Estado actual y flujo de trabajo (SDD con superpowers)
 
-**Fases 0, 1, 2, 3 y 4 completadas.** El núcleo existe, funciona, y Android, iOS y React Native
-lo consumen.
+**Las seis fases están completadas: la POC está cerrada.** El núcleo existe, funciona, y las
+**cuatro** apps lo consumen — Android, iOS, React Native y Angular.
 `rust-core/` tiene dos crates —`domain` (Rust puro, siete módulos) y `ffi` (paquete
 `core_financiero`, la fachada uniffi)— con ~1930 líneas de Rust, **67 tests en verde** y el
 **test de contrato pasando 28/28** contra `contracts/cases.json` **v2.3.0**. Los bindings Kotlin
@@ -191,8 +191,25 @@ manual. Android tiene 15 tests instrumentados y iOS corre XCTest sobre aparato; 
 [apps/react-native/README.md](apps/react-native/README.md) y
 [apps/react-native/TESTING.md](apps/react-native/TESTING.md).
 
-Lo que **no** existe todavía: ni una línea de Angular. Lo que sigue es la Fase 5,
-`apps/web-angular`, que ya no está bloqueada porque el `.wasm` existe.
+`apps/web-angular` es el cuarto y último consumidor, y el que cierra la POC: con él las cuatro
+pantallas existen a la vez y la comparación lado a lado se puede hacer de verdad. **99 tests en
+verde** con el contrato **28/28**, y las cuatro pantallas andando sobre el WASM real.
+
+Tiene dos particularidades que conviene decir en la demo. **`ng serve` no funciona** —el
+optimizador de dependencias de Vite se rompe con `@banco/contract`—, así que la app se levanta con
+`ng build` más un servidor estático; ningún gate depende de eso, pero quien la corra en vivo lo
+pisa. Y **el benchmark de esta app no mide como las otras tres**: el `performance.now()` del
+navegador está cuantizado a ~100 µs por la mitigación anti-Spectre, o sea un reloj ~100× más
+grueso que lo que se quiere medir, así que acá se cronometran lotes y se divide. La cifra —core
+~1,5 µs contra ~0,07 µs de la baseline nativa— ubica el orden de magnitud, y **no** sirve para una
+comparación centavo a centavo con Android e iOS. Ver
+[apps/web-angular/README.md](apps/web-angular/README.md) y
+[apps/web-angular/PENDING.md](apps/web-angular/PENDING.md).
+
+**La advertencia del CONTEXT sobre el MIME `application/wasm` no se cumplió**, y vale saberlo:
+`loadCore` pasa bytes a `initCore`, y con bytes se usa `WebAssembly.compile`, que no mira el
+`Content-Type` — sólo `compileStreaming` lo exige. El «punto donde más tiempo se pierde» resultó
+no serlo.
 
 Este proyecto se desarrolla con **Spec-Driven Development** usando el plugin
 `superpowers`. El flujo por fase es:
@@ -222,6 +239,10 @@ Documentos vigentes:
 - Plan Fase 1: [docs/superpowers/plans/2026-09-08-phase-1-rust-core.md](docs/superpowers/plans/2026-09-08-phase-1-rust-core.md) — trece tareas, todas completas; su "Estado de ejecución" lista las seis desviaciones respecto del plan original
 - **Cierre de la Fase 1:** [rust-core/README.md](rust-core/README.md) — qué es y cómo está organizado, con el diagrama. La doc del núcleo está partida en un archivo por pregunta: [BUILD.md](rust-core/BUILD.md) (toolchain, compilación y bindings), [TESTING.md](rust-core/TESTING.md) (qué prueba y qué **no** prueba el test de contrato, y sus siete guardias), [FFI.md](rust-core/FFI.md) (**las dos cosas que no cruzan el FFI**: el mapeo variante → nombre del contrato y los mensajes de error en español) y [PENDING.md](rust-core/PENDING.md)
 - Ledger de ejecución de la Fase 1: `.superpowers/sdd/2026-09-08-phase-1-rust-core/progress.md` — las rulings tarea por tarea y la evidencia de cada review
+- Spec Fase 5: [docs/superpowers/specs/2026-09-12-phase-5-app-web-angular-design.md](docs/superpowers/specs/2026-09-12-phase-5-app-web-angular-design.md)
+- Plan Fase 5: [docs/superpowers/plans/2026-09-12-phase-5-app-web-angular.md](docs/superpowers/plans/2026-09-12-phase-5-app-web-angular.md)
+- Ledger de ejecución de la Fase 5: `.superpowers/sdd/2026-09-12-phase-5-app-web-angular/progress.md` — incluye los rulings del benchmark, que es donde más se dobló la fase
+- **Cierre de la Fase 5:** [apps/web-angular/README.md](apps/web-angular/README.md) y [apps/web-angular/PENDING.md](apps/web-angular/PENDING.md)
 
 ## Fases de desarrollo
 
@@ -282,7 +303,17 @@ El orden no es negociable: lo impone el grafo de dependencias de build de arriba
   layout nativo, así que ningún test de Jest puede cazarlo — la guarda está en que los cuatro
   contenedores compartidos lleven `collapsable={false}`, y la verificación real es mirar la
   pantalla. Ver [apps/react-native/PENDING.md](apps/react-native/PENDING.md).
-- **Fase 5 — `apps/web-angular`.** Consume el WASM producido en la fase 4.
+- **Fase 5 — `apps/web-angular`.** ✅ **Completada.** Cuarto consumidor y cierre de la POC:
+  Angular standalone sobre el `.wasm` que produjo la Fase 4, con las cuatro pantallas de
+  [docs/ui-spec.md](docs/ui-spec.md) y **99 tests en verde**, contrato **28/28**. El servicio
+  quedó **síncrono** —el módulo se inicializa una vez en un app initializer, no un `await` por
+  método—, y cuatro premisas del CONTEXT las falsó la ejecución: el nombre del paquete, la forma
+  del servicio, el MIME del `.wasm` y los nombres de las carpetas de `features/`; están corregidas
+  en el propio CONTEXT y marcadas como tales.
+  Es la única app **sin red de `catch_unwind`**: `wasm32-unknown-unknown` impone `panic = "abort"`,
+  así que un pánico del core acá no vuelve como error del FFI sino como un trap que inutiliza la
+  instancia del módulo. Lo único que la protege es la regla 5 y los proptests `*_never_panics` del
+  core. Ver [apps/web-angular/PENDING.md](apps/web-angular/PENDING.md).
 
 Cada fase termina con tres cosas, no una:
 
@@ -360,7 +391,7 @@ y cada instalación se verifica antes de seguir.
 | 2 | `cargo install cargo-ndk` + 3 targets Android — ✅ **hecho** (cargo-ndk 4.1.2, NDK 30.0.16248370) | `cargo ndk --version`; `./gradlew :app:connectedDebugAndroidTest` → 15 passed |
 | 3 | 2 targets iOS (`aarch64-apple-ios`, `-sim`) — ✅ **hecho** (XCFramework con los dos slices) | `rustup target list --installed`; `xcodebuild test …` → **47 passed en simulador y en aparato** |
 | 4 | `uniffi-bindgen-react-native` 0.31.0-5 (trae el CLI `ubrn`, que se compila con cargo al primer uso) + el target `wasm32-unknown-unknown`, que se adelantó acá porque el `.wasm` se construye en este subproyecto — ✅ **hecho** | desde `apps/react-native/`: `pnpm exec ubrn --help` (este build no tiene `--version`); `pnpm test` → 109 passed |
-| 5 | Angular CLI (el target `wasm32-unknown-unknown` ya lo instaló la Fase 4) | `ng version` |
+| 5 | Angular CLI (el target `wasm32-unknown-unknown` ya lo instaló la Fase 4) — ✅ **hecho** | `ng version`; desde `apps/web-angular/`: `pnpm test` → 99 passed |
 
 Los comandos exactos están en el plan de cada fase.
 
@@ -406,7 +437,13 @@ la regla 5 (cero `panic!`/`unwrap()`/`expect()` en producción) y los proptests
 
 ## Si el build de Angular pelea con el WASM
 
-Servir el `.wasm` con MIME `application/wasm` es el punto donde más tiempo se pierde en
-este proyecto. Si el builder de Angular no coopera, **no quemes tiempo de demo ahí**:
-levanta la pantalla en un Vite mínimo, deja la integración Angular documentada como
-pendiente y sigue. La POC no se juega en eso.
+**Esta advertencia quedó resuelta por la Fase 5, y al revés de como se esperaba.** Servir el
+`.wasm` con MIME `application/wasm` **no** fue el punto donde más tiempo se pierde: nunca se
+manifestó. `loadCore` pasa **bytes** (`response.arrayBuffer()`) a `initCore`, y con bytes se usa
+`WebAssembly.compile`, que no mira el `Content-Type`; sólo `compileStreaming` lo exige. Se pierde
+la compilación en streaming, irrelevante para 180 KB.
+
+Lo que sí peleó fue **`ng serve`**, que se rompe con el optimizador de dependencias de Vite sobre
+`@banco/contract`. Ahí sí se aplicó la regla de no quemar tiempo de demo en el build: se levanta
+con `ng build --configuration development` más un servidor estático, y queda documentado. Ningún
+gate depende de `ng serve`. Ver [apps/web-angular/PENDING.md](apps/web-angular/PENDING.md).

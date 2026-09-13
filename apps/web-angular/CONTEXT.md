@@ -4,7 +4,13 @@ App Angular que consume `rust-core` compilado a WebAssembly. Demuestra que el
 mismo núcleo corre en el web sin reescribirse y sin migrar el front a React.
 
 Stack: Angular standalone components, TypeScript, WASM generado por
-`ubrn build web` desde `apps/react-native`.
+`ubrn build wasm2` desde `apps/react-native`.
+
+> **Corregido al cerrar la Fase 5.** Este archivo se escribió antes de que el paquete WASM
+> existiera, y la ejecución falsó cuatro de sus premisas: el nombre del paquete, la forma del
+> servicio, el MIME del `.wasm` y los nombres de las carpetas de `features/`. Las cuatro quedaron
+> corregidas abajo y marcadas así. Lo construido manda; el detalle está en
+> [README.md](README.md) y [PENDING.md](PENDING.md).
 
 ## Regla central
 
@@ -47,14 +53,12 @@ type ValidCci = { bankCode: string; bankName: string; branch: string; account: s
 type ValidCard = { brand: string; masked: string };
 ```
 
-> **Estos nombres están derivados, no generados.** Los de Kotlin y Swift se leyeron de
-> bindings reales en la Fase 1; el paquete WASM lo produce `ubrn build web` en la Fase 4 y
-> todavía no existe, así que los de acá salen de la misma regla de uniffi ya verificada en
-> las otras dos plataformas —`snake_case` de Rust a lowerCamelCase, campos de Record
-> camelCase—. **La Fase 4 entrega el paquete: contrastá sus `.d.ts` con esta lista antes de
-> escribir el servicio**, y si algo difiere se corrige acá y en
-> [`../react-native/CONTEXT.md`](../react-native/CONTEXT.md), que describe la misma
-> superficie.
+> **Ya no están derivados: están verificados.** Cuando se escribió esto el paquete WASM no
+> existía y los nombres se dedujeron de la regla de uniffi. La Fase 5 los contrastó contra el
+> paquete real y la lista de arriba **coincide**: las nueve funciones y los cinco Records salen
+> tal cual. Lo único que cambió es el **nombre del paquete**, que es
+> `@banco/core-financiero-wasm` y no `@banco/core-financiero` como decía acá — corregido en todo
+> este archivo.
 
 **Los identificadores están en inglés; los nombres del contrato, en español.**
 `contracts/cases.json` nombra los errores `"Longitud"`, `"DigitoControl"`, `"MismaCuenta"`…
@@ -66,44 +70,46 @@ décima variante rompa `tsc` en vez de pasar en verde. Ver
 
 ## Consumir el paquete WASM
 
-El artefacto se genera en `apps/react-native` con `ubrn build web` y se
+El artefacto se genera en `apps/react-native` con `ubrn build wasm2` y se
 consume aquí como paquete local del workspace. No lo copies a mano en
 `assets/`.
 
-El módulo WASM se carga de forma asíncrona una sola vez, en un servicio con
-`providedIn: 'root'`:
+**Premisa corregida en la Fase 5: el servicio quedó SÍNCRONO.** Este archivo bocetaba métodos
+`async` con un `await this.ready()` por llamada. Se construyó al revés, y conviene entender por
+qué antes de "arreglarlo": el módulo se inicializa **una sola vez al arrancar**, en un app
+initializer, y después las nueve funciones se reexportan tal cual. Un `await` por método habría
+vuelto `async` a las cuatro pantallas sin ganar nada — el WASM ya está cargado antes de que se
+pinte la primera.
 
 ```ts
-@Injectable({ providedIn: "root" })
+@Injectable({ providedIn: 'root' })
 export class CoreFinancieroService {
-  private core?: typeof import("@banco/core-financiero");
+  add = add;
+  subtract = subtract;
+  // … las nueve, reexportadas sin envolver
+  coreVersion = coreVersion;
+}
 
-  private async ready() {
-    if (!this.core) this.core = await import("@banco/core-financiero");
-    return this.core;
-  }
-
-  async transfer(accounts: Account[], request: TransferRequest) {
-    return (await this.ready()).executeTransfer(accounts, request);
-  }
-
-  async encryptCard(number: string, keyHex: string, nonceHex: string) {
-    return (await this.ready()).encrypt(number, keyHex, nonceHex);
-  }
+/** Corre una vez, en el app initializer. Pasa BYTES, no la `Response` — ver «Configuración del build». */
+export async function loadCore(): Promise<void> {
+  const response = await fetch('core_financiero.wasm');
+  if (!response.ok) throw new Error(`… ¿Está construido @banco/core-financiero-wasm?`);
+  await initCore(await response.arrayBuffer());
 }
 ```
+
+El chequeo de `response.ok` no es paranoia: el `.wasm` se sirve desde un **symlink** a un
+artefacto gitignoreado, y en un clone limpio el server de Angular contesta el `index.html` del
+SPA con status 200. Sin ese chequeo, `initCore` recibiría HTML y fallaría con un error opaco de
+WebAssembly en vez de decir qué falta construir.
 
 El servicio **no traduce los nombres del core**: los reexporta. Una segunda nomenclatura en
 TypeScript es una capa que hay que mantener sincronizada a mano y que se desincroniza en la
 primera regeneración del paquete.
 
-Usa un `APP_INITIALIZER` para precargar el módulo al arranque, de modo que las
-pantallas no tengan que esperar en la primera interacción.
-
-Un detalle a confirmar en la Fase 4, cuando el paquete exista: **un módulo WASM suele
-exigir una inicialización explícita** (un `default export` de init, o un `initSync`) antes
-de la primera llamada. Si `ubrn build web` la genera, el `APP_INITIALIZER` es el lugar donde
-va — no cada método.
+El app initializer precarga el módulo al arranque, de modo que las pantallas no esperen en la
+primera interacción. **El detalle que este archivo dejaba a confirmar quedó confirmado:** sí hace
+falta una inicialización explícita, es `initCore`, y va en el initializer — no en cada método.
 
 ## Errores
 
@@ -128,14 +134,20 @@ español NO cruzan el FFI".
 
 ## Configuración del build
 
-El `.wasm` debe servirse con MIME `application/wasm`. Con el builder de
-Angular basado en esbuild, decláralo como asset y verifica en la pestaña
-Network que no llegue como `text/html`. Este es el punto donde más tiempo se
-pierde en este proyecto.
+**Premisa corregida en la Fase 5: el MIME NO hizo falta, y el problema no se manifestó.** Este
+archivo advertía que servir el `.wasm` como `application/wasm` era «el punto donde más tiempo se
+pierde en este proyecto». No lo fue, y la razón es concreta: `loadCore` pasa **bytes**
+(`response.arrayBuffer()`) a `initCore`, y con bytes se usa `WebAssembly.compile`, que **no mira
+el `Content-Type`**. Sólo `compileStreaming` lo exige. Se pierde la compilación en streaming, que
+para 180 KB es irrelevante.
 
-Si el builder de Angular da pelea, **no quemes tiempo de demo ahí**: levanta
-la pantalla en un Vite mínimo, deja la integración Angular documentada como
-pendiente, y sigue. La POC no se juega en esto.
+O sea que esta app **no depende** de cómo el builder sirva el MIME. El `.wasm` se expone como un
+symlink en `public/`, que el builder copia como asset.
+
+Lo que sí dio pelea fue otra cosa, y quedó sin arreglar: **`ng serve` se rompe** con el
+optimizador de dependencias de Vite sobre `@banco/contract`. El workaround —`ng build` más un
+servidor estático— está en [README.md](README.md) y [PENDING.md](PENDING.md). Ahí sí aplicó la
+regla de no quemar tiempo de demo en el build.
 
 Nota sobre el pánico, que en esta app no es teoría: `wasm32-unknown-unknown` impone
 `panic = "abort"`, así que **acá no existe la red del `catch_unwind` de uniffi** que sí
@@ -146,14 +158,24 @@ instancia del módulo inutilizable y obliga a recargar la página. Ver
 
 ## Estructura
 
+**Premisa corregida en la Fase 5: las carpetas van en INGLÉS.** Este archivo las listaba en
+español (`aritmetica/`, `transferencia/`, `tarjeta/`), contra la regla de identificadores del
+[CLAUDE.md](../../CLAUDE.md) — todo identificador en inglés, en las cinco bases de código. Lo
+construido, que es lo que manda:
+
+```
 src/app/
-├── core/core-financiero.service.ts    único punto de contacto con el WASM
+├── core/core-financiero.service.ts    único punto de contacto con el WASM (SÍNCRONO)
+├── core/user-message.ts               DomainError → texto de usuario, en el borde de UI
+├── contract/sources.ts
 ├── format/money.pipe.ts
+├── ui/                                7 componentes compartidos por las cuatro pantallas
 └── features/
-    ├── aritmetica/
-    ├── transferencia/
-    ├── tarjeta/
+    ├── arithmetic/
+    ├── transfer/
+    ├── card/
     └── benchmark/          incluye baseline.ts, la implementación en `number` que diverge
+```
 
 `validateCci` y `calculateItf` no tienen pantalla propia entre las cinco de la demo: hoy
 las consume el spec del test de contrato. Este CONTEXT listaba además un feature `validador-cci/` que
