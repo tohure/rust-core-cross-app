@@ -11,16 +11,7 @@
       [hidden]="activeTab() !== 'arithmetic'"
       data-testid="screen-arithmetic"
     >
-      <app-screen-header title="Aritmética" subtitle="El float rompe el dinero" />
-      <p class="app-shell__placeholder-note">
-        Pantalla pendiente de implementar (Tarea 10). Este campo es sólo la prueba de que el
-        estado de la pestaña sobrevive al cambio de pestaña.
-      </p>
-      <app-labeled-field
-        label="Borrador"
-        [(value)]="arithmeticDraft"
-        placeholder="Prueba de estado"
-      />
+      <app-arithmetic-screen />
     </section>
 
     <section
