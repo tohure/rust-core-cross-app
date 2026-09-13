@@ -2,11 +2,32 @@ import { TestBed } from '@angular/core/testing';
 import { CoreFinancieroService } from '../../core/core-financiero.service';
 import { BenchmarkScreen } from './benchmark-screen';
 
-// Una medida real: dos o más dígitos con exactamente dos decimales y el sufijo ` µs`. El estado
-// arranca en «—», así que «distinto de vacío» pasaría sin haber medido nada — hay que exigir la
-// FORMA real de una medida.
+// Fix round 1 (review de la Tarea 13): esta suite NO mockea `performance.now()` ni el módulo
+// `./baseline` (`nativeFloat`). Se intentó primero un reloj determinístico con `vi.mock('./
+// baseline', ...)`, pero el runner de Angular lo bloquea explícitamente para imports relativos
+// ("Please use Angular TestBed for mocking dependencies") — y `nativeFloat` no es inyectable a
+// propósito: es una función pura sin estado, se importa directo (ver su propio comentario en
+// `baseline.ts`). La suite corre entonces con el reloj REAL de Node/jsdom, que a diferencia de
+// un tab de Chrome no está cuantizado por la mitigación anti-Spectre: la calibración converge en
+// milisegundos (de decenas a pocos cientos de miles de llamadas, nunca cerca del tope
+// `MAX_BATCH_SIZE`), así que alcanza con aserciones de formato/cantidad — no de valor exacto.
+//
+// **Trampa real que se pisó escribiendo esto, y por eso queda anotada:** `vi.useFakeTimers()`
+// SIN argumentos también fakea `performance.now()` (es parte de la lista por defecto de
+// `@sinonjs/fake-timers`), así que los tests que necesitan medir de verdad piden explícitamente
+// `{ toFake: ['setTimeout', 'clearTimeout'] }` — de lo contrario `elapsedMs` da siempre 0, la
+// calibración nunca converge, y cada test tarda ~8 s corriendo al tope de `MAX_BATCH_SIZE` en
+// vez de los milisegundos que le tomaría con el reloj real.
 const MEDIDA = /^\d+\.\d{2} µs$/;
 const SIN_MEDIR = '—';
+
+// Espejo de las constantes privadas de `benchmark-screen.ts` (`WARMUP_BATCHES` y
+// `SAMPLE_COUNT`): documentadas acá para poder afirmar una COTA INFERIOR de cuántas veces se
+// llama a `f`, sin depender del tiempo real que tarde cada llamada. Si cambian allá, este
+// número hay que actualizarlo acá.
+const WARMUP_BATCHES = 5;
+const SAMPLE_COUNT = 30;
+const MIN_BATCHES_PER_MEASURE = 1 /* el lote de calibración que sí llega a durar 1 ms */ + WARMUP_BATCHES + SAMPLE_COUNT;
 
 // Mismo patrón que las otras tres pantallas: se sustituye `CoreFinancieroService` por un doble
 // para probar la PANTALLA (qué llama, cuántas veces, qué guarda), no el WASM real — eso ya lo
@@ -97,7 +118,11 @@ describe('BenchmarkScreen', () => {
   });
 
   it('con iteraciones válidas, las cuatro medidas matchean el formato real de una medida', async () => {
-    vi.useFakeTimers();
+    // `toFake` explícito SIN 'performance': el default de @sinonjs/fake-timers SÍ lo
+    // fakea, y congelar `performance.now()` habría dejado todo `elapsedMs` en 0, forzando
+    // el tope de MAX_BATCH_SIZE en cada corrida (~140 millones de llamadas) — así se
+    // encontró este bug: los tests tardaban ~8 s cada uno en vez de milisegundos.
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
     TestBed.configureTestingModule({
       imports: [BenchmarkScreen],
       providers: [{ provide: CoreFinancieroService, useValue: fakeCore() }],
@@ -106,6 +131,9 @@ describe('BenchmarkScreen', () => {
     fixture.detectChanges();
     const root = fixture.nativeElement as HTMLElement;
 
+    // Chico a propósito: sólo hace falta que la calibración tenga margen para duplicar hasta
+    // pasar el piso de 1 ms de lote — el valor exacto no importa, el reloj es real (Node/jsdom,
+    // sin la cuantización de un tab de Chrome real).
     type(root, 'iterations', '10');
     clickRun(root);
     fixture.detectChanges();
@@ -119,9 +147,14 @@ describe('BenchmarkScreen', () => {
     expect(runButton(root).disabled).toBe(false);
   });
 
-  it('llama al core una vez por iteración, no una sola vez', async () => {
+  it('llama al core muchas veces por lote, no una sola vez total', async () => {
     let llamadas = 0;
-    vi.useFakeTimers();
+    const n = 10;
+    // `toFake` explícito SIN 'performance': el default de @sinonjs/fake-timers SÍ lo
+    // fakea, y congelar `performance.now()` habría dejado todo `elapsedMs` en 0, forzando
+    // el tope de MAX_BATCH_SIZE en cada corrida (~140 millones de llamadas) — así se
+    // encontró este bug: los tests tardaban ~8 s cada uno en vez de milisegundos.
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
     TestBed.configureTestingModule({
       imports: [BenchmarkScreen],
       providers: [
@@ -140,17 +173,37 @@ describe('BenchmarkScreen', () => {
     fixture.detectChanges();
     const root = fixture.nativeElement as HTMLElement;
 
-    type(root, 'iterations', '25');
+    type(root, 'iterations', String(n));
     clickRun(root);
     fixture.detectChanges();
     vi.runAllTimers();
     fixture.detectChanges();
 
-    expect(llamadas).toBe(25);
+    // No se puede predecir el número EXACTO sin fijar el reloj (bloqueado por el runner de
+    // Angular, ver el comentario de arriba), pero sí dos propiedades que alcanzan para probar
+    // que el core se llama de verdad, muchas veces, y no una sola:
+    //   1. El total es un múltiplo exacto de `n`: el tamaño de lote calibrado (`k`) sólo se
+    //      obtiene duplicando `n` (`n * 2^r`), nunca es un valor arbitrario — invariante
+    //      estructural del algoritmo, independiente de cuánto haya tardado cada llamada.
+    //   2. El total es al menos `n * (1 + WARMUP_BATCHES + SAMPLE_COUNT)`: como `k >= n`
+    //      siempre, y se corren ese lote de calibración más `WARMUP_BATCHES` de descarte más
+    //      `SAMPLE_COUNT` de muestra, ésa es la cota inferior aunque la calibración no haya
+    //      necesitado duplicar ni una vez.
+    expect(llamadas % n).toBe(0);
+    expect(llamadas).toBeGreaterThanOrEqual(n * MIN_BATCHES_PER_MEASURE);
+    // Y la prueba directa de lo que este guard existe para atrapar: no es 1 (cachear el
+    // resultado de una sola llamada y reusarlo) ni es igual a `n` (el significado viejo,
+    // pre-fix, de "una llamada por iteración total").
+    expect(llamadas).not.toBe(1);
+    expect(llamadas).not.toBe(n);
   });
 
   it('un error del core se muestra con userMessage, no como [object Object]', async () => {
-    vi.useFakeTimers();
+    // `toFake` explícito SIN 'performance': el default de @sinonjs/fake-timers SÍ lo
+    // fakea, y congelar `performance.now()` habría dejado todo `elapsedMs` en 0, forzando
+    // el tope de MAX_BATCH_SIZE en cada corrida (~140 millones de llamadas) — así se
+    // encontró este bug: los tests tardaban ~8 s cada uno en vez de milisegundos.
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
     TestBed.configureTestingModule({
       imports: [BenchmarkScreen],
       providers: [
@@ -180,7 +233,11 @@ describe('BenchmarkScreen', () => {
 
   it('una corrida que falla borra las medidas de la anterior', async () => {
     let falla = false;
-    vi.useFakeTimers();
+    // `toFake` explícito SIN 'performance': el default de @sinonjs/fake-timers SÍ lo
+    // fakea, y congelar `performance.now()` habría dejado todo `elapsedMs` en 0, forzando
+    // el tope de MAX_BATCH_SIZE en cada corrida (~140 millones de llamadas) — así se
+    // encontró este bug: los tests tardaban ~8 s cada uno en vez de milisegundos.
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
     TestBed.configureTestingModule({
       imports: [BenchmarkScreen],
       providers: [
@@ -199,7 +256,7 @@ describe('BenchmarkScreen', () => {
     fixture.detectChanges();
     const root = fixture.nativeElement as HTMLElement;
 
-    type(root, 'iterations', '5');
+    type(root, 'iterations', '10');
     clickRun(root);
     fixture.detectChanges();
     vi.runAllTimers();
