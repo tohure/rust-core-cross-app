@@ -46,16 +46,6 @@
   display: none;
 }
 
-.app-shell__placeholder-note {
-  margin: 0;
-  padding: 0.5rem 0.75rem;
-  border: 1px dashed var(--color-border);
-  border-radius: 6px;
-  font-size: 0.8125rem;
-  font-style: italic;
-  color: var(--color-muted);
-}
-
 .app-shell__tabs {
   display: flex;
   border-top: 1px solid var(--color-border);

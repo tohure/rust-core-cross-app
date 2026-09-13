@@ -3,8 +3,7 @@ import { CoreFinancieroService } from './core/core-financiero.service';
 import { ArithmeticScreen } from './features/arithmetic/arithmetic-screen';
 import { TransferScreen } from './features/transfer/transfer-screen';
 import { CardScreen } from './features/card/card-screen';
-import { ScreenHeader } from './ui/screen-header/screen-header';
-import { LabeledField } from './ui/labeled-field/labeled-field';
+import { BenchmarkScreen } from './features/benchmark/benchmark-screen';
 import { CoreVersionFooter } from './ui/core-version-footer/core-version-footer';
 
 /** Una de las cuatro pestañas de navegación. Sin librería de router: son cuatro pestañas fijas,
@@ -35,12 +34,12 @@ interface TabDef {
  *
  * Las Tareas 10-13 reemplazan el contenido de marcador de cada `<section>` por la pantalla real
  * (`ArithmeticScreen`, etc.); lo que no cambia es que sigan siendo hijas siempre-montadas de
- * este shell, ocultas con `[hidden]`. Las Tareas 10, 11 y 12 ya reemplazaron Aritmética,
- * Transferencia y Tarjeta; sólo Benchmark (Tarea 13) sigue con el marcador.
+ * este shell, ocultas con `[hidden]`. Las cuatro pantallas ya están reemplazadas: Aritmética,
+ * Transferencia y Tarjeta en las Tareas 10-12, Benchmark en la Tarea 13.
  */
 @Component({
   selector: 'app-root',
-  imports: [ArithmeticScreen, TransferScreen, CardScreen, ScreenHeader, LabeledField, CoreVersionFooter],
+  imports: [ArithmeticScreen, TransferScreen, CardScreen, BenchmarkScreen, CoreVersionFooter],
   templateUrl: './app.html',
   styleUrl: './app.css',
 })
@@ -61,12 +60,6 @@ export class App {
   // no como signal porque el string no cambia durante la vida de la app: coreVersion() es
   // constante para un mismo build.
   protected readonly version: string = this.core.coreVersion();
-
-  // Marcador de estado de Benchmark, la única pantalla que falta — placeholder de la Tarea 9.
-  // La Tarea 13 lo reemplaza por el estado real. Lo que hay que conservar es que la pantalla
-  // siga siendo un hijo siempre-montado del shell: es la prueba de que un signal de pantalla
-  // sobrevive al cambio de pestaña con [hidden].
-  protected readonly benchmarkDraft = signal('');
 
   selectTab(key: TabKey): void {
     this.activeTab.set(key);

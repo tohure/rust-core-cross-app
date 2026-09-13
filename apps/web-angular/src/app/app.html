@@ -35,16 +35,7 @@
       [hidden]="activeTab() !== 'benchmark'"
       data-testid="screen-benchmark"
     >
-      <app-screen-header title="Benchmark" subtitle="Core vs. implementación nativa" />
-      <p class="app-shell__placeholder-note">
-        Pantalla pendiente de implementar (Tarea 13). Este campo es sólo la prueba de que el
-        estado de la pestaña sobrevive al cambio de pestaña.
-      </p>
-      <app-labeled-field
-        label="Borrador"
-        [(value)]="benchmarkDraft"
-        placeholder="Prueba de estado"
-      />
+      <app-benchmark-screen />
     </section>
   </div>
 
