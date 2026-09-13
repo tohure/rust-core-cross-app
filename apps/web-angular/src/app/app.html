@@ -27,12 +27,7 @@
       [hidden]="activeTab() !== 'card'"
       data-testid="screen-card"
     >
-      <app-screen-header title="Tarjeta" subtitle="Luhn y cifrado ChaCha20-Poly1305" />
-      <p class="app-shell__placeholder-note">
-        Pantalla pendiente de implementar (Tarea 12). Este campo es sólo la prueba de que el
-        estado de la pestaña sobrevive al cambio de pestaña.
-      </p>
-      <app-labeled-field label="Borrador" [(value)]="cardDraft" placeholder="Prueba de estado" />
+      <app-card-screen />
     </section>
 
     <section
