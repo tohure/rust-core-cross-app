@@ -10,7 +10,8 @@ export * from './bindings';
 export { default } from './bindings';
 
 // `contractName` no viene de `ubrn`: traduce las variantes de `DomainError` a los nombres en
-// español que usa `contracts/cases.json`, un mapeo que no cruza el FFI. Vive en la librería
-// porque la consumen el test de contrato y la app, y escribir dos copias es justo lo que la
-// spec prohíbe.
-export { contractName } from './contractName';
+// español del contrato, un mapeo que no cruza el FFI. Vive en `@banco/contract` porque lo
+// necesitan también el paquete WASM y Angular; acá se reexporta para no romper a quien ya lo
+// importaba de este paquete.
+export { contractName } from '@banco/contract';
+import './guard';

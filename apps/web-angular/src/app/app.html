@@ -1,0 +1,57 @@
+<div class="app-shell">
+  <div class="app-shell__content">
+    <!--
+      Las CUATRO pantallas están SIEMPRE en el DOM. Se oculta la inactiva con [hidden]
+      (display: none), nunca con @if/*ngIf -- eso las desmontaría y con ellas su estado.
+      Ver el comentario de app.ts y el test "cambiar de pestaña oculta ... no las desmonta"
+      de app.spec.ts.
+    -->
+    <section
+      class="app-shell__screen"
+      [hidden]="activeTab() !== 'arithmetic'"
+      data-testid="screen-arithmetic"
+    >
+      <app-arithmetic-screen />
+    </section>
+
+    <section
+      class="app-shell__screen"
+      [hidden]="activeTab() !== 'transfer'"
+      data-testid="screen-transfer"
+    >
+      <app-transfer-screen />
+    </section>
+
+    <section class="app-shell__screen" [hidden]="activeTab() !== 'card'" data-testid="screen-card">
+      <app-card-screen />
+    </section>
+
+    <section
+      class="app-shell__screen"
+      [hidden]="activeTab() !== 'benchmark'"
+      data-testid="screen-benchmark"
+    >
+      <app-benchmark-screen />
+    </section>
+  </div>
+
+  <!-- El pie va en LAS CUATRO pantallas: está fuera de las secciones [hidden], así que
+       ninguna de las cuatro lo tapa. Recibe `version` COMO INPUT (ver core-version-footer.ts):
+       este componente (`App`) es el único que llama a `coreVersion()`. -->
+  <app-core-version-footer [version]="version" />
+
+  <nav class="app-shell__tabs">
+    @for (tab of tabs; track tab.key) {
+      <button
+        type="button"
+        class="app-shell__tab"
+        [class.app-shell__tab--active]="activeTab() === tab.key"
+        [attr.aria-current]="activeTab() === tab.key ? 'true' : null"
+        [attr.data-testid]="'tab-' + tab.key"
+        (click)="selectTab(tab.key)"
+      >
+        {{ tab.label }}
+      </button>
+    }
+  </nav>
+</div>

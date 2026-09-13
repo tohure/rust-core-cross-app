@@ -99,12 +99,19 @@ su salida es neutral respecto del entorno: el mismo bundle sirve para Node, nave
 Native. Requisitos que `ubrn build wasm2` valida por adelantado: que el crate produzca `cdylib`,
 que enlace `uniffi-runtime-wasm`, y que declare `uniffi_core` con el feature `single-threaded`.
 
+**El `2` es la generación del backend de codegen de `ubrn`, no una versión del estándar.** No
+existe un «WebAssembly 2» que haya que alcanzar; el flavour anterior se llama `wasm` a secas,
+generaba un crate shim y sigue visible bajo `ubrn generate` aunque ya no bajo `ubrn build`.
+Tampoco tiene relación [wasm3](https://github.com/wasm3/wasm3), que es un intérprete de
+WebAssembly en C para embebidos —otra categoría de herramienta, no una versión más nueva de
+ésta—.
+
 Scripts en `package.json`:
 
     "ubrn:android": "ubrn build android --release --and-generate",
     "ubrn:ios": "ubrn build ios --release --and-generate && (cd example/ios && pod install)",
-    "wasm:generate": "ubrn build wasm2 --release --and-generate --config ubrn.wasm.yaml && …",
-    "ubrn:clean": "rm -rf cpp/ src/generated src/generated-napi src/generated-wasm src/bindings.tsx"
+    "wasm:generate": "ubrn build wasm2 --release --and-generate --config ubrn.wasm.yaml && … && pnpm --filter @banco/core-financiero-wasm run build",
+    "ubrn:clean": "rm -rf cpp/ src/generated src/generated-napi src/bindings.tsx ../../packages/core-financiero-wasm/generated ../../packages/core-financiero-wasm/dist"
 
 El de WASM **necesita su propio `--config`**: sin él, `ubrn` escribe los bindings de wasm2
 dentro de `src/generated/` y pisa los del turbo module JSI. Antes se llamaba `ubrn:wasm` y no
@@ -131,7 +138,6 @@ frontera que la Fase 5 necesita: Angular consume un paquete instalable, no una a
     ├── src/
     │   ├── generated/            bindings JSI · NO EDITAR
     │   ├── generated-napi/       bindings N-API · NO EDITAR
-    │   ├── generated-wasm/       bindings wasm2 + .wasm · NO EDITAR
     │   ├── bindings.tsx          entrypoint de ubrn · NO EDITAR
     │   └── index.tsx             superficie pública: reexporta bindings.tsx
     ├── __tests__/                contrato N-API · contrato WASM · guardias
@@ -143,9 +149,15 @@ frontera que la Fase 5 necesita: Angular consume un paquete instalable, no una a
             ├── screens/          arithmetic · transfer · card · benchmark
             └── benchmark/        NativeBaseline.ts
 
-**Son tres directorios generados y no uno**, porque son tres flavours del mismo core. Mezclarlos
-sería el modo de fallar más caro de esta fase: un test en verde contra bindings que no son los
-que la app embarca.
+    packages/core-financiero-wasm/  el paquete WASM (Fase 5, Task 4), dueño del tercer flavour
+    ├── generated/                bindings wasm2 + .wasm · NO EDITAR
+    ├── dist/                     bundle de esbuild — lo consume Angular y este test de contrato
+    └── src/index.ts, guard.ts    fachada tipada + guardia 4, a mano
+
+**Son tres flavours generados del mismo core, no uno**, y desde la Task 4 ya no viven los tres
+bajo esta app: JSI y N-API sí, wasm2 vive en `packages/core-financiero-wasm/`, que es su dueño
+porque también lo consume Angular. Mezclarlos sería el modo de fallar más caro de esta fase: un
+test en verde contra bindings que no son los que la app embarca.
 
 `example/` **nunca importa uniffi**: importa el paquete. Ése es el mismo desacople que la
 evaluación técnica de Android pide para `:app` frente a `:core-financiero`, conseguido por

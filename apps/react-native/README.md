@@ -46,17 +46,26 @@ flowchart TD
 
     ffi -->|"pnpm ubrn:android / ubrn:ios"| jsi["src/generated/ + cpp/<br/>turbo module JSI"]
     ffi -->|"pnpm napi:generate"| napi["src/generated-napi/<br/>cdylib + N-API"]
-    ffi -->|"pnpm wasm:generate"| wasm["src/generated-wasm/<br/>.wasm"]
+    ffi -->|"pnpm wasm:generate"| wasmgen["packages/core-financiero-wasm/generated/<br/>.wasm + bindings, @ts-nocheck"]
 
     jsi --> bindings["src/bindings.tsx<br/>generado, no se edita"]
-    bindings --> index["src/index.tsx<br/>superficie pública + contractName"]
+    bindings --> index["src/index.tsx<br/>superficie pública<br/>reexporta bindings + contractName"]
     index --> adapter["example/src/adapter/core.ts<br/>reexporta, no traduce"]
     adapter --> hooks["useArithmetic · useTransfer<br/>useCard · useBenchmark"]
     hooks --> screens["cuatro pantallas<br/>+ pie coreVersion()"]
 
+    wasmgen --> wasmfacade["packages/core-financiero-wasm/src/index.ts<br/>fachada tipada · nueve funciones + initCore"]
+
     napi --> tnapi["__tests__/contract.napi.test.ts<br/>28/28"]
-    wasm --> twasm["__tests__/contract.wasm.test.ts<br/>28/28"]
-    wasm -.->|"Fase 5"| angular["apps/web-angular"]
+    wasmfacade --> twasm["__tests__/contract.wasm.test.ts<br/>28/28"]
+    wasmfacade -.->|"esbuild --bundle · dist/index.js"| angular["apps/web-angular"]
+
+    contratoPkg[("packages/contract<br/>CONTRACT_NAMES · contractName · messageFor")]
+    contratoPkg -->|"export { contractName }"| index
+    contratoPkg -->|"export { messageFor }"| fuentes
+    bindings -.->|"import type DomainError"| guard["src/guard.ts<br/>guardia 4 · sólo tipos, nada en runtime"]
+    contratoPkg -.->|"import type ContractTag"| guard
+    guard -.->|"DomainError['tag'] ≡ ContractTag"| index
 
     contrato[("contracts/<br/>cases.json · messages.es.json")]
     contrato --> fuentes["example/src/contract/sources.ts"]
@@ -72,10 +81,11 @@ flowchart TD
 | `crates/domain` | La lógica: decimales, ITF, Luhn, ChaCha20-Poly1305 | Rust puro, sin uniffi. Un `#[uniffi::export]` ahí **no compila**: la frontera la sostiene el compilador |
 | `crates/ffi` | Las nueve funciones públicas | La única superficie que cruza a TypeScript |
 | `src/bindings.tsx` | Entrypoint que genera `ubrn` | Registra el crate con Hermes. **Se reescribe entero en cada `--and-generate`**: no se edita |
-| `src/index.tsx` | La superficie pública del paquete | Reexporta `bindings` y le suma `contractName`, que es nuestro |
-| `src/contractName.ts` | Variante de `DomainError` → nombre del contrato | Ese mapeo **no cruza el FFI**. Vive en la librería porque lo usan el test de contrato y la app |
+| `src/index.tsx` | La superficie pública del paquete | Reexporta `bindings` y `contractName`, que ahora vive en `@banco/contract` y no acá |
+| `packages/contract` | `CONTRACT_NAMES`/`contractName`/`messageFor`: variante de `DomainError` → nombre del contrato → mensaje de usuario | Ese mapeo **no cruza el FFI**. Vive en un paquete neutral (fuera de `apps/react-native`) porque lo necesitan también el paquete WASM y Angular — dos copias se desincronizan |
+| `src/guard.ts` | La guardia 4: aserta `DomainError['tag'] ≡ ContractTag` | La tabla vive en un paquete que no puede depender de ningún flavour generado; la equivalencia contra el tipo real se aserta acá. No exporta nada en runtime, existe sólo para que `tsc` lo mire — ver [TESTING.md](TESTING.md#guardia-4-ya-no-la-sostiene-un-satisfies-local-la-sostiene-srcguardts) |
 | `example/src/adapter/core.ts` | Reexporta las nueve funciones | **No traduce nombres ni tipos**: una segunda nomenclatura se desincroniza en la primera regeneración |
-| `example/src/contract/sources.ts` | Lee `cases.json` y `messages.es.json` | Las cuentas, la clave y el nonce son **datos del contrato**, no constantes de la app |
+| `example/src/contract/sources.ts` | Lee `cases.json` y reexporta `messageFor` de `@banco/contract` | Las cuentas, la clave y el nonce son **datos del contrato**, no constantes de la app; `messageFor` ya no se reimplementa acá, era una copia exacta |
 | `example/src/format/money.ts` | `S/` y separadores, **sobre el string** | Nunca convierte a `number`. Escrito a mano y no con `Intl`: ver [PENDING.md](PENDING.md#intlnumberformat-y-por-qué-el-formateador-está-escrito-a-mano) |
 | `__benchmarks__/baseline.ts` | Aritmética IEEE-754 sobre montos | **La excepción**, y existe para exhibir el fallo. Su test comprueba que diverge del contrato |
 

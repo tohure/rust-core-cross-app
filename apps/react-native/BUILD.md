@@ -210,8 +210,8 @@ esa tarea defina cómo queda la configuración de `ubrn.config.yaml` para eso.
 ```json
 "ubrn:android": "ubrn build android --release --and-generate",
 "ubrn:ios": "ubrn build ios --release --and-generate && (cd example/ios && pod install)",
-"wasm:generate": "ubrn build wasm2 --release --and-generate --config ubrn.wasm.yaml && …",
-"ubrn:clean": "rm -rf cpp/ src/generated src/generated-napi src/generated-wasm src/bindings.tsx"
+"wasm:generate": "ubrn build wasm2 --release --and-generate --config ubrn.wasm.yaml && … && pnpm --filter @banco/core-financiero-wasm run build",
+"ubrn:clean": "rm -rf cpp/ src/generated src/generated-napi src/bindings.tsx ../../packages/core-financiero-wasm/generated ../../packages/core-financiero-wasm/dist"
 ```
 
 **Había un quinto script, `ubrn:wasm`, y se eliminó porque era destructivo.** Corría
@@ -219,8 +219,9 @@ esa tarea defina cómo queda la configuración de `ubrn.config.yaml` para eso.
 bindings de WASM dentro de `src/generated/` y **pisaba los del turbo module JSI**: el build de
 la app quedaba roto y el síntoma aparecía lejos del comando que lo causó. Se había agregado
 desde el `CONTEXT` antes de que el spike de la Task 13 descubriera el problema, y nunca llegó a
-correrse. El camino del WASM es **`wasm:generate`, y es el único**; además inyecta el
-`@ts-nocheck` que el `index.ts` de wasm2 necesita para que `tsc` pase. Ver
+correrse. El camino del WASM es **`wasm:generate`, y es el único**; inyecta el `@ts-nocheck` que
+el `index.ts` de wasm2 necesita para que `tsc` pase, y —desde la Task 4 de la Fase 5— encadena el
+build de esbuild de `packages/core-financiero-wasm`, dueño del artefacto desde entonces. Ver
 [PENDING.md](PENDING.md).
 
 Los tres primeros llevan `--release` por el mismo motivo de siempre: el Benchmark es el
@@ -684,22 +685,28 @@ por qué está.
 
 ## Construir el WASM
 
-El artefacto que consumirá Angular en la Fase 5.
+El artefacto que consume `packages/core-financiero-wasm` (Fase 5, Task 4) y que consumirá
+Angular. Desde la Task 4, `ubrn build wasm2` **ya no escribe en esta app**: escribe en el paquete,
+que es su dueño. Correr el script, no el comando de `ubrn` suelto — el script hace dos cosas más
+que la invocación cruda no hace:
 
 ```bash
 cd apps/react-native
 export PATH="$HOME/.cargo/bin:$PATH"
 rustup target add wasm32-unknown-unknown          # la primera vez
-pnpm exec ubrn build wasm2 --release --and-generate --config ubrn.wasm.yaml
+pnpm run wasm:generate
 ```
 
-Qué se debe ver en `src/generated-wasm/`: los `.ts` generados y un `core_financiero.wasm` de
-**178 KB** en release.
+Qué se debe ver en `packages/core-financiero-wasm/generated/`: los `.ts` generados y un
+`core_financiero.wasm` de **178 KB** en release. Y en `packages/core-financiero-wasm/dist/`:
+`index.js`, el bundle de esbuild — `wasm:generate` lo encadena al final (`pnpm --filter
+@banco/core-financiero-wasm run build`) para que regenerar no deje el bundle viejo sirviendo al
+test de contrato ni a Angular.
 
 **El `--config ubrn.wasm.yaml` no es opcional.** Todos los flavours de `ubrn` escriben en el
 directorio que diga `bindings.ts`, así que correrlo con `ubrn.config.yaml` **pisa los bindings JSI**
 de `src/generated/`: el build de la app queda roto y el síntoma aparece lejos del comando que lo
-causó. Ese archivo existe sólo para apuntar a `src/generated-wasm`.
+causó. Ese archivo existe sólo para apuntar a `packages/core-financiero-wasm/generated`.
 
 **Y el `.wasm` que sirve es el que `--and-generate` *stagea*,** no el que deja cargo en
 `rust-core/target/wasm32-unknown-unknown/`. El de cargo es la salida cruda y le faltan los símbolos

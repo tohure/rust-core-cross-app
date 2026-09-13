@@ -152,6 +152,13 @@ El artefacto va a estar construido y probado, pero **sin la puerta por la que la
 buscarlo**. Corresponde resolverlo en el Bloque 3, cuando `src/generated-wasm/` exista y se sepa a
 qué archivo apuntar.
 
+**Resuelto, pero no como se preveía acá.** La Task 4 de la Fase 5 no le agregó una condición
+`"web"` al `exports` de `@banco/core-financiero`: el WASM pasó a vivir en un paquete propio,
+`packages/core-financiero-wasm`, con su propia fachada tipada y su propio `exports`. Angular (y el
+test de contrato por WASM) importan ese paquete directamente, nunca `@banco/core-financiero` — así
+que el hueco que describe este apartado no llegó a abrirse: no había una puerta que tapar, porque
+la puerta de esta app nunca fue la que la Fase 5 termina usando.
+
 ## `Intl.NumberFormat` y por qué el formateador está escrito a mano
 
 El plan asumía que había que escribirlo a mano porque **Hermes no garantiza** pasar un string a
@@ -331,9 +338,9 @@ correr nunca**, por tres razones independientes:
 2. Aun reubicado, `actions/setup/action.yml` corría `yarn install --immutable` y cacheaba por
    `hashFiles('yarn.lock')`. Este repo usa **pnpm**: no existe ningún `yarn.lock`.
 3. El job de test corría `yarn test`, pero el proyecto `napi` de Jest necesita
-   `src/generated-napi/` y `src/generated-wasm/`, que están **gitignorados** y los produce
-   `napi:generate` / `wasm:generate` — que a su vez necesitan Rust instalado. Ningún paso hacía
-   nada de eso.
+   `src/generated-napi/` y `packages/core-financiero-wasm/generated/`, que están **gitignorados**
+   y los produce `napi:generate` / `wasm:generate` — que a su vez necesitan Rust instalado.
+   Ningún paso hacía nada de eso.
 
 Un verde de esa CI no habría significado nada, y un rojo tampoco. Se eliminó entero en vez de
 dejarlo simulando cobertura.
@@ -343,3 +350,31 @@ mínimo: instalar Rust con los targets, instalar pnpm, correr `napi:generate` y 
 antes de `pnpm test`, y correr también `cargo test --workspace`. Los tests instrumentados de
 Android y los de iOS necesitan además emulador/simulador en el runner. **Nada de eso cruza JSI
 igual**, así que el smoke manual seguiría siendo obligatorio antes de una demo.
+
+## `packages/contract` tiene que declarar `@babel/runtime`, y ningún test lo caza
+
+Encontrado al cerrar la Fase 5, corriendo la app en el emulador para comparar el pie de
+`coreVersion()` entre las cuatro. La app arrancaba en **pantalla roja**:
+
+```
+Unable to resolve module @babel/runtime/helpers/interopRequireDefault
+from packages/contract/src/messageFor.ts
+```
+
+**Causa.** La Fase 5 sacó el mapeo del contrato a `packages/contract` y esta app pasó a
+consumirlo (`example/src/contract/sources.ts` reexporta `messageFor` desde ahí). Metro transpila
+ese TypeScript con Babel, que inyecta `interopRequireDefault`, y **resuelve los helpers relativo
+al archivo que transpila** — o sea desde `packages/contract/`, no desde el `example/`. Bajo el
+`node_modules` estricto de pnpm ese paquete sólo veía `typescript` y `@types/node`. Verificado a
+mano: `require.resolve('@babel/runtime/helpers/interopRequireDefault')` resolvía desde
+`apps/react-native/example` y **no** desde `packages/contract`.
+
+**Arreglo:** `@babel/runtime` como dependencia de `packages/contract`. Cualquier paquete del
+workspace cuyo **código fuente** consuma esta app tiene que declararlo; no alcanza con que lo
+tenga el consumidor.
+
+**Por qué ningún test lo agarró, que es lo que importa.** Jest resuelve módulos distinto que
+Metro y los 120 tests seguían en verde con la app rota. Es el mismo patrón que el
+`collapsable={false}` de Fabric: **el aparato encuentra lo que el runner no puede**. Esta app no
+tiene corredor de tests en dispositivo, así que la única red es el smoke manual — y esta vez
+saltó recién al montar la demo de las cuatro apps, semanas después del cambio que lo introdujo.

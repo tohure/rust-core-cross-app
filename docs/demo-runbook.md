@@ -7,8 +7,8 @@ La evidencia no es que las apps "funcionen". Es que producen **los mismos string
 carácter**, sobre el mismo set de casos — y que ninguna de ellas contiene una sola línea de esa
 lógica.
 
-**Estado:** hoy existen **dos** apps, Android e iOS. Cuando existan React Native y Angular, este
-archivo se extiende; la estructura ya contempla cuatro columnas.
+**Estado:** existen **las cuatro** — Android, iOS, React Native y Angular. Es la primera vez que
+se pueden poner las cuatro pantallas lado a lado, que es la demo que la POC se propuso.
 
 ---
 
@@ -28,8 +28,8 @@ Vale la pena decirlo antes de tocar nada, porque si no la audiencia ve cuatro ca
 artefacto congela el SHA del commit con el que se construyó. Si alguien regeneró una sola app
 después de tocar `rust-core`, los pies no coinciden y la comparación deja de valer.
 
-Hoy son **tres**: Android, iOS y React Native —y ésta cuenta doble, porque se muestra en Android
-y en iOS—. Angular llega en la Fase 5.
+Hoy son **cuatro**: Android, iOS, React Native —que cuenta doble, porque se muestra en Android y
+en iOS— y Angular en el navegador.
 
 1. Abrir cada app.
 2. Mirar **el pie de cualquier pantalla** — está en las cuatro pantallas, no en una "Acerca de".
@@ -59,6 +59,16 @@ procedimiento por plataforma está en [`../rust-core/BUILD.md`](../rust-core/BUI
 | Android | `./gradlew :app:installDebug` desde `apps/android/` | [apps/android/README.md](../apps/android/README.md) |
 | iOS | `open ios-rust-test.xcodeproj` desde `apps/ios/` y ⌘R | [apps/ios/README.md](../apps/ios/README.md) |
 | React Native | `pnpm exec react-native start --reset-cache` y después `run-android` / `run-ios`, desde `apps/react-native/example/` | [apps/react-native/README.md](../apps/react-native/README.md) |
+| Angular | **`ng serve` NO funciona.** `pnpm exec ng build --configuration development` desde `apps/web-angular/`, después `python3 -m http.server 4311` dentro de `dist/web-angular/browser/` | [apps/web-angular/README.md](../apps/web-angular/README.md) |
+
+**Angular necesita el `.wasm` construido, y no está en git.** Si nunca se corrió
+`pnpm wasm:generate` desde `apps/react-native/` en este clone, la app arranca y falla en el
+arranque diciendo exactamente qué falta. Construirlo **antes** de la demo: es un build de release
+de Rust, no tarda dos segundos.
+
+Y `ng serve` está roto de verdad —el optimizador de dependencias de Vite se rompe con
+`@banco/contract`—, así que no se intenta en vivo: se levanta con el servidor estático de arriba,
+que es como se verificó toda la fase.
 
 **React Native necesita Metro corriendo**, en su propia terminal, y **Metro muere con la
 terminal que lo lanzó**. Si la app arranca en pantalla roja diciendo `loadJSBundleFromAssets`,
@@ -190,11 +200,16 @@ cifrado reversible, no un hash** — sin esa fila, un hex no demuestra nada.
 **Copiar el hex de una app y pegarlo en otra**, en el bloque de abajo (`Descifrar un hex de
 otra plataforma`). Sale el número original.
 
-**Ahora que hay tres pantallas, el gesto gana fuerza si se hace en cadena:** cifrar en Android,
-pegar en iOS, y pegar el mismo hex en React Native. Tres stacks de UI distintos —Compose,
-SwiftUI y Hermes— devolviendo el mismo número, sin que ninguno sepa nada del algoritmo.
+**Ahora que están las cuatro, el gesto se hace en cadena y es el punto más alto de la demo:**
+cifrar en Android, pegar en iOS, pegar el mismo hex en React Native, y pegarlo por último **en el
+navegador**. Cuatro stacks de UI distintos —Compose, SwiftUI, Hermes y Angular— devolviendo el
+mismo número, sin que ninguno sepa nada del algoritmo.
 
-Eso es la tesis en vivo: las tres apps comparten clave, nonce y algoritmo **porque comparten el
+El último salto es el que más pesa, y conviene decirlo mientras se hace: **el hex que salió de un
+teléfono lo descifra una pestaña de Chrome**, donde el core no es una librería nativa sino
+WebAssembly. Distinto artefacto, distinto compilador de salida, mismo núcleo y mismo resultado.
+
+Eso es la tesis en vivo: las cuatro apps comparten clave, nonce y algoritmo **porque comparten el
 core**, no porque alguien copió una implementación. Para hacerlo sin tipear 64 caracteres, el
 hex de `tj-002` (Mastercard) es:
 
@@ -212,7 +227,7 @@ Pegarlo debe devolver `5555555555554444`.
 
 ### La validación también vive en el core
 
-Tipear `41111` —el caso `tj-006`—. Las dos apps:
+Tipear `41111` —el caso `tj-006`—. Las cuatro apps:
 
 > `El número ingresado no tiene la cantidad de dígitos correcta.`
 
@@ -285,6 +300,29 @@ una o dos llamadas por interacción.
 > son provisionales y hay que repetirlas en un iPhone. Está anotado en
 > [apps/ios/PENDING.md](../apps/ios/PENDING.md).
 
+### Angular, la cuarta medida — y la que hay que presentar con más cuidado
+
+En el navegador, `add` del core cuesta **~1,5 µs** contra **~0,07 µs** de la baseline en `number`
+del propio JavaScript: una brecha de **20-40×**. Puesto junto a los otros tres, WASM queda **en el
+medio** — unas cien veces más rápido que el puente JNA de Android y unas cuatro veces más lento
+que el `.a` que iOS enlaza estáticamente.
+
+> **No lo presentes como la cuarta columna de la misma tabla, porque no mide igual.** El
+> `performance.now()` de un navegador está cuantizado a ~100 µs por la mitigación anti-Spectre:
+> un reloj ~100× más grueso que lo que se quiere medir. Por eso esta pantalla **cronometra lotes**
+> de llamadas y divide, mientras Android e iOS miden cruce por cruce con relojes de nanosegundos.
+> La cifra ubica el **orden de magnitud**; no sirve para una comparación centavo a centavo.
+
+Y dos cosas operativas, para que no sorprendan en vivo:
+
+- **El número cambia con lo que se tipee en `Iteraciones`**, y no es ruido: 3,00 µs con 100, 1,50
+  con 1000, 1,32 con 999999. Se reporta el costo por operación **dentro de un lote**, y a mayor
+  lote más caliente está el JIT. **Tipear siempre `1000`**, que es el mismo valor que se usa en
+  las otras tres.
+- **La pestaña se congela mientras mide**, porque corre en el hilo principal: 133 ms con 1000, y
+  3,4 s si alguien maximiza el campo. Sacarlo de ahí exigía un Web Worker y quedó fuera de
+  alcance. Ver [apps/web-angular/PENDING.md](../apps/web-angular/PENDING.md).
+
 ---
 
 ## Las preguntas que van a hacer
@@ -293,7 +331,8 @@ una o dos llamadas por interacción.
 |---|---|
 | *¿Por qué no Kotlin Multiplatform?* | KMP comparte también el ViewModel; acá **no hay ViewModel compartido y es deliberado**. Se comparte el dominio y nada más, así cada UI es nativa de su plataforma. La tabla está en [docs/ui-spec.md](ui-spec.md) |
 | *¿Y si las apps se copian la lógica y nadie se entera?* | No pueden: `crates/domain` es Rust puro y un `#[uniffi::export]` ahí **no compila**. La frontera la sostiene el compilador, no la disciplina |
-| *¿Cómo saben que los valores coinciden de verdad?* | [`contracts/cases.json`](../contracts/cases.json), 28 casos comparados con **igualdad exacta de strings**, nunca con tolerancia numérica. Corre en las tres apps más el propio `rust-core` — y en React Native **dos veces**, por N-API y por WASM |
+| *¿Cómo saben que los valores coinciden de verdad?* | [`contracts/cases.json`](../contracts/cases.json), 28 casos comparados con **igualdad exacta de strings**, nunca con tolerancia numérica. Corre en las **cuatro** apps más el propio `rust-core` — y en React Native **dos veces**, por N-API y por WASM |
+| *¿En el navegador es el mismo código?* | El mismo crate, compilado a `wasm32-unknown-unknown` en vez de a una librería nativa. El test de contrato de Angular lee el mismo `cases.json` y pasa 28/28. El copiar-pegar del hex del Acto 3 lo muestra sin tablas |
 | *¿Los montos son `float` en algún lado?* | En ningún lado, ni en los tests. Van como `String` desde `rust_decimal` hasta el widget de texto; el formateo ocurre solo al pintar. La única excepción es `NativeBaseline`, que existe **para exhibir** el problema |
 | *¿Esto sirve para una app real?* | La POC no tiene red, persistencia, ni almacenamiento seguro, y lo dice. Demuestra que **el dominio se comparte**, no que esté lista para producción. Los límites están en el `PENDING.md` de cada app |
 | *¿Las tasas son reales?* | No. Tasas, códigos de banco y montos son inventados; los algoritmos sí son internamente consistentes. Ver [contracts/README.md](../contracts/README.md) |
@@ -308,7 +347,10 @@ una o dos llamadas por interacción.
 | iOS no instala en el aparato | Perfil vencido (cuenta gratuita, 7 días) | `-allowProvisioningUpdates` y confiar el certificado en Ajustes; ver [apps/ios/TESTING.md](../apps/ios/TESTING.md) |
 | El hex pegado no descifra | Se pegó con un espacio o en mayúsculas | El campo filtra a `[0-9a-f]`: se descartan en silencio. Volver a copiar |
 | Una tecla rechazada queda visible en el campo | Filtro de texto que no invalida la vista | Cosmético, el estado es correcto. Anotado en [apps/ios/PENDING.md](../apps/ios/PENDING.md) |
-| El benchmark tarda muchísimo | Se tipearon demasiadas iteraciones | Ambas apps topan en 6 dígitos. Con 999999 la espera es real: usar `1000` |
+| El benchmark tarda muchísimo | Se tipearon demasiadas iteraciones | Las cuatro apps topan en 6 dígitos. Con 999999 la espera es real: usar `1000` |
+| Angular falla al arrancar diciendo que falta `@banco/core-financiero-wasm` | El `.wasm` no está construido en este clone (no va en git) | `pnpm wasm:generate` desde `apps/react-native/`. No es un fallo de la app: es el chequeo que existe para decirlo claro |
+| `ng serve` no levanta | Bug conocido del optimizador de Vite con `@banco/contract` | No insistir: `ng build --configuration development` + `python3 -m http.server` |
+| La pestaña de Angular se congela en el Benchmark | Corre en el hilo principal, sin Web Worker | Es esperado. Con `1000` son ~133 ms; con 999999, ~3,4 s. Esperar |
 
 ---
 

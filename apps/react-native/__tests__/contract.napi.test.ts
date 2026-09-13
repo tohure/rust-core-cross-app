@@ -1,6 +1,9 @@
 import { describe, expect, it } from '@jest/globals';
 import { group, loadCases, loadMessages } from './contractFixtures';
-import { contractName } from '../src/contractName';
+// `contractName` se importa directo de `@banco/contract`, no de `../src` (el entrypoint de la
+// librería): éste es el proyecto "napi" de Jest, Node puro, y `../src/index.tsx` arrastra
+// `bindings.tsx` — que registra el turbo module vía Hermes y muere fuera de React Native.
+import { contractName } from '@banco/contract';
 import {
   add,
   calculateItf,

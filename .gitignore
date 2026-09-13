@@ -31,6 +31,11 @@ __pycache__/
 # src/index.tsx NO va acá: a partir de la Task 8 es un archivo nuestro, escrito a
 # mano, que envuelve el bindings.tsx generado. Se commitea, no se ignora.
 
+# Ídem para el paquete WASM (Fase 5, Task 4): `ubrn build wasm2` repunta acá su salida y el
+# `.wasm` que stagea. `src/index.ts` y `src/guard.ts` sí se commitean: son a mano.
+/packages/core-financiero-wasm/generated/
+/packages/core-financiero-wasm/dist/
+
 # Node
 node_modules/
 *.log
