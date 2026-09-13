@@ -300,6 +300,12 @@ contra aparato, y `performance.now()` de Hermes contra `System.nanoTime()` de la
 decirlo en una presentación hay que medir las tres con el mismo criterio y sobre el mismo tipo
 de hardware.
 
+**Ya hay con qué hacerlo.** Al 2026-09-13 hay un dispositivo Android físico y un **iPhone 12 con
+iOS 18** disponibles para pruebas de rendimiento reales (el mismo iPhone que destraba el pendiente
+equivalente de `apps/ios/PENDING.md`). Sin conectar todavía. Cuando se retomen tareas: repetir
+esta tabla en los dos aparatos en vez de emulador/simulador, que es lo único que falta para que la
+comparación `add` contra `add` de arriba deje de tener la salvedad.
+
 ## Tres divergencias entre las apps, encontradas al escribir ésta
 
 Ninguna rompe la comparación de strings, y ninguna se tocó desde acá porque son código de otras

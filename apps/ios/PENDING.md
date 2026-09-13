@@ -25,10 +25,18 @@ Medido en un **iPad Air (5.ª gen, M1)** con iPadOS 26.6.1, n = 1000, artefacto
 la tabla de [TESTING.md](TESTING.md), que hoy está marcada como provisional. El procedimiento
 —el test temporal, el comando y el aparato— está ahí documentado.
 
-**Por qué no se hizo ya:** no hay un teléfono disponible que llegue al deployment target. El
-iPhone que hay está en **iOS 16.5**, por debajo de 17.0, así que la app ni siquiera instala. Y
-bajar el target no es una salida: `@Observable` **es** iOS 17, así que bajarlo significa
+**Por qué no se hizo ya:** no había un teléfono disponible que llegara al deployment target. El
+iPhone que había estaba en **iOS 16.5**, por debajo de 17.0, así que la app ni siquiera instalaba.
+Y bajar el target no era una salida: `@Observable` **es** iOS 17, así que bajarlo significa
 reescribir los cuatro ViewModels a `ObservableObject`.
+
+**Ya no es un bloqueo.** Al 2026-09-13 hay un **iPhone 12 con iOS 18** disponible para pruebas
+—cumple el deployment target de sobra—, además de un dispositivo Android físico. Sin conectar
+todavía. Los 47 tests (contrato incluido) ya corrieron sobre hardware real, pero fue el iPad Air
+M1: falta repetirlos en este iPhone para confirmar que el slice `aarch64-apple-ios` también
+resuelve símbolos ahí, y sobre todo **repetir la medición del benchmark**, que es lo que de
+verdad cambia — un teléfono en vez de una tablet con el mismo chip M1 es la comparación que le
+faltaba a la tabla de arriba. El procedimiento de aprovisionamiento está en la sección de abajo.
 
 **Qué tan mal está el número mientras tanto.** La brecha del piso del cruce es de **521×**, y
 entre un M1 y un Pixel 6 hay 2× o 3×, no 521×. Aunque se castigara al número de iOS
