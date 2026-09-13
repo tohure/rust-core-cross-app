@@ -163,9 +163,20 @@ quiere pantalla de CCI, se agrega **en las cuatro a la vez**.
 
 ## Formateo
 
-Un `MoneyPipe` que envuelve `Intl.NumberFormat("es-PE", { style: "currency",
-currency: "PEN" })` y recibe el string del core. No uses `CurrencyPipe` de
-Angular directamente: espera un `number` y ahí se pierde la precisión.
+Una función pura `formatPEN(amount: string): string` y un `MoneyPipe` de una línea que la
+envuelve (`transform = formatPEN`). La función es la que lleva los tests; el pipe es
+ceremonia de Angular.
+
+**No uses `Intl.NumberFormat`.** La Fase 4 lo midió: con `style: "currency"` separa el
+símbolo con **U+00A0**, y las otras tres apps usan **U+0020**. Es un byte invisible que en
+pantalla no se ve y que rompe la comparación carácter por carácter sobre la que se apoya
+toda la POC. El agrupado de miles se hace **manipulando el string**, nunca convirtiendo a
+número, y el signo se trata **antes** de agrupar —por eso `-123456.78` sale como
+`S/ -123,456.78`, con el menos fuera del agrupado—. Se porta de
+[`apps/react-native/example/src/format/money.ts`](../react-native/example/src/format/money.ts),
+que ya resolvió las dos cosas.
+
+Tampoco uses `CurrencyPipe` de Angular: espera un `number` y ahí se pierde la precisión.
 
 ## El campo de monto acepta 2 decimales como máximo
 
@@ -223,6 +234,8 @@ los mismos resultados que Android, iOS y RN.
 ## Prohibiciones
 
 - No uses `number`, `parseFloat` ni aritmética sobre montos.
+- No uses `Intl.NumberFormat` sobre montos: separa con U+00A0 y las otras tres apps usan
+  U+0020. Ver «Formateo».
 - No uses `CurrencyPipe` de Angular sobre montos del core.
 - No agregues `decimal.js` ni equivalentes.
 - No copies el `.wasm` manualmente entre proyectos.
