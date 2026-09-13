@@ -374,3 +374,348 @@ el comentario obligatorio. Se le pasa ese contexto al revisor.
 ### Task 7
 
 - BASE `ffabc9d`.
+- Implementada en `9cbb917`: `apps/web-angular/src/app/core/contract.spec.ts`, consumiendo
+  `CoreFinancieroService` por `TestBed.inject` y `@banco/contract` + su subpath `/testing`.
+  **36/36** — los 4 que ya existían, los 28 casos y las 4 guardias de runtime. La guardia 4 quedó
+  fuera con razón: es de compilación y vive en `packages/core-financiero-wasm/src/guard.ts`.
+  Ningún valor de `cases.json` se tocó: los 28 pasaron contra la v2.3.0 tal cual.
+- **Al review con una lupa puesta:** el implementador describe su patrón como «`toThrow()` +
+  `try/catch` separado», y el antipatrón que prohibí explícitamente —el `try` que contiene su
+  propio `throw` y cae en su propio `catch` reportando la causa equivocada, hallazgo del review de
+  la Fase 4— se describe casi igual. Un `try/catch` que sólo captura para afirmar sobre el `tag`
+  es legítimo y es lo que hace el archivo de referencia. Pedí que el revisor cite las líneas y
+  decida cuál de los dos está en el código. También pedí verificar que los 28 casos **se ejecuten
+  de verdad**: un spec table-driven puede correr cero filas y reportar verde, que es exactamente
+  la forma en que este gate podría mentir.
+- **Review de la Task 7: spec ✅, calidad aprobada, sin Criticals ni Importants.** Las dos lupas
+  cerradas: el único `throw` del archivo está en el helper `group()`, **fuera de todo `try`** —el
+  antipatrón no está—, y los 28 casos corren de verdad, probado por aritmética (2+2+4+28 = 36,
+  que es el total reportado; un caso perdido habría dado 35). El revisor además verificó las
+  guardias contra el archivo real en vez de contra sí mismas: los conteos de la guardia 2
+  coinciden uno a uno con `cases.json`, las claves de la 3 son exactamente las del archivo y la 5
+  cubre las nueve variantes. Y descartó el fallo más silencioso posible: no hay `vi.mock` en toda
+  la app, así que el spec pega contra el WASM real.
+- **Mejora sobre la referencia, no ceremonia:** el spec consume `CoreFinancieroService` por
+  `TestBed.inject` en vez de importar el paquete directo, así que falla si un método desaparece
+  del seam que van a usar las pantallas.
+- **Task 7: complete (commits `ffabc9d`..`9cbb917`, review clean).** 36/36. Angular es la quinta
+  base de código corriendo `cases.json` con igualdad exacta de strings.
+- **Minors diferidos al review final (los cuatro, y el primero es el que más importa):** (1)
+  `contract.spec.ts:44-52` — el comentario de la guardia 2 afirma un mecanismo **falso** y encima
+  se autodescribe como «verificado, no supuesto»: dice que Vitest falla un `it.each([])` como
+  Jest, y no lo hace (`cases.forEach` no registra nada ni lanza). La protección existe igual por
+  otra vía —el `describe` vacío falla con `No test found in suite`, porque el builder de Angular
+  no setea `passWithNoTests`— y el `toHaveLength` la cubre aparte. Hay que corregirlo justamente
+  porque su redacción actual («acá esta guardia no protege contra un grupo vacío») justificaría
+  borrar una guardia que **sí** es red. (2) `esperadas`, `nombres` y `cuentas` son identificadores
+  en español, heredados de la referencia, en una rama que ya tuvo un commit dedicado a lo
+  contrario. (3) La ruta del `.wasm` en el spec es relativa a cwd —`loadCases()` en cambio
+  resuelve desde `__dirname` y es inmune—; se arregla junto con la de la Task 6 o con ninguna.
+  (4) El bloque de `tsc` del reporte está anotado a mano, no capturado verbatim.
+
+### Task 8
+
+- BASE `9cbb917`.
+- Implementada en `7a163b2`: `formatPEN` + `MoneyPipe` y `userMessage`. **50 tests**, los tres
+  gates en cero.
+- **Ruling T8-1 — el CONTEXT de la app mandaba `Intl.NumberFormat` y lo corrijo yo, en commit
+  aparte (`846e633`).** El implementador lo levantó como concern y lo verifiqué: la sección
+  «Formateo» pedía envolver `Intl.NumberFormat("es-PE", {style: "currency"})`, texto anterior a
+  la medición de la Fase 4. **No es doc drift ordinario:** `CLAUDE.md` dice que ante un conflicto
+  gana el CONTEXT del subproyecto y manda leerlo antes de tocar nada adentro, así que tal como
+  estaba **autorizaba justo lo que la fase prohíbe**, con más autoridad que la constraint global.
+  La lista de «Prohibiciones» tampoco mencionaba `Intl`, así que quedaba coherente consigo misma
+  y equivocada. Corregido en los dos lugares.
+  Lo corrijo yo y no el implementador por el mismo criterio del Ruling T4-2: los documentos de
+  diseño y entrada son míos; los comentarios del código son suyos.
+  **Costo si está mal:** un commit de docs. Al revés, el próximo que lea el CONTEXT antes de
+  tocar la app —que es lo que el proyecto le ordena hacer— implementa el separador equivocado y
+  la demo falla por un byte que no se ve en pantalla.
+- **El implementador hizo lo correcto:** siguió el brief por encima del CONTEXT stale y lo
+  reportó en vez de resolverlo en silencio o de seguir el documento equivocado.
+- **Review de la Task 8: spec ✅, calidad aprobada, sin Criticals ni Importants.** Las cuatro
+  sondas que pedí dieron bien: el separador se afirma **por code point**
+  (`formatPEN('4899.99').codePointAt(2)` contra `0x20`), no contra un literal donde U+0020 y
+  U+00A0 se ven iguales; ningún monto toca `number` —el agrupado es regex más `String#replace`—;
+  `userMessage` quedó trazado como incapaz de lanzar para las siete formas de entrada, porque
+  `contractName` lanza en todas las raras y el `try/catch` las cubre; y el import sale del barrel
+  y no de `/testing`, verificado contra el mapa de `exports` del paquete.
+- **Task 8: complete (commits `9cbb917`..`7a163b2`, review clean).** 50 tests.
+- **Minors diferidos al review final:** identificadores en español (`signo`, `entera`,
+  `plantilla`, `campos`…) heredados letra por letra de la referencia de la Fase 4 —o se arreglan
+  en las dos o en ninguna—; el test del pipe es casi tautológico (`transform = formatPEN` lo
+  garantiza); y un camino **teórico** en `user-message.ts:38` donde un `inner` primitivo haría
+  que `clave in campos` lance **fuera** del `try/catch`. Ese último roza un requisito categórico
+  —«`userMessage` no puede lanzar»— aunque el shape real del `DomainError` no lo produce; existe
+  idéntico en la referencia de React Native, así que si se arregla, se arregla en las dos.
+
+### Task 9
+
+- BASE `846e633`.
+- **Ruling T9-1 — Angular es la web de escritorio, no una cuarta app móvil, y los estilos no se
+  pulen.** El usuario miró la pantalla andando y corrigió la dirección: Android, iOS y React
+  Native son las versiones móviles; ésta debe verse como una web de PC, aprovechando el ancho, y
+  adaptarse sólo si achicás la ventana. CSS mínimo y funcional: sin sistema de diseño, sin
+  tokens, sin temas, sin animaciones. Motivo explícito: es una POC, lo que demuestra es que las
+  cuatro apps producen los mismos strings, y el esfuerzo en apariencia no compra nada de eso.
+  Se lo mandé al implementador de la Task 9 mientras corría, para que ajuste el CSS y el
+  contenedor raíz sin tocar la descomposición ni los tests.
+  **Lo que NO cambia:** los labels exactos y el orden de campos de `ui-spec.md`, las cuatro
+  pantallas montadas con `[hidden]`, y el pie recibiendo el string como input. **La paridad entre
+  las cuatro apps es de contenido y estructura, no de apariencia** — conviene que esto quede
+  dicho así en el README de la Task 14, porque un lector que compare capturas va a preguntarlo.
+  **Costo si está mal:** la web se ve sosa en la demo. Barato: el criterio de la demo es que los
+  strings coincidan carácter por carácter, no el diseño.
+- Implementada en `91c9b34`: los seis componentes compartidos y el shell de cuatro pestañas.
+  **69 tests**, los tres gates en cero. El `max-width` pasó de 480 a 720 px por el Ruling T9-1.
+- **El aparato volvió a encontrar lo que los tests no podían, por segunda fase consecutiva:**
+  `[hidden]` **no hacía nada**, porque el `display: flex` de la hoja de estilos pisaba la regla
+  `[hidden] { display: none }` del user-agent. O sea que el requisito de que el estado sobreviva
+  al cambio de pestaña estaba escrito, implementado… y roto. Un test que afirme `el.hidden ===
+  true` **no** lo caza: la propiedad está puesta en los dos casos y el elemento se ve igual. La
+  guarda real es leer `getComputedStyle`.
+- **Hallazgo transversal de entorno, y hay que anotarlo donde se use:** la verificación visual en
+  este entorno **sí es posible por CDP** (Chrome DevTools Protocol) — clicks, tipeo y capturas
+  reales—, que es un mecanismo distinto del de AppleScript y no necesita los permisos de
+  Accesibilidad ni de Grabación de Pantalla que macOS bloquea acá. Las Fases 3 y 4 dieron por
+  imposible la captura y verificaron por vías indirectas. Va al README de la Task 14.
+- **Review de la Task 9: spec ✅, calidad aprobada.** El revisor confirmó lo que más importaba:
+  la regresión lee `getComputedStyle` y no `.hidden` —o sea que **puede** fallar por el bug real—,
+  y el estado se verifica **por valor**, tipeando en Aritmética, cambiando de pestaña y volviendo,
+  no sólo comprobando que el nodo siga en el DOM. Los cuatro labels coinciden carácter por
+  carácter con el texto normativo de `ui-spec.md`, no con el wireframe que abrevia `Transf.`/`Bm`.
+  El pie se testea **sin proveedor del servicio**, que es la prueba de que no lo inyecta.
+- **Ruling T9-2 — el único Important era evidencial y lo resolví corriendo el gate yo, no con un
+  fix round.** El reporte elidía el cuerpo del output de `pnpm test` con `...`, así que no se
+  podía descartar un warning entre líneas. Corrido completo acá: **69/69, exit 0, cero
+  coincidencias** de `warn|deprecat|error|failed` en todo el log. Gastar un dispatch más un
+  re-review para que alguien vuelva a pegar un texto que yo podía generar en diez segundos no se
+  justifica.
+  **Costo si está mal:** ninguno — la evidencia es de la misma corrida que pedía el revisor.
+- **Task 9: complete (commits `846e633`..`91c9b34`, review clean).** 69 tests.
+- **Minors diferidos al review final:** el desglose de conteo del reporte no cierra (45+24 contra
+  el 50+19 real, aunque el total de 69 sí es correcto), y el comentario de `app.css:66-74`
+  atribuye a especificidad lo que en realidad es **origen de cascada** —una declaración de autor
+  le gana a la del user-agent sin importar la especificidad—. El fix es correcto; la explicación
+  escrita al lado, no del todo.
+
+### Tasks 10-12 (lote)
+
+- BASE `91c9b34`.
+- **Ruling T10-1 — Aritmética, Transferencia y Tarjeta van en UN solo dispatch y UN solo review;
+  Benchmark queda aparte.** Las tres son la misma forma —campos de `ui-spec.md`, llamada al core,
+  fila de resultado, error por `userMessage`— sobre componentes compartidos que ya existen y ya
+  están aprobados, que es exactamente el caso que la skill manda batchear. Benchmark no entra al
+  lote: es la única con juicio propio, porque lleva el `baseline` de punto flotante que existe
+  para **exhibir** la divergencia y es una de las poquísimas excepciones documentadas a la regla
+  de que ningún monto toca `number`.
+  **Costo si está mal:** un review más grande y un `git bisect` con un escalón menos. A favor:
+  tres ciclos de review se vuelven uno, que es donde de verdad se van los tokens — y el usuario
+  pidió explícitamente no quemarlos.
+- **Ruling T10-2 — las carpetas de las pantallas van en inglés, contra el texto del plan.** El
+  plan escribe `features/aritmetica/aritmetica.component.ts`, pero `CLAUDE.md` incluye
+  explícitamente «nombres de archivos, carpetas» en la regla de identificadores en inglés. Mismo
+  criterio que los Rulings T2-3 y T6-3: la constraint dura gana sobre el texto del plan, que
+  escribí yo. Quedan `features/arithmetic/`, `features/transfer/`, `features/card/` y
+  `features/benchmark/` — que además coinciden con los módulos del core (`arithmetic`, `card`,
+  `transfer`), así que el nombre de la carpeta y el del módulo de dominio que consume son el
+  mismo. Los labels de UI siguen en español, que es lo que manda `ui-spec.md`.
+  También se sigue la convención de nombres que ya dejó la Task 9 —`screen-header.ts`, sin el
+  sufijo `.component`— y no la del plan, que es anterior al scaffold.
+  **Costo si está mal:** un rename de carpetas.
+- Implementadas en `fecbae5` (Aritmética), `eebb630` (Transferencia) y `5b9c3d5` (Tarjeta).
+  **88 tests / 14 archivos**, los tres gates en cero, verificadas en navegador por CDP contra el
+  WASM real.
+- **Bug real en `LabeledField`, que es código de la Task 9 ya aprobada y que ningún test de la
+  Task 9 podía ver.** El binding declarativo `[value]="value()"` **omite la escritura al DOM**
+  cuando el valor nuevo coincide con el último que Angular escribió — aunque el DOM haya cambiado
+  por fuera, que es exactamente lo que pasa cuando una persona tipea. Lo reemplazó por un
+  `effect()` que compara contra el DOM vivo. **Habría llegado a producción**, no es un artefacto
+  de test; el spec de la Task 9 sigue pasando sin tocarlo. Es la tercera vez en la fase que un
+  defecto sólo aparece al ejercitar la cosa de verdad, y las tres veces fue en el borde de UI.
+- **`ng serve` está roto y hay que decirlo antes de la demo.** El dependency-optimizer de Vite
+  falla con `@banco/contract`; es preexistente y recién ahora alcanzable, porque ésta es la
+  primera tarea en que una pantalla importa `userMessage`. El implementador lo esquivó con
+  `ng build` + servidor estático para las verificaciones por CDP, así que **ningún gate depende
+  de `ng serve`** — pero el runbook de demo sí lo usaría. Va al README/PENDING de la Task 14 con
+  el workaround exacto. Si el arreglo resulta ser una línea de configuración, entra ahí; si pelea,
+  se documenta y se sigue: el CONTEXT es explícito en no quemar tiempo de demo en el build.
+- **Review del lote 10-12: las tres spec ✅, calidad aprobada, sin Criticals ni Importants.** El
+  revisor no se conformó con que las guardias existieran: verificó que **puedan fallar**. La de
+  `Restar` mostraría `'NO DEBE LLAMARSE'` si la rama llamara a `add`; la de los CCI inyecta un
+  contrato con ids falsos y afirma **contra ésos**, así que un literal hardcodeado la rompe; la
+  del monto captura el `request.amount` real y compara contra `'100.5'`, no contra `'100.50'`
+  formateado; y el centinela de Tarjeta es distinto del número tecleado, que es lo único que
+  distingue «lo descifró el core» de «la pantalla repitió lo que escribiste».
+- **El fix de `LabeledField` quedó validado, incluida la pregunta que importaba:** no hay bucle
+  —escribir `el.value` no dispara `input`, así que el `effect()` no se realimenta— y la regresión
+  reproduce el modo de fallo exacto: revertir a `'100.00'`, y después revertir **otra vez al mismo
+  valor**, que es justo lo que el binding declarativo se saltaba.
+- **Tasks 10-12: complete (commits `91c9b34`..`5b9c3d5`, review clean).** 88 tests / 14 archivos.
+- **Minors diferidos al review final:** `Comisión ITF` y `Total debitado` sólo se verifican en el
+  navegador, no por `data-testid`; el test de «editar consume el error» cubre `setOrigin` pero no
+  `setDestination`/`setAmount`, que son idénticos; el patrón imperativo `child.value.set(...)`
+  provoca una llamada re-entrante inocua que merece un comentario; y el fallo de `ng serve` sigue
+  sin estar escrito en el README —va a la Task 14—.
+
+### Task 13
+
+- BASE `5b9c3d5`.
+- Implementada en `b3f572e`. **97 tests**, los tres gates en cero, las cinco guardias verificadas
+  por mutación.
+- **El número del benchmark no mide nada, y eso hay que resolverlo antes de la demo.** Medido en
+  Chrome por CDP con 1000 iteraciones: core p50 **0,00 µs** y p95 **100,00 µs**; nativo 0,00 y
+  0,00. La causa está bien diagnosticada: `performance.now()` está cuantizado a ~100 µs por la
+  mitigación de Spectre —sin `crossOriginIsolated` no hay reloj fino—, o sea que el reloj es ~100×
+  más grueso que lo que se quiere medir. A 999999 iteraciones hasta el p95 del core cayó a 0,00.
+  Los percentiles que salen de ahí son artefactos de la cuantización, no del código.
+  **El implementador lo dijo en vez de inventarlo, que es exactamente lo que le pedí**, y vale
+  reconocerlo: había un camino fácil de fingir paridad con los 172 µs de Android y los 0,33 de
+  iOS, y no lo tomó.
+  Mi lectura, que mandé al revisor a juzgar sin hedge: una pantalla que siempre muestra
+  `0,00 µs` **no exhibe nada mientras parece que funcionó**, y eso es un problema de corrección,
+  no cosmético — la pantalla existe para mostrar el costo del cruce. La técnica estándar cuando el
+  reloj es más grueso que la operación es **cronometrar lotes de K iteraciones como una muestra**
+  y dividir: con muchas muestras, el p50 y el p95 vuelven a significar algo y el problema de
+  resolución desaparece. Si el revisor coincide, entra al fix loop.
+- **Para el README de la Task 14, dos advertencias que no se deben omitir:** la medición corre en
+  el **hilo principal** (sin Web Worker: reinstanciar el WASM ahí quedó fuera de alcance) y el
+  número de esta pantalla **no es comparable** con el de las tres apps nativas, que miden con
+  relojes de resolución de nanosegundos. Una diferencia de método declarada sirve para la demo;
+  presentarla como comparación justa, no.
+- **Review de la Task 13: spec ✅ en todo, calidad NO aprobada por un Important — el de la
+  medición.** El revisor coincidió sin hedge y lo argumentó mejor que yo: si subir N tres órdenes
+  de magnitud hace que el p95 **caiga** a cero en vez de estabilizarse, el número nunca midió el
+  costo del cruce, midió cuántas muestras caen bajo el piso de cuantización. Todo lo demás está
+  impecable: las cinco guardias verificadas por mutación una por una, los dos párrafos obligatorios
+  contrastados contra `ui-spec.md` **y** contra las tres apps anteriores —o sea que es el texto
+  establecido entre las cuatro, no una copia del wireframe—, y el archivo de 234 líneas en línea
+  con sus hermanos.
+- **Segunda causa, que el revisor encontró y yo no había visto:** `measure(n, f: () => void)`
+  **descarta el valor de retorno** y las dos llamadas pasan literales constantes en cada
+  iteración. Entrada constante + función pura + resultado sin usar es exactamente lo que un JIT
+  puede sacar del bucle. Es una explicación de la caída a `0,00` **al menos tan plausible** como
+  el calentamiento que proponía el reporte, y arreglar sólo el reloj la dejaría intacta.
+- **Task 13: fix round 1 despachado** reanudando al implementador original —contexto intacto— con
+  las dos mitades del fix: cronometrar lotes (≥1 ms por lote, ≥20 muestras) y consumir el retorno
+  dentro del bucle para blindarlo contra la eliminación de código muerto. Le dejé explícito que si
+  tras el arreglo el core sigue saliendo indistinguible del nativo, ése es un resultado legítimo y
+  lo quiero tal cual: ahora sería una medición y no un artefacto.
+- **Verificado para la Task 14: el cierre de la POC ES ejecutable en esta máquina.** Chequeado
+  antes de despachar, para que el implementador no lo descubra a mitad de camino: `adb devices`
+  da `emulator-5554 device`, `xcrun simctl` muestra un **iPhone 17 Pro booteado**, Xcode 26.6 y
+  cargo 1.98.1. O sea que el Step 2 —las cuatro apps mostrando el mismo `coreVersion()`, que es la
+  primera vez que las cuatro existen a la vez— se puede comprobar de verdad y no hay que
+  declararlo pendiente.
+- **El fix midió, y la POC tiene su cuarto dato.** Con lotes calibrados y el trabajo blindado
+  contra la eliminación del JIT: **core p50 1,50 µs / p95 4,70 µs contra nativo 0,07 / 0,08** —
+  una brecha real de ~20×. La prueba de que ahora mide no es el número sino su **estabilidad**:
+  a 100, 1000 y 999999 iteraciones el p50 del core se queda en el mismo orden de magnitud
+  (1,4-1,8 µs) en vez de colapsar a cero.
+  Puesto junto a las otras tres: Android 172 µs, iOS 0,33 µs, y WASM ~1,5 µs queda **en el
+  medio** — unas cien veces más rápido que el puente JNA de Android y unas cuatro veces más lento
+  que el `.a` enlazado estáticamente de iOS. **El método no es el mismo** (acá se cronometran
+  lotes porque el reloj del navegador está cuantizado, allá se mide cruce por cruce con relojes
+  de nanosegundos), así que la cifra ubica el orden de magnitud y no sirve para una comparación
+  centavo a centavo. Eso hay que decirlo en el README y en el runbook.
+- **Al re-review, dos cosas con lupa.** (a) El implementador **reescribió las cinco guardias**
+  para usar aserciones estructurales en vez de valores exactos, porque el arnés de Angular bloquea
+  `vi.mock` sobre imports relativos — reescribir tests para acomodar un cambio es la forma típica
+  en que una guardia se debilita en silencio, y la de «una llamada por iteración» es la que más
+  puede haber perdido sentido bajo batching. (b) Declara un tope de 2M iteraciones pero reporta
+  que 999999 bloquea el hilo principal ~66 s porque la semántica de lotes lo multiplica ~36×:
+  **un tope que no topa es peor que ninguno**, porque se lee como protección. Pedí que verifique
+  si acota el trabajo de verdad.
+- **Task 13: fix round 1/5 (2 addressed, 1 nuevo abierto — I1 batching y I2 anti-DCE cerrados;
+  entra el bloqueo de 66 s que introdujo el propio fix; commit `b3f572e`..`3106d62`).**
+  El re-review verificó las dos mitades: `timedBatch` cronometra `k` llamadas dentro de **un solo**
+  par de `performance.now()`, la calibración duplica hasta pasar 1 ms, y son 5 lotes de
+  calentamiento más 30 muestras. El checksum vive en un campo de instancia —no en un local
+  descartable— y `varyingOperand` varía la entrada con aritmética **entera sobre el índice**, sin
+  tocar un float monetario.
+- **Sobre la reescritura de las guardias, que era mi principal sospecha: «cambió de alcance, no la
+  vaciaron».** La de «una llamada por iteración» **no puede** sobrevivir literalmente al batching,
+  porque el total depende de un `k` que se decide en runtime. La reemplazó por tres invariantes
+  estructurales, y el revisor chequeó la aritmética en vez de creerle: `k ≥ n` siempre y los lotes
+  son de tamaño `n·2^r`, así que la cota inferior de `36n` y el módulo son invariantes reales, no
+  tautologías disfrazadas. La mutación la caza **el módulo**, no el `not.toBe(1)`. Sigue cazando
+  las dos regresiones concretas para las que existe.
+- **Hallazgo del arnés que vale para cualquier test que mida tiempo:** `vi.useFakeTimers()` **a
+  secas congela también `performance.now()`**, lo que forzaba en silencio cada calibración al tope
+  y hacía que cada test tardara ~8 s en vez de ~300 ms. Se arregla con
+  `toFake: ['setTimeout','clearTimeout']`. Es load-bearing: sin eso, la evidencia de mutación de
+  las cinco guardias no sería confiable.
+- **Ruling T13-1 — el bloqueo de 66 s entra a round 2 en vez de documentarse y seguir.** El tope
+  declarado acota el **tamaño del lote**, no el trabajo total, que es `~36k`; con 999999 tecleado
+  el `k` despeja el piso en la primera ronda y ninguno de los dos topes llega a engancharse. En
+  una demo en vivo, alguien maximiza el campo y la pestaña queda congelada más de un minuto **sin
+  forma de cancelar**. Podría haberlo mandado al runbook como riesgo conocido; no lo hago porque
+  el arreglo es acotado —presupuesto de operaciones totales del que se deriven `k` y las
+  muestras— y porque el modo de fallo se dispara justo con el gesto más probable de un curioso
+  frente a un campo numérico en una demo.
+  **Costo si está mal:** una ronda más de fix sobre una pantalla que ya cumple su función.
+
+### Task 13 — fix round 2 (verificación y cierre)
+
+La sesión anterior se cortó a mitad de la verificación por mutación (iba 4/7). Al retomar, el
+árbol estaba limpio —ninguna mutación quedó pegada— y la suite daba 99 en verde, así que **rehíce
+las siete mutaciones completas** en vez de asumir cuáles habían pasado. Cada una se aplicó con un
+arnés que **aborta si el patrón no aparece exactamente una vez**, para no confundir «la guardia
+no caza» con «el sed no aplicó».
+
+- **Las siete cazadas, cada una por exactamente su propia guardia** (1 failed / 98 passed en las
+  siete, sin daño colateral): nota de recorte que nunca aparece; nota que aparece siempre; se
+  quita el recorte al presupuesto; `userMessage` → error crudo; la corrida fallida no borra las
+  medidas de la anterior; el filtro deja de topar en 6 dígitos; se altera el texto normativo.
+- **Evidencia extra del recorte, que no esperaba y vale más que el assert:** con la mutación que
+  quita el clamp, ese test tarda **4341 ms contra 243 ms**. O sea que el presupuesto no sólo se
+  afirma, se ve: es lo único que separa 243 ms de un orden de magnitud más.
+
+**Ruling T13-2 — el fix de N2 defiende un camino que el propio fix de N1 volvió inalcanzable.**
+Lo encontré con una octava mutación de sonda: cambiar `return lastTested` por `return k` **no
+rompe ningún test**. No es una guardia faltante, es código muerto, y lo verifiqué con la
+aritmética en vez de deducirlo: `MAX_BATCH_SIZE` = 54054 (2.000.000 / 37), así que aun arrancando
+desde el `k` más chico posible (1) la duplicación lo alcanza en la **ronda 16** y el bucle sale
+por `k >= MAX_BATCH_SIZE`, **ocho rondas antes** del tope de 24. `MAX_CALIBRATION_ROUNDS` ya no
+acota nada: lo acota el presupuesto. El peor caso cierra: 54054 × 36 = **1.945.944 ≤ 2.000.000**.
+**No abro un round 3:** el comportamiento es correcto y el código se conserva porque deja de ser
+inalcanzable apenas alguien suba `TOTAL_OPERATIONS_BUDGET` (con 10⁹ hacen falta 25 rondas). Lo que
+sí era un defecto es el **comentario**, que lo describía como load-bearing y habría hecho que el
+próximo lector creyera que ese `return` corre. Corregido en el mismo archivo, con la aritmética.
+**Costo si está mal:** un comentario de más sobre una rama que no se ejecuta.
+
+**El fix está verificado contra el WASM real, no sólo contra el doble.** El test unitario usa un
+`add` trivial: prueba el **conteo** de llamadas, nunca el **tiempo de pared**, que es justamente
+lo que el round 2 promete. Reproduje el método de la Tarea 13 (`ng build` + `python3 -m
+http.server` + Chrome headless por CDP, porque `ng serve` sigue roto):
+
+| Iteraciones | core p50 / p95 | nativo p50 | bloqueo | nota de recorte |
+|---|---|---|---|---|
+| 100 | 3,00 / 7,00 µs | 0,09 µs | 43 ms | no |
+| 1000 (default) | 1,50 / 4,90 µs | 0,07 µs | 133 ms | no |
+| 999999 (tope) | 1,32 / 2,22 µs | 0,07 µs | **3372 ms** | sí, con las dos cifras |
+
+**El bloqueo de 66 s pasó a 3,4 s —~20× menos— y la pantalla avisa qué corrió de verdad.** Es el
+finding N1 cerrado con la medición que lo abrió.
+
+**Ruling T13-3 — un dato del round 1 no era reproducible y lo corrijo en vez de dejarlo pasar.**
+El round 1 anotó «~1,4-1,8 µs de p50, estable» para 100, 1000 y 999999, y eso quedó escrito
+además **dentro del código**. Es falso en n=100: da **3,00 µs**, y no es ruido — tres corridas por
+valor, idénticas al centésimo. La tendencia es monótona (3,00 → 1,50 → 1,32) y tiene causa: lo
+reportado es el costo por operación **dentro de un lote**, y a mayor lote más caliente está el JIT
+cuando arranca la medición (los `WARMUP_BATCHES` van de ~2.000 llamadas a ~270.000). El round 2 no
+tocó el camino de n=100, así que esto ya estaba mal medido antes, no lo introdujo el fix.
+**Consecuencia para el README y el runbook:** lo estable de esta pantalla es el **orden de
+magnitud** y la brecha contra la baseline nativa (**20-40×**), no la cifra exacta — y **dos
+corridas sólo son comparables si tecleaste el mismo valor en Iteraciones**. Corregido el
+comentario del código.
+
+**Parqueado para la Task 14 (no es de esta tarea): prettier no es gate en `web-angular`.** Hay
+`.prettierrc` pero ningún script ni hook que lo aplique, y **13 archivos del app fallan
+`--check`**, incluidos los de las Tareas 1-12 ya revisadas. Correr `--write` ahora reformatearía
+esos 13 y reventaría el diff de un commit de fix-round tocando código de otras tareas. Decisión
+para la 14: o se cablea el gate y se reformatea todo en **su propio commit**, o se borra el
+`.prettierrc`, que es peor que inútil si nadie lo corre.
+
+- **Task 13: fix round 2/5 — N1 y N2 cerrados, sin findings nuevos abiertos. Gates: 99 tests,
+  lint limpio, build limpio.** Verificación por mutación 7/7 y en navegador contra el WASM real.

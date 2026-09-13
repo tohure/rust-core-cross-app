@@ -29,6 +29,15 @@ const WARMUP_BATCHES = 5;
 const SAMPLE_COUNT = 30;
 const MIN_BATCHES_PER_MEASURE = 1 /* el lote de calibración que sí llega a durar 1 ms */ + WARMUP_BATCHES + SAMPLE_COUNT;
 
+// Fix round 2 (finding N1): espejo de la derivación de `MAX_BATCH_SIZE` en `benchmark-screen.ts`
+// — ya no es una constante fija, se deriva de un presupuesto de operaciones TOTALES por
+// `measure()`. Repetido acá, con la misma cuenta, para poder predecir EXACTO cuántas llamadas
+// hace una corrida que pide más de lo que el presupuesto permite (ver el test de "se recorta").
+const TOTAL_OPERATIONS_BUDGET = 2_000_000;
+const CALIBRATION_BUDGET_BATCHES = 2;
+const BATCHES_PER_MEASURE = CALIBRATION_BUDGET_BATCHES + WARMUP_BATCHES + SAMPLE_COUNT;
+const MAX_BATCH_SIZE = Math.floor(TOTAL_OPERATIONS_BUDGET / BATCHES_PER_MEASURE);
+
 // Mismo patrón que las otras tres pantallas: se sustituye `CoreFinancieroService` por un doble
 // para probar la PANTALLA (qué llama, cuántas veces, qué guarda), no el WASM real — eso ya lo
 // cubren `core-financiero.service.spec.ts` y `contract.spec.ts`.
@@ -180,22 +189,86 @@ describe('BenchmarkScreen', () => {
     fixture.detectChanges();
 
     // No se puede predecir el número EXACTO sin fijar el reloj (bloqueado por el runner de
-    // Angular, ver el comentario de arriba), pero sí dos propiedades que alcanzan para probar
-    // que el core se llama de verdad, muchas veces, y no una sola:
-    //   1. El total es un múltiplo exacto de `n`: el tamaño de lote calibrado (`k`) sólo se
-    //      obtiene duplicando `n` (`n * 2^r`), nunca es un valor arbitrario — invariante
-    //      estructural del algoritmo, independiente de cuánto haya tardado cada llamada.
-    //   2. El total es al menos `n * (1 + WARMUP_BATCHES + SAMPLE_COUNT)`: como `k >= n`
-    //      siempre, y se corren ese lote de calibración más `WARMUP_BATCHES` de descarte más
-    //      `SAMPLE_COUNT` de muestra, ésa es la cota inferior aunque la calibración no haya
-    //      necesitado duplicar ni una vez.
-    expect(llamadas % n).toBe(0);
+    // Angular, ver el comentario de arriba). Tampoco se puede exigir que el total sea un
+    // múltiplo limpio de `n` (fix round 1 lo hacía, porque `k` sólo se obtenía duplicando `n`
+    // sin tope real) — desde el fix round 2, `k` puede recortarse a `MAX_BATCH_SIZE` a mitad de
+    // la duplicación si el presupuesto de operaciones totales se alcanza antes que el piso de
+    // 1 ms, y `MAX_BATCH_SIZE` no tiene por qué ser múltiplo de `n`. Lo que SÍ es una cota
+    // válida siempre, con o sin recorte: el total es al menos `n * (1 + WARMUP_BATCHES +
+    // SAMPLE_COUNT)`, porque `k >= n` en cualquier camino (nunca se recorta por DEBAJO de lo
+    // tecleado, sólo por arriba del presupuesto).
     expect(llamadas).toBeGreaterThanOrEqual(n * MIN_BATCHES_PER_MEASURE);
     // Y la prueba directa de lo que este guard existe para atrapar: no es 1 (cachear el
     // resultado de una sola llamada y reusarlo) ni es igual a `n` (el significado viejo,
     // pre-fix, de "una llamada por iteración total").
     expect(llamadas).not.toBe(1);
     expect(llamadas).not.toBe(n);
+  });
+
+  it('si Iteraciones supera el presupuesto, se recorta y la pantalla lo dice', async () => {
+    let llamadas = 0;
+    // 999999 (el tope de 6 dígitos del campo) es mayor que MAX_BATCH_SIZE: antes del fix round
+    // 2, esto disparaba ~36 millones de llamadas reales y ~66 s de hilo principal bloqueado sin
+    // ninguna forma de cancelarlo. `toFake` explícito sin 'performance' — ver el comentario del
+    // encabezado del archivo.
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+    TestBed.configureTestingModule({
+      imports: [BenchmarkScreen],
+      providers: [
+        {
+          provide: CoreFinancieroService,
+          useValue: fakeCore({
+            add: () => {
+              llamadas += 1;
+              return '0.30';
+            },
+          }),
+        },
+      ],
+    });
+    const fixture = TestBed.createComponent(BenchmarkScreen);
+    fixture.detectChanges();
+    const root = fixture.nativeElement as HTMLElement;
+
+    type(root, 'iterations', '999999');
+    clickRun(root);
+    fixture.detectChanges();
+    vi.runAllTimers();
+    fixture.detectChanges();
+
+    // El aviso dice las DOS cifras: cuánto se pidió y cuánto se corrió de verdad — "en la UI o
+    // en el resultado", como pide el fix, para que la pantalla nunca acepte un número y se
+    // cuelgue en silencio.
+    expect(text(root, 'benchmark-clamp-note')).toContain(String(MAX_BATCH_SIZE));
+    expect(text(root, 'benchmark-clamp-note')).toContain('999999');
+    // Y la medida sigue siendo una medida real, no un efecto secundario del recorte.
+    expect(resultValue(root, 'core-p50')).toMatch(MEDIDA);
+
+    // Con 999999 > MAX_BATCH_SIZE, `k` se recorta a MAX_BATCH_SIZE DESDE EL PRIMER intento de
+    // calibración (ni siquiera duplica): la calibración consume un lote de MAX_BATCH_SIZE, más
+    // WARMUP_BATCHES + SAMPLE_COUNT lotes del mismo tamaño. Total exacto y predecible, la prueba
+    // de que el presupuesto —no el número tecleado— es quien manda.
+    expect(llamadas).toBe(MAX_BATCH_SIZE * (1 + WARMUP_BATCHES + SAMPLE_COUNT));
+  });
+
+  it('con iteraciones dentro del presupuesto, no aparece aviso de recorte', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+    TestBed.configureTestingModule({
+      imports: [BenchmarkScreen],
+      providers: [{ provide: CoreFinancieroService, useValue: fakeCore() }],
+    });
+    const fixture = TestBed.createComponent(BenchmarkScreen);
+    fixture.detectChanges();
+    const root = fixture.nativeElement as HTMLElement;
+
+    // El default (1000) está muy por debajo de MAX_BATCH_SIZE: no hace falta tocar el campo.
+    clickRun(root);
+    fixture.detectChanges();
+    vi.runAllTimers();
+    fixture.detectChanges();
+
+    expect(root.querySelector('[data-testid="benchmark-clamp-note"]')).toBeNull();
+    expect(resultValue(root, 'core-p50')).toMatch(MEDIDA);
   });
 
   it('un error del core se muestra con userMessage, no como [object Object]', async () => {
