@@ -99,6 +99,13 @@ su salida es neutral respecto del entorno: el mismo bundle sirve para Node, nave
 Native. Requisitos que `ubrn build wasm2` valida por adelantado: que el crate produzca `cdylib`,
 que enlace `uniffi-runtime-wasm`, y que declare `uniffi_core` con el feature `single-threaded`.
 
+**El `2` es la generación del backend de codegen de `ubrn`, no una versión del estándar.** No
+existe un «WebAssembly 2» que haya que alcanzar; el flavour anterior se llama `wasm` a secas,
+generaba un crate shim y sigue visible bajo `ubrn generate` aunque ya no bajo `ubrn build`.
+Tampoco tiene relación [wasm3](https://github.com/wasm3/wasm3), que es un intérprete de
+WebAssembly en C para embebidos —otra categoría de herramienta, no una versión más nueva de
+ésta—.
+
 Scripts en `package.json`:
 
     "ubrn:android": "ubrn build android --release --and-generate",
