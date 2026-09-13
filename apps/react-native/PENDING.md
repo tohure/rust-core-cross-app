@@ -350,3 +350,31 @@ mínimo: instalar Rust con los targets, instalar pnpm, correr `napi:generate` y 
 antes de `pnpm test`, y correr también `cargo test --workspace`. Los tests instrumentados de
 Android y los de iOS necesitan además emulador/simulador en el runner. **Nada de eso cruza JSI
 igual**, así que el smoke manual seguiría siendo obligatorio antes de una demo.
+
+## `packages/contract` tiene que declarar `@babel/runtime`, y ningún test lo caza
+
+Encontrado al cerrar la Fase 5, corriendo la app en el emulador para comparar el pie de
+`coreVersion()` entre las cuatro. La app arrancaba en **pantalla roja**:
+
+```
+Unable to resolve module @babel/runtime/helpers/interopRequireDefault
+from packages/contract/src/messageFor.ts
+```
+
+**Causa.** La Fase 5 sacó el mapeo del contrato a `packages/contract` y esta app pasó a
+consumirlo (`example/src/contract/sources.ts` reexporta `messageFor` desde ahí). Metro transpila
+ese TypeScript con Babel, que inyecta `interopRequireDefault`, y **resuelve los helpers relativo
+al archivo que transpila** — o sea desde `packages/contract/`, no desde el `example/`. Bajo el
+`node_modules` estricto de pnpm ese paquete sólo veía `typescript` y `@types/node`. Verificado a
+mano: `require.resolve('@babel/runtime/helpers/interopRequireDefault')` resolvía desde
+`apps/react-native/example` y **no** desde `packages/contract`.
+
+**Arreglo:** `@babel/runtime` como dependencia de `packages/contract`. Cualquier paquete del
+workspace cuyo **código fuente** consuma esta app tiene que declararlo; no alcanza con que lo
+tenga el consumidor.
+
+**Por qué ningún test lo agarró, que es lo que importa.** Jest resuelve módulos distinto que
+Metro y los 120 tests seguían en verde con la app rota. Es el mismo patrón que el
+`collapsable={false}` de Fabric: **el aparato encuentra lo que el runner no puede**. Esta app no
+tiene corredor de tests en dispositivo, así que la única red es el smoke manual — y esta vez
+saltó recién al montar la demo de las cuatro apps, semanas después del cambio que lo introdujo.

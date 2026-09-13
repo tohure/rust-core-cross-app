@@ -268,6 +268,10 @@ importers:
         version: 4.1.11(@types/node@22.20.2)(jsdom@28.1.0(supports-color@8.1.1))(vite@7.3.6(@types/node@22.20.2)(jiti@2.7.0)(sass@1.97.3)(terser@5.51.2)(yaml@2.9.0))
 
   packages/contract:
+    dependencies:
+      '@babel/runtime':
+        specifier: ^7.29.7
+        version: 7.29.7
     devDependencies:
       '@types/node':
         specifier: ^22.20.2
