@@ -719,3 +719,69 @@ para la 14: o se cablea el gate y se reformatea todo en **su propio commit**, o 
 
 - **Task 13: fix round 2/5 — N1 y N2 cerrados, sin findings nuevos abiertos. Gates: 99 tests,
   lint limpio, build limpio.** Verificación por mutación 7/7 y en navegador contra el WASM real.
+
+### Task 14 — el cierre de la fase y de la POC
+
+Alcance decidido con el usuario: **saltear las suites lentas de Android e iOS** —sus fases ya las
+dejaron en verde y nada de esta fase toca su código— e ir directo a lo único que nunca se había
+comprobado: **las cuatro apps mostrando el mismo `coreVersion()`**. Y cablear prettier, que
+estaba puesto sin correrse.
+
+- **Prettier era una norma que nadie aplicaba: 13 archivos violaban `--check`**, incluidos los de
+  Tareas 1-12 ya revisadas. Se cablearon `format` y `format:check` y se reformateó en **commit
+  propio** (`4caf34a`), para no mezclar ruido de formato con cambios de comportamiento. Sin
+  cambios funcionales: 99 tests, lint y build en verde después.
+- **Docs antes que artefactos, invirtiendo el orden del brief.** El brief ponía la verificación
+  del pie (Step 2) antes del commit final (Step 7), y ese orden se invalida a sí mismo: el SHA se
+  inyecta en **tiempo de compilación** (`git rev-parse --short HEAD` en el `build.rs` de
+  `crates/ffi`), así que cualquier commit posterior desactualiza los cuatro artefactos. Se
+  commitearon primero las docs (`3bd5cfc`) y recién después se regeneró todo desde ese HEAD.
+
+**Ruling T14-1 — el verificador ingenuo del pie da falsos negativos, y casi me come.** El primer
+chequeo hacía `strings <artefacto> | grep -Eo '1\.0\.0\+[0-9a-f]+'` y devolvía
+`1.0.0+3bd5cfcca` — nueve caracteres donde el SHA tiene siete. No era otra versión: **las strings
+de Rust no son null-terminated**, así que en el pool del binario la versión queda pegada a la
+palabra siguiente (`...3bd5cfc` + `called`) y el `[0-9a-f]+` se come las letras que siguen. Cada
+artefacto habría "inventado" un sufijo distinto según qué string tuviera al lado, y el reporte
+habría dicho DIVERGENCIA con los cuatro artefactos correctos. El verificador quedó anclado al
+string **exacto** `1.0.0+<sha>`.
+
+**Antes de regenerar, los artefactos estaban en tres SHA distintos** — RN en `b5b1388`, WASM en
+`318c95e`, Android e iOS en otro. O sea que **las cuatro apps nunca habrían coincidido** en la
+demo. Es exactamente la deriva que el primer paso del runbook existe para atrapar, observada en
+vivo: no es una precaución teórica.
+
+**Los cuatro pies, verificados EN PANTALLA y no sólo en el binario** (HEAD `3bd5cfc`):
+
+| App | Cómo se leyó | Pie |
+|---|---|---|
+| Android | `uiautomator dump` sobre el emulador | `1.0.0+3bd5cfc` |
+| iOS | captura del simulador (iPhone 17 Pro), leída a ojo | `1.0.0+3bd5cfc` |
+| React Native | `uiautomator dump` sobre el emulador | `1.0.0+3bd5cfc` |
+| Angular | CDP sobre Chrome headless, WASM real | `1.0.0+3bd5cfc` |
+
+Más los binarios: `.so` de Android, los dos slices del XCFramework, las tres ABIs de `.a` de RN y
+el `.wasm`, todos con el string exacto. **Es la primera vez en la POC que las cuatro coinciden.**
+
+**Ruling T14-2 — el aparato encontró un bug que 120 tests no veían, y es de esta fase.** Al
+levantar React Native para leer su pie, la app arrancó en **pantalla roja**: `Unable to resolve
+module @babel/runtime/helpers/interopRequireDefault from packages/contract/src/messageFor.ts`.
+No es el entorno: la Fase 5 sacó el mapeo del contrato a `packages/contract` y RN pasó a
+consumirlo, Metro transpila ese TS con Babel —que inyecta `interopRequireDefault`— y **resuelve
+los helpers relativo al archivo que transpila**, o sea desde `packages/contract`, que bajo pnpm
+estricto sólo veía `typescript` y `@types/node`. Verificado a mano con `require.resolve` desde los
+dos directorios antes y después del arreglo.
+**Lo grave no es el bug sino lo que revela:** los 120 tests de RN pasaban con la app rota, porque
+Jest resuelve distinto que Metro. Es el mismo patrón que el `collapsable={false}` de Fabric en la
+Fase 4 — sin corredor de tests en dispositivo, la única red de esa app es el smoke manual, y esta
+vez el defecto sobrevivió desde el commit que lo introdujo hasta el día de montar la demo.
+Arreglado en `62d7975` y anotado en `apps/react-native/PENDING.md` al lado del caso de Fabric.
+**Costo si está mal:** una dependencia declarada de más en un paquete del workspace.
+
+**El commit del arreglo movió HEAD a `62d7975`, y los artefactos siguen valiendo.** No por
+descuido: el criterio del runbook no es «el pie coincide con HEAD» sino «los pies coinciden entre
+sí **y** `git diff --stat <sha-del-pie>..HEAD -- rust-core/` sale vacío». Sale vacío: lo único que
+cambió después son `packages/contract/package.json`, el lockfile y un PENDING.
+
+- **Task 14: complete.** Gates de `web-angular`: 99 tests, lint, build y `format:check`, los
+  cuatro en verde. React Native: 120 tests. Las cuatro apps con el mismo pie, en pantalla.
