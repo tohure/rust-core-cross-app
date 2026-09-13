@@ -143,9 +143,9 @@ describe('TransferScreen', () => {
     fixture.detectChanges();
 
     expect(resultValue(root, 'receipt')).toBeFalsy();
-    expect((root.querySelector('[data-testid="transfer"] button') as HTMLButtonElement).disabled).toBe(
-      true,
-    );
+    expect(
+      (root.querySelector('[data-testid="transfer"] button') as HTMLButtonElement).disabled,
+    ).toBe(true);
 
     vi.advanceTimersByTime(10);
     fixture.detectChanges();

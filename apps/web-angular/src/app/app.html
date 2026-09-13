@@ -22,11 +22,7 @@
       <app-transfer-screen />
     </section>
 
-    <section
-      class="app-shell__screen"
-      [hidden]="activeTab() !== 'card'"
-      data-testid="screen-card"
-    >
+    <section class="app-shell__screen" [hidden]="activeTab() !== 'card'" data-testid="screen-card">
       <app-card-screen />
     </section>
 

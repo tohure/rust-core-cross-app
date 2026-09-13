@@ -36,11 +36,10 @@ describe('App', () => {
     const fixture = TestBed.createComponent(App);
     await fixture.whenStable();
 
-    const labels = TAB_KEYS.map(
-      (key) =>
-        (
-          fixture.nativeElement.querySelector(`[data-testid="tab-${key}"]`) as HTMLElement
-        ).textContent?.trim(),
+    const labels = TAB_KEYS.map((key) =>
+      (
+        fixture.nativeElement.querySelector(`[data-testid="tab-${key}"]`) as HTMLElement
+      ).textContent?.trim(),
     );
     // `Transf.` y `Bm` son del wireframe ASCII, que abrevia por ancho de columna; el texto
     // normativo, dos párrafos más arriba en ese mismo archivo, los nombra enteros.

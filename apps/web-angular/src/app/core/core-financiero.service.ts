@@ -1,8 +1,17 @@
 import { Injectable } from '@angular/core';
 import {
-  add, calculateItf, coreVersion, decrypt, encrypt, executeTransfer,
-  initCore, subtract, validateCard, validateCci,
-  type Account, type TransferRequest,
+  add,
+  calculateItf,
+  coreVersion,
+  decrypt,
+  encrypt,
+  executeTransfer,
+  initCore,
+  subtract,
+  validateCard,
+  validateCci,
+  type Account,
+  type TransferRequest,
 } from '@banco/core-financiero-wasm';
 
 /**

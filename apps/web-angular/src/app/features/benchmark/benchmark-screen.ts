@@ -171,7 +171,12 @@ function timedBatch(
       inputMode="numeric"
     />
 
-    <app-primary-button label="Ejecutar" data-testid="run" [loading]="running()" (pressed)="run()" />
+    <app-primary-button
+      label="Ejecutar"
+      data-testid="run"
+      [loading]="running()"
+      (pressed)="run()"
+    />
 
     @if (note()) {
       <p class="benchmark-screen__clamp-note" data-testid="benchmark-clamp-note">{{ note() }}</p>
@@ -378,7 +383,10 @@ export class BenchmarkScreen implements OnDestroy {
    * (`elapsedMs / k`), no la latencia de una llamada suelta — ese es el cambio de significado
    * que exige medir por lotes en vez de por llamada individual.
    */
-  private measure(iterationsPerBatch: number, f: (i: number) => string): { p50: number; p95: number } {
+  private measure(
+    iterationsPerBatch: number,
+    f: (i: number) => string,
+  ): { p50: number; p95: number } {
     const k = this.calibrateBatchSize(iterationsPerBatch, f);
     for (let w = 0; w < WARMUP_BATCHES; w++) {
       const { sink } = timedBatch(k, f, this.checksum);

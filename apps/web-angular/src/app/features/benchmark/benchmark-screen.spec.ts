@@ -27,7 +27,8 @@ const SIN_MEDIR = '—';
 // número hay que actualizarlo acá.
 const WARMUP_BATCHES = 5;
 const SAMPLE_COUNT = 30;
-const MIN_BATCHES_PER_MEASURE = 1 /* el lote de calibración que sí llega a durar 1 ms */ + WARMUP_BATCHES + SAMPLE_COUNT;
+const MIN_BATCHES_PER_MEASURE =
+  1 /* el lote de calibración que sí llega a durar 1 ms */ + WARMUP_BATCHES + SAMPLE_COUNT;
 
 // Fix round 2 (finding N1): espejo de la derivación de `MAX_BATCH_SIZE` en `benchmark-screen.ts`
 // — ya no es una constante fija, se deriva de un presupuesto de operaciones TOTALES por

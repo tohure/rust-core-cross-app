@@ -85,7 +85,10 @@ const AMOUNT_FILTER = /^\d{0,9}(\.\d{0,2})?$/;
 
     <app-section-divider title="Saldos" />
     @for (account of accounts(); track account.id) {
-      <app-result-row [label]="account.id + '  ' + account.holder" [value]="account.balance | money" />
+      <app-result-row
+        [label]="account.id + '  ' + account.holder"
+        [value]="account.balance | money"
+      />
     }
   `,
   styles: `

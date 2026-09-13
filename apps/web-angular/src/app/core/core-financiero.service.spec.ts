@@ -12,7 +12,9 @@ describe('CoreFinancieroService', () => {
     // el constructor de TypedArray copia por internal slots, no por `instanceof`. Esto es sólo
     // del arnés de test: en el navegador real hay un único realm y `fetch().arrayBuffer()` no
     // lo sufre.
-    const bytes = readFileSync('../../packages/core-financiero-wasm/generated/core_financiero.wasm');
+    const bytes = readFileSync(
+      '../../packages/core-financiero-wasm/generated/core_financiero.wasm',
+    );
     await initCore(new Uint8Array(bytes));
   });
 

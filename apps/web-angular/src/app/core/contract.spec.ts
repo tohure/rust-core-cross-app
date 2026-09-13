@@ -30,9 +30,7 @@ function group(name: string): ContractCase[] {
 // (Vitest + jsdom) el `Buffer` de `readFileSync` no pasa `instanceof Uint8Array` en ese realm, y
 // `UniffiNativeModule.open` lo rechaza. Envolverlo en un `Uint8Array` del realm local lo resuelve.
 beforeAll(async () => {
-  const bytes = readFileSync(
-    '../../packages/core-financiero-wasm/generated/core_financiero.wasm',
-  );
+  const bytes = readFileSync('../../packages/core-financiero-wasm/generated/core_financiero.wasm');
   await initCore(new Uint8Array(bytes));
 });
 
