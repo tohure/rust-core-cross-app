@@ -1,1 +1,37 @@
 /* You can add global styles to this file, and also import other style files */
+
+/*
+ * Paleta compartida con Android, iOS y React Native (`apps/react-native/example/src/ui/theme.ts`).
+ * Es dirección visual, no identidad: el banco es el ficticio del contrato, nunca uno real.
+ * Se definen como variables CSS de :root (no scoped a ningún componente) para que los seis
+ * componentes de `src/app/ui/` -cada uno con su propio ViewEncapsulation- puedan leerlas sin
+ * que cada uno repita los valores.
+ */
+:root {
+  --color-orange: #e8600a;
+  --color-blue: #0a4de8;
+  --color-white: #ffffff;
+  --color-surface: #f6f6f8;
+  --color-text: #141418;
+  --color-muted: #6b6b76;
+  --color-border: #e2e2e6;
+  --color-danger: #c62828; /* el resultado del punto flotante nativo */
+  --color-ok: #2e7d32; /* el resultado del core */
+  --font-mono: ui-monospace, 'SF Mono', 'Courier New', Courier, monospace;
+}
+
+html,
+body {
+  height: 100%;
+  margin: 0;
+  color: var(--color-text);
+  background: var(--color-surface);
+  font-family:
+    -apple-system,
+    BlinkMacSystemFont,
+    'Segoe UI',
+    Roboto,
+    Helvetica,
+    Arial,
+    sans-serif;
+}

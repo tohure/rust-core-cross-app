@@ -1,0 +1,78 @@
+:host {
+  display: flex;
+  flex-direction: column;
+  height: 100dvh;
+  background: var(--color-surface);
+}
+
+.app-shell {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+
+.app-shell__content {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.app-shell__screen {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 1rem;
+  /* Esto es web de escritorio, no una de las tres apps móviles: usa el ancho disponible.
+     El max-width es sólo un techo de lectura en monitores muy anchos, no una columna de
+     teléfono; por debajo de él ocupa el 100% sin necesitar media query. */
+  width: 100%;
+  max-width: 720px;
+  margin: 0 auto;
+  box-sizing: border-box;
+}
+
+/*
+ * Sin esta regla, el atributo [hidden] no oculta nada: la hoja de estilos del navegador trae
+ * `[hidden] { display: none }`, pero es UA (User-Agent) y el CSS de autor la gana siempre,
+ * incluso con la misma especificidad -- acá `.app-shell__screen { display: flex }` la habría
+ * pisado, dejando las cuatro pantallas visibles y apiladas a la vez. Verificado con captura de
+ * pantalla real (Chrome vía CDP), no sólo con la propiedad `.hidden` del DOM: esa propiedad
+ * IDL vale true/false igual, esté o no la pantalla oculta de verdad, así que un test que sólo
+ * la lea no habría visto este bug. `.app-shell__screen[hidden]` tiene más especificidad que
+ * `.app-shell__screen` sola, así que gana sin necesitar `!important`.
+ */
+.app-shell__screen[hidden] {
+  display: none;
+}
+
+.app-shell__placeholder-note {
+  margin: 0;
+  padding: 0.5rem 0.75rem;
+  border: 1px dashed var(--color-border);
+  border-radius: 6px;
+  font-size: 0.8125rem;
+  font-style: italic;
+  color: var(--color-muted);
+}
+
+.app-shell__tabs {
+  display: flex;
+  border-top: 1px solid var(--color-border);
+  background: var(--color-white);
+}
+
+.app-shell__tab {
+  flex: 1;
+  padding: 0.75rem 0.25rem;
+  border: none;
+  background: transparent;
+  font-size: 0.75rem;
+  color: var(--color-muted);
+  cursor: pointer;
+}
+
+.app-shell__tab--active {
+  color: var(--color-orange);
+  font-weight: 600;
+}
