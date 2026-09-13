@@ -1,4 +1,4 @@
-import { Component, model, input } from '@angular/core';
+import { Component, ElementRef, effect, model, input, viewChild } from '@angular/core';
 
 /**
  * Campo de texto con label a la izquierda (`LabeledField(label, value, onChange)` en
@@ -16,11 +16,11 @@ import { Component, model, input } from '@angular/core';
     <label class="labeled-field">
       <span class="labeled-field__label">{{ label() }}</span>
       <input
+        #input
         class="labeled-field__input"
         type="text"
         [attr.inputmode]="inputMode()"
         [placeholder]="placeholder()"
-        [value]="value()"
         (input)="onInput($event)"
         autocomplete="off"
         autocapitalize="off"
@@ -67,6 +67,29 @@ export class LabeledField {
   readonly value = model<string>('');
   readonly placeholder = input<string>('');
   readonly inputMode = input<'text' | 'decimal' | 'numeric'>('text');
+
+  private readonly inputRef = viewChild.required<ElementRef<HTMLInputElement>>('input');
+
+  constructor() {
+    // Escribe `value()` en el DOM A MANO, en vez de un `[value]="value()"` declarativo, porque
+    // ese binding tiene un agujero real: Angular salta la escritura al DOM cuando el valor
+    // NUEVO coincide con el ÚLTIMO que Angular mismo aplicó — pero el DOM puede haber cambiado
+    // por fuera de Angular (el usuario tecleando: el navegador actualiza `input.value` de forma
+    // nativa, sin pasar por ningún binding). Eso importa acá porque un consumidor que filtra el
+    // valor (Transferencia con el monto, Tarjeta con el número y el hex) revierte al último
+    // valor VÁLIDO llamando `value.set(...)` con ese mismo string de antes: si ese string es
+    // igual al que Angular ya tenía anotado, el binding declarativo no vuelve a tocar el DOM y
+    // la tecla rechazada queda visible en pantalla. Comparando contra el DOM real (`el.value`,
+    // no contra la anotación interna de Angular) en cada corrida del efecto, se cierra el hueco
+    // sin importar el orden en que lleguen los `set()`. Encontrado en la Tarea 11 escribiendo el
+    // spec de Transferencia, no a ojo: `1,50` quedaba visible después de revertir a `100.00`
+    // porque el revert coincidía con el último valor aceptado.
+    effect(() => {
+      const el = this.inputRef().nativeElement;
+      const next = this.value();
+      if (el.value !== next) el.value = next;
+    });
+  }
 
   onInput(event: Event): void {
     this.value.set((event.target as HTMLInputElement).value);

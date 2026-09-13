@@ -1,6 +1,7 @@
 import { Component, inject, signal } from '@angular/core';
 import { CoreFinancieroService } from './core/core-financiero.service';
 import { ArithmeticScreen } from './features/arithmetic/arithmetic-screen';
+import { TransferScreen } from './features/transfer/transfer-screen';
 import { ScreenHeader } from './ui/screen-header/screen-header';
 import { LabeledField } from './ui/labeled-field/labeled-field';
 import { CoreVersionFooter } from './ui/core-version-footer/core-version-footer';
@@ -33,11 +34,12 @@ interface TabDef {
  *
  * Las Tareas 10-13 reemplazan el contenido de marcador de cada `<section>` por la pantalla real
  * (`ArithmeticScreen`, etc.); lo que no cambia es que sigan siendo hijas siempre-montadas de
- * este shell, ocultas con `[hidden]`. La Tarea 10 ya reemplazó la de Aritmética.
+ * este shell, ocultas con `[hidden]`. Las Tareas 10 y 11 ya reemplazaron Aritmética y
+ * Transferencia.
  */
 @Component({
   selector: 'app-root',
-  imports: [ArithmeticScreen, ScreenHeader, LabeledField, CoreVersionFooter],
+  imports: [ArithmeticScreen, TransferScreen, ScreenHeader, LabeledField, CoreVersionFooter],
   templateUrl: './app.html',
   styleUrl: './app.css',
 })
@@ -60,11 +62,10 @@ export class App {
   protected readonly version: string = this.core.coreVersion();
 
   // Marcadores de estado de las pantallas aún no implementadas — placeholders de la Tarea 9,
-  // uno por pestaña. Las Tareas 11-13 los reemplazan por el estado real de cada pantalla
-  // (`TransferScreen`, `CardScreen`, etc.). Lo que hay que conservar es que cada pantalla siga
-  // siendo un hijo siempre-montado del shell: son la prueba de que un signal de pantalla
-  // sobrevive al cambio de pestaña con [hidden].
-  protected readonly transferDraft = signal('');
+  // uno por pestaña. Las Tareas 12-13 los reemplazan por el estado real de cada pantalla
+  // (`CardScreen`, etc.). Lo que hay que conservar es que cada pantalla siga siendo un hijo
+  // siempre-montado del shell: son la prueba de que un signal de pantalla sobrevive al cambio
+  // de pestaña con [hidden].
   protected readonly cardDraft = signal('');
   protected readonly benchmarkDraft = signal('');
 

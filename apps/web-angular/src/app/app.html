@@ -19,17 +19,7 @@
       [hidden]="activeTab() !== 'transfer'"
       data-testid="screen-transfer"
     >
-      <app-screen-header title="Transferencia" subtitle="Dos cuentas en memoria" />
-      <p class="app-shell__placeholder-note">
-        Pantalla pendiente de implementar (Tarea 11). Este campo es sólo la prueba de que el
-        estado de la pestaña sobrevive al cambio de pestaña.
-      </p>
-      <app-labeled-field
-        label="Borrador"
-        [(value)]="transferDraft"
-        placeholder="Prueba de estado"
-        inputMode="decimal"
-      />
+      <app-transfer-screen />
     </section>
 
     <section
