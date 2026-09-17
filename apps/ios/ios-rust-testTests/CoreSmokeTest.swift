@@ -1,3 +1,4 @@
+import CoreFinancieroKit
 import Foundation
 import Testing
 @testable import ios_rust_test

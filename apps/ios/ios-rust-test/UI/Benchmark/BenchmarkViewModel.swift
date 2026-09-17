@@ -1,3 +1,4 @@
+import CoreFinancieroKit
 import Foundation
 
 /// Hasta 6 dígitos, igual que `BenchmarkViewModel.kt:32` en Android. Es un filtro de

@@ -1,3 +1,4 @@
+import CoreFinancieroKit
 import Foundation
 
 /// Máximo 2 decimales y hasta 9 enteros. Es un filtro de **texto**, no una regla de negocio.

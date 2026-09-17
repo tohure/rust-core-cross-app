@@ -1,3 +1,4 @@
+import CoreFinancieroKit
 import Foundation
 
 /// Cableado manual, sin librería de DI.

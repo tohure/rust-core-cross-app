@@ -1,3 +1,4 @@
+import CoreFinancieroKit
 import SwiftUI
 
 struct CardView: View {

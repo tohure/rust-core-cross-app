@@ -1,3 +1,4 @@
+import CoreFinancieroKit
 import SwiftUI
 
 /// La navegación de la app y el pie de `coreVersion()` **visible en todas las pestañas**.

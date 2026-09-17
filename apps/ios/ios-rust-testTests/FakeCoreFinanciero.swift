@@ -1,3 +1,4 @@
+import CoreFinancieroKit
 @testable import ios_rust_test
 
 /// Determinista y sin núcleo: los tests de ViewModel prueban el ViewModel, no el core.

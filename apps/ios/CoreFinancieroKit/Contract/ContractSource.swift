@@ -2,7 +2,7 @@
 ///
 /// Existe como protocolo por una razón propia de iOS: producción lee de `Bundle.main` y
 /// los tests de `Bundle(for:)`. El mismo código tiene que leer de dos bundles distintos.
-protocol ContractSource {
+public protocol ContractSource {
     /// Las dos cuentas de `cuentas_iniciales`. Son datos del contrato, no de la app:
     /// hardcodearlas las haría divergir entre las cuatro plataformas.
     func initialAccounts() -> [Account]

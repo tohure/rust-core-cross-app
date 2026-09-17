@@ -7,6 +7,6 @@
 ///
 /// Es protocolo por lo mismo que `ContractSource`, y además porque así un segundo idioma
 /// es otro archivo y no un cambio de código.
-protocol MessageSource {
+public protocol MessageSource {
     func messages() -> [String: String]
 }
