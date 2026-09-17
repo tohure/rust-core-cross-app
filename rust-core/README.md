@@ -136,6 +136,35 @@ commits distintos, las cuatro pantallas van a mostrar cuatro strings distintos y
 en pantalla se cae. Hay que **regenerar los cuatro artefactos desde el mismo HEAD** antes de
 poner las apps lado a lado.
 
+### Comprobar los cuatro artefactos de una vez
+
+Después de regenerarlos —[el paso único de BUILD.md](BUILD.md#generar-el-core-que-consumen-las-cuatro-apps)—
+y **antes** de levantar las apps:
+
+```bash
+SHA=$(git rev-parse --short HEAD)
+for p in \
+  apps/android/app/src/main/jniLibs/arm64-v8a/libcore_financiero.so \
+  apps/ios/CoreFinanciero.xcframework/ios-arm64/libcore_financiero.a \
+  apps/ios/CoreFinanciero.xcframework/ios-arm64-simulator/libcore_financiero.a \
+  apps/react-native/android/src/main/jniLibs/arm64-v8a/libcore_financiero.a \
+  apps/react-native/src/generated-napi/libcore_financiero.dylib \
+  packages/core-financiero-wasm/generated/core_financiero.wasm
+do
+  printf '%-70s %s\n' "$p" "$(strings -a "$p" | grep -oE "1\.0\.0\+$SHA" | sort -u)"
+done
+```
+
+Qué se debe ver — el **mismo** `1.0.0+<sha>` en las seis líneas, y ninguna vacía. Una línea
+vacía es un artefacto que quedó de otro commit: se regenera ése y se vuelve a correr.
+
+> **El patrón va anclado al SHA de `HEAD`, nunca abierto como `[0-9a-f]{7,}`.** Rust empaqueta
+> los literales de string contiguos y **sin terminador**, así que `strings` los devuelve
+> pegados: un patrón abierto se come los caracteres hex del literal siguiente y devuelve, por
+> ejemplo, `1.0.0+56acc05ca` en un binario y `1.0.0+56acc05` en otro — el `ca` es el principio
+> de `called \`Result::unwrap()\`...`. Los dos artefactos son del mismo commit y el comando
+> dice que no. Verificado en la Fase 6.
+
 Si en pantalla aparece `1.0.0+sin-git`, el build corrió sin `git` disponible o fuera de un
 checkout: ese binario no lleva identificación y no sirve para la comparación.
 
