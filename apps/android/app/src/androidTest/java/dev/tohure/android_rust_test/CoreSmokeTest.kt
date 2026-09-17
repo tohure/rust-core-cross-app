@@ -28,7 +28,7 @@ class CoreSmokeTest {
     @Test
     fun aValueCrossesTheBoundaryAndComesBack() {
         // Un caso del contrato (ar-001), acá solo para probar que un String cruza en
-        // los dos sentidos. La verificación real de los 28 casos es la Task 5.
+        // los dos sentidos. La verificación real de los 31 casos es la Task 5.
         assertEquals("0.30", add("0.1", "0.2"))
     }
 }

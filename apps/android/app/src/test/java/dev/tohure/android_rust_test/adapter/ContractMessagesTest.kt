@@ -27,7 +27,7 @@ class ContractMessagesTest {
     private val messages = ContractMessages(source)
 
     @Test
-    fun theNineVariantsMapToTheContractNames() {
+    fun theTenVariantsMapToTheContractNames() {
         assertEquals("Longitud", DomainException.Length("cci", 20u, 18u).contractName())
         assertEquals("DigitoControl", DomainException.CheckDigit().contractName())
         assertEquals("BancoDesconocido", DomainException.UnknownBank("999").contractName())
@@ -39,6 +39,7 @@ class ContractMessagesTest {
             DomainException.InsufficientFunds("1.00", "2.00").contractName(),
         )
         assertEquals("Cifrado", DomainException.Encryption("nonce").contractName())
+        assertEquals("Descifrado", DomainException.Decryption("detalle").contractName())
         assertEquals("FueraDeRango", DomainException.OutOfRange("monto").contractName())
     }
 

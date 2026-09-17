@@ -24,7 +24,7 @@ import uniffi.core_financiero.validateCci
 
 /**
  * Espejo Kotlin de `rust-core/crates/ffi/tests/contract.rs`. Que este test pase **es** la
- * demostración: los mismos 28 casos producen los mismos strings que en Rust.
+ * demostración: los mismos 31 casos producen los mismos strings que en Rust.
  *
  * Comparaciones con `assertEquals` sobre `String`, nunca numéricas con tolerancia.
  *
@@ -84,18 +84,18 @@ class ContractTest {
     }
 
     /**
-     * Ata el asset REAL de `messages.es.json` a las nueve variantes del core.
+     * Ata el asset REAL de `messages.es.json` a las diez variantes del core.
      *
      * Es la única guardia de mensajes que Android necesita y que Rust no puede dar: el test de contrato
      * de Rust lee el archivo fuente con `include_str!`, mientras que esta app lee el asset que
      * copió Gradle. Un asset viejo o truncado dejaría a Rust en verde y a las cuatro pantallas
      * de error mostrando cosas distintas.
      *
-     * Los nueve nombres no se tipean acá: salen de `contractName()` sobre las nueve variantes
+     * Los diez nombres no se tipean acá: salen de `contractName()` sobre las diez variantes
      * construidas de verdad, así que renombrar una en el core mueve esta lista sola.
      */
     @Test
-    fun theMessagesAssetCoversTheNineErrorVariants() {
+    fun theMessagesAssetCoversTheTenErrorVariants() {
         val assets = InstrumentationRegistry.getInstrumentation().context.assets
         val node = JSONObject(assets.open("messages.es.json").bufferedReader().use { it.readText() })
             .getJSONObject("mensajes")
@@ -109,15 +109,16 @@ class ContractTest {
             DomainException.SameAccount(),
             DomainException.InsufficientFunds("1.00", "2.00"),
             DomainException.Encryption("nonce inválido"),
+            DomainException.Decryption("tag inválido"),
             DomainException.OutOfRange("monto"),
         )
         // Derivado, no tipeado: si dos variantes colisionaran en el mismo nombre de contrato
         // —un copy-paste en el `when` de contractName()—, el set se reduce y esto falla. Con
-        // `variants.size` no fallaría nunca, porque la lista literal siempre tiene nueve.
+        // `variants.size` no fallaría nunca, porque la lista literal siempre tiene diez.
         val names = variants.map { it.contractName() }.toSet()
         assertEquals(
-            "las nueve variantes del core deben dar nueve nombres de contrato distintos",
-            9,
+            "las diez variantes del core deben dar diez nombres de contrato distintos",
+            10,
             names.size,
         )
 

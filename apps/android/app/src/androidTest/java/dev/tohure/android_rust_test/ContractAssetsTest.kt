@@ -28,7 +28,7 @@ class ContractAssetsTest {
     @Test
     fun theAppApkCarriesBothContractFiles() {
         // Producción los necesita: `cuentas_iniciales` para la pantalla de Transferencia
-        // y los nueve mensajes para las pantallas de error.
+        // y los diez mensajes para las pantallas de error.
         val cases = JSONObject(appAssets.open("cases.json").reader().readText())
         assertEquals("2.4.0", cases.getString("version"))
         val messages = JSONObject(appAssets.open("messages.es.json").reader().readText())

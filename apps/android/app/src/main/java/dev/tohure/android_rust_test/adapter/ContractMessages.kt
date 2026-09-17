@@ -7,11 +7,12 @@ import uniffi.core_financiero.DomainException
  * El nombre que `contracts/cases.json` le da a este error.
  *
  * `DomainError::contract_name()` es un método de Rust y **no cruza el FFI**: el enum
- * generado trae solo los nombres en inglés. Verificado en la Fase 1: los nueve nombres
- * del contrato aparecen 0 veces en el `.kt` generado.
+ * generado trae solo los nombres en inglés. Verificado en la Fase 1 con nueve variantes
+ * y otra vez en la Fase 6 con la décima (`Decryption`): los diez nombres del contrato
+ * aparecen 0 veces en el `.kt` generado.
  *
  * El `when` va **exhaustivo, como expresión y sin rama `else`**. Es deliberado: agregar
- * una décima variante al core tiene que romper la compilación acá — un fallo ruidoso y
+ * una undécima variante al core tiene que romper la compilación acá — un fallo ruidoso y
  * ubicado— en vez de caer en un `"Desconocido"` que compila, pasa en verde, y se descubre
  * el día de la demo cuando esta app muestra un error que las otras tres no.
  */
