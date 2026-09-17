@@ -42,7 +42,10 @@ export function useTransfer(core: Core) {
     if (state.loading) return;
     set({ loading: true, error: '' });
     try {
-      const r = core.executeTransfer(state.accounts, {
+      // `[...]` porque el estado guarda las cuentas como `readonly` —ver TransferUiState— y la
+      // firma generada pide un array mutable. La copia no es ceremonia: el core recibe la suya y
+      // el estado no queda expuesto a que nadie lo mute por debajo.
+      const r = core.executeTransfer([...state.accounts], {
         origin: state.origin,
         destination: state.destination,
         // El string viaja al core **tal como se tecleó**: punto decimal, sin `S/` y sin

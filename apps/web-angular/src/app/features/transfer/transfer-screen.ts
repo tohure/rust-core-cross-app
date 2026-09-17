@@ -130,7 +130,17 @@ export class TransferScreen implements OnDestroy {
   // El monto arranca vacío: lo tipea quien hace la demo (`docs/demo-runbook.md`, acto 2).
   protected readonly amount = signal('');
   protected readonly loading = signal(false);
-  protected readonly accounts = signal<Account[]>(this.initialAccountsList);
+  /**
+   * `readonly` **no es estilo: es la guardia contra mutar un `Record` de uniffi en el lugar.**
+   *
+   * Los `Record` generados son objetos mutables y en JavaScript son tipos de referencia. Mutar
+   * `accounts()[0].balance` y volver a guardar el mismo array no dispara nada: los signals
+   * comparan con `Object.is`, ven la misma referencia y la pantalla queda con el saldo viejo.
+   *
+   * Android tiene que cazarlo con un test porque Kotlin no puede expresarlo en el tipo; acá el
+   * intento de mutar **no compila**, que es más fuerte y más barato. Ver docs/cross-app-pending.md.
+   */
+  protected readonly accounts = signal<readonly Readonly<Account>[]>(this.initialAccountsList);
   protected readonly itfFee = signal('');
   protected readonly totalDebited = signal('');
   protected readonly receipt = signal('');
@@ -176,7 +186,10 @@ export class TransferScreen implements OnDestroy {
     this.loading.set(true);
     this.error.set('');
     try {
-      const result = this.core.executeTransfer(this.accounts(), {
+      // `[...]` porque el signal guarda las cuentas como `readonly` —ver su declaración— y la
+      // firma generada pide un array mutable. La copia no es ceremonia: el core recibe la suya y
+      // el estado no queda expuesto a que nadie lo mute por debajo.
+      const result = this.core.executeTransfer([...this.accounts()], {
         origin: this.origin(),
         destination: this.destination(),
         // El string viaja al core TAL COMO SE TECLEÓ: punto decimal, sin `S/` y sin
