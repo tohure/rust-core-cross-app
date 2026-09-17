@@ -23,10 +23,11 @@ xcodebuild test -project ios-rust-test.xcodeproj -scheme ios-rust-test \
 ```
 
 Qué se debe ver — `** TEST SUCCEEDED **` y
-**`Test run with 52 tests in 12 suites passed`**:
+**`Test run with 53 tests in 13 suites passed`**:
 
 | Archivo | Tests | Qué prueba |
 |---|---|---|
+| `FfiCostProbe` | 1 | nada: es la sonda del benchmark, y sin `PROBE=1` queda *skipped* |
 | **`ContractTest`** | **11** | **los 31 casos del contrato, más sus cinco guardias** |
 | `CoreSmokeTest` | 4 | que el `.a` está enlazado, que el adapter reexporta y que propaga el error crudo |
 | `ContractFixtures` | 2 | que los dos JSON del contrato llegaron al bundle de test |
@@ -132,9 +133,10 @@ xcodebuild test -project ios-rust-test.xcodeproj -scheme ios-rust-test \
   -destination 'id=<identificador del aparato>' -allowProvisioningUpdates
 ```
 
-Resultado: **`Test run with 52 tests in 12 suites passed` · `** TEST SUCCEEDED **`** — el mismo
-conteo y el mismo verde que el simulador, sobre un **iPad Air (5.ª gen, `iPad13,16`) con
-iPadOS 26.6.1**. Con eso queda probado lo que ninguna corrida de simulador podía probar: que el
+Resultado: **`Test run with 53 tests in 13 suites passed` · `** TEST SUCCEEDED **`** — el mismo
+conteo y el mismo verde que el simulador. Corrió sobre dos aparatos distintos: un **iPad Air
+(5.ª gen, `iPad13,16`) con iPadOS 26.6.1** al cerrar la Fase 3, y un **iPhone 12 (`iPhone13,2`)
+con iOS 18** al medir el benchmark de verdad. Con eso queda probado lo que ninguna corrida de simulador podía probar: que el
 `.a` del slice de device está enlazado, que sus símbolos resuelven, y que el `strip` del perfil
 release no se comió nada. El test de contrato pasa **31/31 en el aparato**.
 
@@ -151,81 +153,125 @@ volver al Step 7 de la Task 1 y verificar que el `.xcframework` traiga los dos.
    paso **manual en el aparato**, una vez por certificado: *Ajustes → General → VPN y Gestión
    de Dispositivos → APP DE DESARROLLADOR → `Apple Development: <cuenta>` → Confiar*.
 
-## El benchmark: medido, con una salvedad que importa
+## El benchmark: medido en un iPhone, y en release
 
-**Medido en un iPad Air (5.ª gen, M1) con iPadOS 26.6.1**, n = 1000, contra el artefacto
-`1.0.0+b719da3`. Android está medido en un **Pixel 6**, un teléfono. **No son aparatos
-comparables**, y más abajo está por qué la conclusión se sostiene igual.
+**Medido en un iPhone 12 (`iPhone13,2`, A14) con iOS 18**, artefacto `1.0.0+959025f`, sonda de
+2.000 iteraciones de calentamiento y 20.000 medidas. La medición anterior —un iPad Air M1, en
+Debug— quedó reemplazada: era un chip de tablet y una configuración que penaliza el cruce.
 
-| Llamada | iOS (iPad Air 5, M1) | Android (Pixel 6) | Relación |
+| Llamada | Release | Debug | Android release (Pixel 6) |
 |---|---|---|---|
-| `coreVersion()` — piso del cruce | **0,33 µs** | 172 µs | **521×** |
-| `validateCard("41111")` | **7,08 µs** | 327 µs | 46× |
-| `add("0.1","0.2")` | **1,58 µs** | 444 µs | **281×** |
-| baseline nativa en `Double` | **0,38 µs** | 3,7 µs | 10× |
+| `coreVersion()` — piso del cruce | **0,062 µs** | 0,38 µs | 47,1 µs |
+| `add("0.1","0.2")` | **0,42 µs** | 1,31 µs | 145,9 µs |
+| `validateCard("41111")` — **lanza** | **3,58 µs** | 4,54 µs | 113,1 µs |
+| `NativeBaseline.add` | **0,15 µs** | 0,41 µs | 2,1 µs |
 
-### La hipótesis se confirma, y no por poco
+Las dos primeras filas son **medias por lote**, no percentiles, y la razón está en la sección
+siguiente. Las otras dos son p50.
 
-El piso del cruce —una función sin argumentos, sin parseo, que devuelve un `&'static str`—
-cuesta **0,33 µs en iOS contra 172 µs en Android: 521 veces menos.**
+### El piso del cruce cae debajo de la resolución del reloj
 
-**Entre un M1 y un Pixel 6 hay un factor de 2× o 3×, no de 521×.** Por eso la salvedad del
-aparato no alcanza a explicar la brecha: aunque el número de iOS se multiplicara por diez para
-castigarlo por correr en un chip de escritorio, seguiría siendo dos órdenes de magnitud más
-barato. **La diferencia es el puente, no la CPU**, que es exactamente lo que la pantalla existe
-para aislar.
+`ContinuousClock` va sobre `mach_absolute_time`, cuyo tick en los Ax/Mx es de **~41,67 ns**. Ese
+número no es teórico: la sonda lo mide, cronometrando un cuerpo vacío.
+
+```
+(reloj, cuerpo vacío)   p50=    0.04 us
+coreVersion()           p50=    0.08 us     ← dos ticks
+```
+
+**Un cruce que mide dos ticks está midiendo el reloj, no el cruce.** Por eso la sonda cronometra
+además **lotes de 1.000 llamadas y divide**, que es exactamente el recurso que usa la app Angular
+contra el `performance.now()` cuantizado del navegador. Por lotes, el piso da **0,062 µs**.
+
+Consecuencia para la demo: **en iOS el cruce no se puede medir llamada por llamada.** Cualquier
+cifra de iOS cercana a 0,04 µs hay que mirarla con desconfianza, y la pantalla de Benchmark
+—que mide por llamada, como las otras tres apps— está en ese régimen.
+
+### Release contra Debug: acá también cambia, y bastante
+
+Android descubrió que su APK de debug castiga el cruce entre 3 y 4 veces. iOS tiene el mismo
+efecto, más chico pero del mismo orden: **6,1× en el piso del cruce y 3,1× en `add`**.
+
+La lectura importante es que **la brecha contra Android no se achica al pasar los dos a release,
+se agranda**: iOS también mejora. Con las dos plataformas en release y el mismo tipo de sonda, el
+piso del cruce cuesta **47,1 µs en Android contra 0,062 µs en iOS**.
+
+### Lo que el número dice, y lo que no
+
+**El 760× que sale de dividir 47,1 entre 0,062 es correcto pero no es el número que conviene
+decir**, porque mezcla tres cosas: el puente, el runtime y el teléfono. Se pueden separar, y están
+medidas:
+
+- **El aparato explica ~1,8×.** React Native usa el mismo puente JSI en los dos teléfonos, así que
+  sirve de control del hardware: su piso del cruce va 4,23 µs en el Pixel 6 contra 2,29 en el
+  iPhone 12 (**1,8×**), y su baseline de JS, 1,18 contra 0,67 (**1,76×**). Dos medidas
+  independientes que coinciden.
+- **El puente se aísla comparando a aparato fijo.** En el mismo iPhone, con el mismo núcleo,
+  `add` cuesta **0,42 µs por el `.a` estático contra 4,71 µs por JSI**: 11×. En el mismo Pixel 6,
+  **9,44 µs por JSI contra 145,9 µs por JNA**: 15×.
+
+**La versión defendible es la de aparato fijo**, porque no necesita ninguna salvedad. La tabla
+completa de los cuatro puentes está en
+[docs/cross-app-pending.md](../../docs/cross-app-pending.md).
 
 Y se entiende por qué: Android paga JNA —`Structure` con reflexión de campos y memoria nativa
 por llamada, más un cruce extra para liberar el `RustBuffer` de la respuesta—, mientras iOS
 enlaza el `.a` estáticamente y Swift llama la función de C directo.
 
-### Lo que sale de comparar las dos columnas con cuidado
+### En cada plataforma manda un costo distinto
 
-**En cada plataforma manda un costo distinto, y no es el mismo.**
+En Android el costo es *marshalling*: el piso son 47,1 µs y cada `String` suma ~49 µs, así que
+`add` con dos argumentos da 145,9 y **la aritmética decimal cae dentro del ruido**.
 
-En Android el costo es *marshalling*: el piso son 172 µs y cada `String` suma ~150 µs, así que
-`add` con dos argumentos da 444 y **la aritmética decimal cae dentro del ruido**.
+En iOS no: el piso es 0,062 µs, o sea prácticamente gratis, y ahí el que manda es el trabajo
+real. `add` cuesta 0,42 µs —**2,8×** la baseline nativa, contra 70× en Android— porque lo que se
+está midiendo ya es casi todo `rust_decimal` y no el cruce.
 
-En iOS no: el piso es 0,33 µs, o sea prácticamente gratis, y ahí el que manda es el trabajo
-real. `add` cuesta 1,58 µs —apenas **4,2×** la baseline nativa, contra 120× en Android— porque
-lo que se está midiendo ya es casi todo `rust_decimal` y no el cruce.
+El caso que más lo delata es `validateCard("41111")`, que **lanza** un error de longitud: 3,58 µs,
+**ocho veces más caro que un `add` exitoso**. En Android pasa al revés (113 contra 146), porque
+allá lo que domina es la cantidad de argumentos. **En iOS lo caro es el camino de error**, no los
+datos que cruzan.
 
-El caso que más lo delata es `validateCard("41111")`, que **lanza** un error de longitud:
-7,08 µs, **cuatro veces más caro que un `add` exitoso**. En Android pasa al revés (327 contra
-444), porque allá lo que domina es la cantidad de argumentos. **En iOS lo caro es el camino de
-error**, no los datos que cruzan.
+### Cómo se mide, para poder repetirlo
 
-### ⚠️ Falta re-medir en un iPhone
+Con `FfiCostProbe`, en `ios-rust-testTests/`. **Vive en el repositorio**, apagada por defecto: sin
+`PROBE=1` queda *skipped* y la suite no la paga. Esto es lo que se ejecutó:
 
-Esta tabla queda **provisional**. Hay que repetirla en un teléfono con iOS 17 o superior para
-tener una comparación pareja contra el Pixel 6; ver [PENDING.md](PENDING.md). La conclusión
-principal no debería moverse —la brecha es demasiado grande—, pero las cifras exactas sí.
-
-### Cómo se tomó, para poder repetirlo
-
-No se leyó de la pantalla: se corrió un test temporal en el bundle de tests, sobre el aparato,
-usando el mismo reloj y la misma forma que `BenchmarkViewModel.measure()` —muestras en enteros
-de nanosegundos, percentiles sobre el array ordenado—. El archivo se borró después de medir;
-esto es lo que hacía:
-
-```swift
-private func measure(_ n: Int, _ body: () -> Void) -> (p50: String, p95: String) {
-    var samples: [Int64] = []
-    samples.reserveCapacity(n)
-    for _ in 0..<n {
-        let start = ContinuousClock.now
-        body()
-        let e = (ContinuousClock.now - start).components
-        samples.append(e.seconds * 1_000_000_000 + e.attoseconds / 1_000_000_000)
-    }
-    samples.sort()
-    func at(_ p: Double) -> String {
-        let index = min(max(Int(Double(n) * p), 0), n - 1)
-        return String(format: "%.2f µs", Double(samples[index]) / 1000)
-    }
-    return (at(0.50), at(0.95))
-}
+```bash
+cd apps/ios
+TEST_RUNNER_PROBE=1 xcodebuild test -project ios-rust-test.xcodeproj -scheme ios-rust-test \
+  -configuration Release ENABLE_TESTABILITY=YES \
+  -destination 'id=<identificador del aparato>' -allowProvisioningUpdates \
+  -only-testing:ios-rust-testTests/FfiCostProbe
 ```
 
-Se corrió con `-only-testing:ios-rust-testTests/DeviceBenchmark` contra el `id` del aparato.
-**No se mide en simulador**: corre arm64 nativo de macOS y da un número aún más optimista.
+Qué se debe ver — la primera línea valida a las demás, porque dice el artefacto **y la
+configuración**:
+
+```
+=== artefacto 1.0.0+959025f · Release · warmup=2000 runs=20000 ===
+(reloj, cuerpo vacío)    p50=    0.04 us  p95=    0.04 us
+coreVersion()            p50=    0.08 us  p95=    0.08 us
+validateCard("41111")    p50=    3.58 us  p95=    3.71 us
+add("0.1", "0.2")        p50=    0.42 us  p95=    0.46 us
+NativeBaseline.add       p50=    0.17 us  p95=    0.17 us
+coreVersion() x1000      media=   0.062 us  (lotes de 1000)
+add x1000                media=   0.416 us  (lotes de 1000)
+NativeBaseline.add x1000 media=   0.148 us  (lotes de 1000)
+```
+
+Tres cosas de ese comando que cuestan una tarde si no están escritas:
+
+1. **`TEST_RUNNER_PROBE=1` va como variable de shell, no como build setting.** `xcodebuild` le
+   saca el prefijo `TEST_RUNNER_` y la inyecta en el proceso de test. Pasada como
+   `xcodebuild ... PROBE=1` **no llega**, y la sonda queda saltada sin decir por qué —se ve como
+   un test que pasó en 0,001 s—. Verificado imprimiendo el entorno adentro del aparato.
+2. **`ENABLE_TESTABILITY=YES` es obligatorio en Release.** La sonda usa `@testable import` para
+   llegar a `NativeBaseline`, y en Release esa bandera viene apagada:
+   `error: Unable to resolve Swift module dependency to a compatible module: 'ios_rust_test'`.
+   La salvedad honesta es que prender testabilidad limita algo la optimización entre módulos, así
+   que el número de Release es, si acaso, **conservador**.
+3. **No se mide en simulador**: corre arm64 nativo de macOS y da un número aún más optimista.
+
+`PROBE_RUNS` y `PROBE_WARMUP` ajustan la forma de la medición, para poder reproducir la de otra
+plataforma. La cantidad de muestras **cambia el resultado**.

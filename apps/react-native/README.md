@@ -12,7 +12,7 @@ Node, y el **`.wasm` del que depende la Fase 5** — `apps/web-angular` no consu
 directamente, consume lo que se construye acá.
 
 **Estado:** funcional. Las cuatro pantallas andando en Android y en iOS, el pie de
-`coreVersion()` visible en las cuatro, y **127 tests en verde**, con el contrato **31/31 por
+`coreVersion()` visible en las cuatro, y **129 tests en verde**, con el contrato **31/31 por
 N-API y 31/31 por WASM**.
 
 Lo que esta app **no** tiene, y conviene saberlo de entrada: **ninguna prueba automatizada
@@ -152,7 +152,7 @@ adb shell cat /sdcard/ui.xml | tr '>' '>\n' | grep -o 'text="[^"]*"' | grep -v '
 
 ```bash
 cd apps/react-native
-pnpm test              # 127 tests, 16 suites, en dos proyectos de Jest
+pnpm test              # 129 tests, 16 suites, en dos proyectos de Jest
 pnpm exec tsc --noEmit # sin errores
 pnpm lint              # sin errores
 ```
@@ -185,7 +185,7 @@ Corrida entera al cerrar, sobre `b5b1388`. Son los números reales, no los que e
 | `apps/android` | `./gradlew :app:testDebugUnitTest --rerun` | **31** |
 | `apps/android` | `./gradlew :app:connectedDebugAndroidTest` | **15** (Pixel 9 Pro API 36) |
 | `apps/ios` | `xcodebuild test -scheme ios-rust-test -destination 'platform=iOS Simulator,name=iPhone 17 Pro'` | **47** |
-| `apps/react-native` | `pnpm test` | **127**, 16 suites |
+| `apps/react-native` | `pnpm test` | **129**, 16 suites |
 
 **El `--rerun` de Android no es decorativo.** Sin él, Gradle contesta `BUILD SUCCESSFUL` en
 405 ms con la tarea `UP-TO-DATE`: **no corrió nada**, reusó un resultado cacheado. Un verde así
@@ -231,20 +231,32 @@ algoritmo desde el mismo core.
 
 ### Benchmark — cuánto cuesta cruzar la frontera
 
-Con `1000` iteraciones, medido en el emulador Pixel 9 Pro API 36 y en el simulador de
-iPhone 17 Pro:
+Medido con `FfiCostProbe` en **release, sobre aparatos físicos** —un Pixel 6 y un iPhone 12—
+contra el artefacto `1.0.0+959025f`. `add("0.1","0.2")`, p50:
 
-| | p50 | p95 |
-|---|---|---|
-| Android — core | 3,96 µs | 5,00 µs |
-| Android — float nativo | 0,62 µs | 0,67 µs |
-| iOS — core | 8,75 µs | 10,83 µs |
-| iOS — float nativo | 0,87 µs | 1,00 µs |
+| | piso del cruce | `add` | baseline JS |
+|---|---|---|---|
+| React Native / Android — Pixel 6 | 4,23 µs | **9,44 µs** | 1,18 µs |
+| React Native / iOS — iPhone 12 | 2,29 µs | **4,71 µs** | 0,67 µs |
+| *app nativa de Android, mismo Pixel 6* | *47,10 µs* | *145,9 µs* | *2,12 µs* |
+| *app nativa de iOS, mismo iPhone 12* | *0,062 µs* | *0,42 µs* | *0,15 µs* |
 
-**El core es más lento, y está bien: es el argumento.** Lo que la pantalla exhibe es que la
-baseline, siendo más rápida, **da mal el resultado**. Números provisionales —emulador y
-simulador, no aparatos— y **no comparables sin más con los de Android e iOS nativos**: ver
-[PENDING.md](PENDING.md).
+**El core es más lento que la baseline, y está bien: es el argumento.** Lo que la pantalla exhibe
+es que la baseline, siendo más rápida, **da mal el resultado**.
+
+Pero el dato que se lleva la discusión es otro: **el orden se da vuelta según la plataforma.** En
+el Pixel 6 esta app cruza **15× más barato** que la app nativa de Kotlin, porque JSI llama a C++
+directo y Kotlin paga JNA. En el iPhone es al revés: la nativa cruza **11× más barato**, porque
+enlaza el `.a` estáticamente. *No hay un ganador de plataforma; hay un puente caro, y es JNA.*
+
+Y como esta app usa **el mismo puente en los dos teléfonos**, sus dos filas son el único control
+de hardware que tiene la POC: 1,8× de diferencia. Eso es lo que permite afirmar que la brecha
+entre las dos apps nativas no la explica el aparato. Cuadro completo en
+[docs/cross-app-pending.md](../../docs/cross-app-pending.md); cómo se prende la sonda, en
+[BUILD.md](BUILD.md).
+
+Los números que este archivo traía antes —3,96 µs en Android, 8,75 en iOS— eran de **emulador y
+simulador**, y eran optimistas: el mismo `add` en el Pixel 6 físico cuesta 9,44.
 
 ---
 

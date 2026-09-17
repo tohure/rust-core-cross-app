@@ -5,7 +5,7 @@ README que mezcla "cómo se usa" con "qué falta" no sirve para ninguna de las d
 
 Nada de aquí bloquea la demo. Son decisiones tomadas, no olvidos.
 
-> **Lo transversal no está acá.** El benchmark que falta repetir en aparato físico, la ausencia
+> **Lo transversal no está acá.** El cuadro comparativo de los cuatro benchmarks, la ausencia
 > de CI en las cinco bases de código, el `catch` genérico que muestra texto de diagnóstico como
 > mensaje de usuario, las divergencias de paridad abiertas y la regla de que un `Record` de uniffi
 > se reemplaza y no se muta viven en
@@ -13,46 +13,7 @@ Nada de aquí bloquea la demo. Son decisiones tomadas, no olvidos.
 > palabras en tres archivos, y corregirlo en uno dejaba mintiendo a los otros dos.
 
 
-## Lo que falta medir
-
-### El benchmark está medido en un iPad, y hay que repetirlo en un iPhone
-
-**Es el pendiente con fecha de vencimiento de esta app.** El número existe y es contundente,
-pero se tomó en un aparato que no es comparable con el de Android.
-
-Medido en un **iPad Air (5.ª gen, M1)** con iPadOS 26.6.1, n = 1000, artefacto
-`1.0.0+b719da3`. Android está medido en un **Pixel 6**, o sea un teléfono:
-
-| Llamada | iOS (iPad Air 5, M1) | Android (Pixel 6) |
-|---|---|---|
-| `coreVersion()` — piso del cruce | **0,33 µs** | 172 µs |
-| `add("0.1","0.2")` | **1,58 µs** | 444 µs |
-| baseline nativa | **0,38 µs** | 3,7 µs |
-
-**Qué hay que hacer:** repetir la medición en un iPhone con **iOS 17 o superior** y reemplazar
-la tabla de [TESTING.md](TESTING.md), que hoy está marcada como provisional. El procedimiento
-—el test temporal, el comando y el aparato— está ahí documentado.
-
-**Por qué no se hizo ya:** no había un teléfono disponible que llegara al deployment target. El
-iPhone que había estaba en **iOS 16.5**, por debajo de 17.0, así que la app ni siquiera instalaba.
-Y bajar el target no era una salida: `@Observable` **es** iOS 17, así que bajarlo significa
-reescribir los cuatro ViewModels a `ObservableObject`.
-
-**Ya no es un bloqueo.** Al 2026-09-13 hay un **iPhone 12 con iOS 18** disponible para pruebas
-—cumple el deployment target de sobra—, además de un dispositivo Android físico. Sin conectar
-todavía. Los 47 tests (contrato incluido) ya corrieron sobre hardware real, pero fue el iPad Air
-M1: falta repetirlos en este iPhone para confirmar que el slice `aarch64-apple-ios` también
-resuelve símbolos ahí, y sobre todo **repetir la medición del benchmark**, que es lo que de
-verdad cambia — un teléfono en vez de una tablet con el mismo chip M1 es la comparación que le
-faltaba a la tabla de arriba. El procedimiento de aprovisionamiento está en la sección de abajo.
-
-**Qué tan mal está el número mientras tanto.** La brecha del piso del cruce es de **521×**, y
-entre un M1 y un Pixel 6 hay 2× o 3×, no 521×. Aunque se castigara al número de iOS
-multiplicándolo por diez, seguiría siendo dos órdenes de magnitud más barato. O sea: **la
-conclusión no debería moverse; las cifras exactas sí.** Por eso la tabla se publica con la
-salvedad escrita al lado en vez de guardarse — pero no se cita como definitiva.
-
-### Correr sobre hardware cuesta dos pasos cada semana
+## Correr sobre hardware cuesta dos pasos cada semana
 
 La cuenta de desarrollador es **gratuita**, así que los perfiles de aprovisionamiento **vencen
 a los 7 días**. Volver a correr en el aparato después de eso pide:

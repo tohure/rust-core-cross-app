@@ -8,21 +8,60 @@ Estado al cerrar la **Fase 6, bloque 1** (Android).
 
 ---
 
-## 1. El benchmark falta repetirlo en aparato físico — bloquea a iOS y a React Native
+## 1. El cuadro comparativo de los cuatro puentes — **CERRADO**
 
-Las cifras que hoy se citan no son comparables entre sí, y cada app lo dice por separado:
+Los cuatro consumidores están medidos **con la misma sonda, en release, sobre aparatos físicos y
+contra el mismo artefacto `1.0.0+959025f`**. Sonda: 2.000 iteraciones de calentamiento, 20.000
+medidas, p50.
 
-| App | Qué hay | Qué falta |
-|---|---|---|
-| Android | 444 µs de estado estacionario, medidos en un **Pixel 6 físico**, APK de debug | los percentiles con APK de **release** — ver [apps/android/TESTING.md](../apps/android/TESTING.md) |
-| iOS | 0,33 µs, medidos en un **iPad M1** | repetirlo en un iPhone con iOS 17+ — ver [apps/ios/PENDING.md](../apps/ios/PENDING.md) |
-| React Native | medido, pero **no comparable** todavía | ver [apps/react-native/PENDING.md](../apps/react-native/PENDING.md) |
-| Angular | ~1,5 µs, con el reloj del navegador cuantizado a ~100 µs | no comparable centavo a centavo, y no lo va a ser — ver [apps/web-angular/PENDING.md](../apps/web-angular/PENDING.md) |
+| Puente | Aparato | piso `coreVersion()` | `add("0.1","0.2")` | `validateCard` (lanza) | baseline nativa | piso del reloj |
+|---|---|---|---|---|---|---|
+| Kotlin → **JNA** | Pixel 6 | 47,10 µs | 145,9 µs | 113,1 µs | 2,12 µs | — |
+| JS → **JSI** → C++ | Pixel 6 | 4,23 µs | 9,44 µs | 14,89 µs | 1,18 µs | 0,12 µs |
+| JS → **JSI** → C++ | iPhone 12 | 2,29 µs | 4,71 µs | 7,58 µs | 0,67 µs | 0,04 µs |
+| Swift → **`.a` estático** | iPhone 12 | **0,062 µs** | **0,42 µs** | 3,58 µs | 0,15 µs | 0,04 µs |
 
-La conclusión cualitativa **sí** se sostiene —iOS enlaza estáticamente y Android paga JNA, y la
-brecha es de dos órdenes de magnitud—, pero el cuadro comparativo de cuatro columnas todavía no
-existe. Hasta que exista, citar los números uno al lado del otro es sacar conclusiones de
-mediciones tomadas con relojes distintos en aparatos distintos.
+Angular queda fuera de la tabla a propósito: corre en una Mac y no en un teléfono, y su reloj está
+cuantizado a ~100 µs. Ubica el orden de magnitud —`add` ~1,5 µs— y nada más.
+
+### Lo que la tabla dice, y es más interesante que «iOS gana»
+
+**1. El orden se da vuelta según la plataforma.** En Android, React Native es **15× más barato**
+que la app nativa (9,44 contra 145,9 µs en `add`). En iOS es al revés: la app nativa es **11× más
+barata** que React Native (0,42 contra 4,71). *No hay un ganador; hay un perdedor, y es JNA.*
+
+**2. La comparación limpia es a aparato fijo.** Las dos filas del Pixel 6 son el mismo teléfono,
+el mismo sistema y el mismo núcleo: lo único que cambia es el puente. Lo mismo las dos del
+iPhone. Esas dos comparaciones no necesitan ninguna salvedad.
+
+**3. El aparato explica ~1,8×, y está medido, no supuesto.** React Native usa **el mismo puente**
+en los dos teléfonos, así que sus dos filas son un control del hardware: 4,23 contra 2,29 µs en el
+piso (**1,8×**) y 1,18 contra 0,67 µs en la baseline de JS (**1,76×**). Dos medidas independientes
+que coinciden.
+
+Por eso el 760× que sale de dividir las dos puntas de la tabla (47,10 / 0,062) **no se explica
+por el teléfono**: de ese factor, ~1,8 es el aparato. El resto es el puente y el runtime.
+
+> **La versión corta para la demo:** «en el mismo teléfono, con el mismo núcleo, cambiar JNA por
+> JSI cuesta 15 veces menos; y enlazar estáticamente, otras 11». Es defendible sin asteriscos.
+
+### Por qué JNA es el caro
+
+`Structure` con reflexión de campos y memoria nativa asignada **por llamada**, más un cruce extra
+para liberar el `RustBuffer` de la respuesta. JSI llama a C++ directo; Swift llama a la función de
+C directo. Todo eso vive en código generado, que no se edita.
+
+### Las tres cosas que esta medición enseñó, y valen para cualquier número futuro
+
+1. **La configuración del build es la variable que más mueve la aguja.** Un APK de debug castiga
+   el cruce entre 3 y 4 veces; iOS en Debug lo castiga 6×. Ninguna cifra vale sin decir en qué
+   configuración se tomó, y por eso las tres sondas **imprimen esa bandera** —o la configuración—
+   en su primera línea. La tabla vieja de 172 / 327 / 444 µs era de debug y se citaba como si no.
+2. **El emulador y el simulador mienten, y para el lado optimista.** React Native daba 3,96 µs en
+   emulador y da 9,44 en el Pixel 6 físico.
+3. **Los números de un instrumento no se citan al lado de los de otro.** La pantalla de Benchmark
+   y la sonda no miden lo mismo: la sonda calienta 2.000 iteraciones y la pantalla no, así que la
+   pantalla sale más alta y más ruidosa. Comparar sólo dentro de la misma tabla.
 
 ## 2. No hay CI, en ninguna de las cinco bases de código
 

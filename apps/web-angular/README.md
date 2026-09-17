@@ -189,8 +189,10 @@ Tres advertencias que no se pueden omitir al presentarlo, y ninguna es menor:
    el tope de 999999). Sacarlo de ahí exigía reinstanciar el módulo WASM en un Web Worker, que es
    infraestructura nueva y quedó fuera de alcance.
 
-Puesta junto a las otras tres, la cifra ubica a WASM **en el medio**: Android 172 µs, WASM
-~1,5 µs, iOS 0,33 µs. Unas cien veces más rápido que el puente JNA de Android y unas cuatro
+Puesta junto a las otras tres, la cifra ubica a WASM **en el medio, y más arriba de lo que se
+esperaba**. Comparando `add` contra `add`: Android nativo por JNA 145,9 µs, React Native por JSI
+9,44 µs en el mismo teléfono, **WASM ~1,5 µs**, iOS nativo por `.a` estático 0,42 µs. O sea unas
+cien veces más rápido que JNA, **más rápido que el puente JSI de React Native**, y unas cuatro
 veces más lento que el `.a` que iOS enlaza estáticamente. Mismo núcleo; lo que cambia es el
 puente.
 

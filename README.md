@@ -75,25 +75,25 @@ armada sin ese chequeo — el procedimiento está en
 
 ```bash
 # El núcleo, desde rust-core/
-cargo test --workspace          # 67 tests
-cargo test -p core_financiero --test contract   # solo los 28 vectores del contrato
+cargo test --workspace          # 71 tests
+cargo test -p core_financiero --test contract   # solo los 31 vectores del contrato
 
-# Android, desde apps/android/
-./gradlew :app:testDebugUnitTest --rerun          # 28 tests, en la JVM
-./gradlew :app:connectedDebugAndroidTest          # 15 tests, sobre dispositivo/emulador
-./gradlew :app:installDebug                       # y a correrla
+# Android, desde apps/android/ — son DOS módulos Gradle desde la Fase 6
+./gradlew :app:testDebugUnitTest :core-financiero:testDebugUnitTest        # 35, en la JVM
+./gradlew :app:connectedDebugAndroidTest :core-financiero:connectedDebugAndroidTest  # 21, sobre aparato
+./gradlew :app:installRelease                     # release para la demo: el debug es 3-4x más lento
 
-# iOS, desde apps/ios/ — 47 tests, en simulador o aparato real
+# iOS, desde apps/ios/ — 53 tests, en simulador o aparato real
 xcodebuild test -project ios-rust-test.xcodeproj -scheme ios-rust-test \
   -destination 'platform=iOS Simulator,name=iPhone 17 Pro'
 open ios-rust-test.xcodeproj   # y a correrla con ⌘R
 
-# React Native, desde apps/react-native/ — 120 tests (N-API + WASM)
+# React Native, desde apps/react-native/ — 129 tests (N-API + WASM)
 pnpm test
 cd example && pnpm exec react-native start --reset-cache   # Metro, en su propia terminal
 # y en otra terminal: pnpm exec react-native run-android | run-ios
 
-# Angular, desde apps/web-angular/ — 99 tests
+# Angular, desde apps/web-angular/ — 102 tests
 pnpm test
 pnpm exec ng build --configuration development   # ng serve no funciona, ver su PENDING.md
 cd dist/web-angular/browser && python3 -m http.server 4311

@@ -50,7 +50,7 @@ tarde y mal.
 **Qué cuesta estar en 0.31: nada medible.** Este crate usa sólo `setup_scaffolding!`,
 `uniffi::Error`, `uniffi::Record` y `#[uniffi::export]` sobre funciones libres — nada de
 objetos, traits, callbacks ni async—, y todo eso existe igual en 0.31. Verificado al bajar: los
-67 tests siguen en verde, el contrato sigue 28/28, y las API públicas generadas para Kotlin y
+71 tests siguen en verde, el contrato sigue 31/31, y las API públicas generadas para Kotlin y
 Swift son **idénticas** a las de 0.32 (mismas nueve funciones, mismas subclases de
 `DomainException`, mismos campos de los Records, y `DomainError` conservando `LocalizedError`
 en Swift). Ni Android ni iOS tocaron una línea de código de app.

@@ -67,13 +67,13 @@ del PATH, así que instalar `wasm-bindgen-cli` no cambia nada.
 **El feature es inerte para este core, verificado leyendo el código:** `crates/domain/src/crypto.rs`
 no usa `OsRng` ni nada aleatorio — la clave y el nonce llegan como hex del llamador, y el nonce es
 fijo a propósito. `getrandom` entraba transitivamente por `chacha20poly1305 → aead` y **nunca se
-invocaba**. Los 67 tests del core siguen en verde con el feature apagado.
+invocaba**. Los 71 tests del core siguen en verde con el feature apagado.
 
 Pero es un cambio al crate compartido: **Android e iOS entran en reverificación** (Task 14).
 
 > **Ya se hizo, y esto lo declaraba abierto.** La reverificación se cerró en la Task 14 de la
 > Fase 5, y su evidencia vivía sólo en el ledger de esa fase. La Fase 6 la volvió a confirmar por
-> tercera vez: las dos suites de Android en verde (54 tests) y las 48 de iOS, éstas **sobre un
+> tercera vez: las dos suites de Android en verde (56 tests) y las 53 de iOS, éstas **sobre un
 > iPhone físico**. Corregido acá para que el documento deje de pedir algo que ya está hecho.
 
 ### `ubrn.wasm.yaml`: por qué hay un segundo archivo de config
@@ -288,36 +288,43 @@ campo, igual que en las otras dos apps.
 Si alguna vez importa de verdad, la salida sería un worker (`react-native-worklets` o similar),
 que es una dependencia que esta POC no necesita.
 
-## Los números del benchmark, y por qué no son comparables todavía
+## Los números del benchmark — **medidos en los dos aparatos físicos**
 
-Medido con 1000 iteraciones, **en emulador y simulador, no en aparatos**:
+Con `FfiCostProbe`, en release, sobre un **Pixel 6** y un **iPhone 12**, contra el artefacto
+`1.0.0+959025f`. 2.000 iteraciones de calentamiento, 20.000 medidas, p50:
 
-| | p50 | p95 |
-|---|---|---|
-| React Native / Android (Pixel 9 Pro API 36) — core | 3,96 µs | 5,00 µs |
-| React Native / Android — float nativo | 0,62 µs | 0,67 µs |
-| React Native / iOS (sim. iPhone 17 Pro) — core | 8,75 µs | 10,83 µs |
-| React Native / iOS — float nativo | 0,87 µs | 1,00 µs |
+| | piso `coreVersion()` | `add` | `validateCard` (lanza) | baseline JS |
+|---|---|---|---|---|
+| React Native / Android — Pixel 6 | 4,23 µs | 9,44 µs | 14,89 µs | 1,18 µs |
+| React Native / iOS — iPhone 12 | 2,29 µs | 4,71 µs | 7,58 µs | 0,67 µs |
+| *(app nativa Android, mismo Pixel 6)* | *47,10 µs* | *145,9 µs* | *113,1 µs* | *2,12 µs* |
+| *(app nativa iOS, mismo iPhone 12)* | *0,062 µs* | *0,42 µs* | *3,58 µs* | *0,15 µs* |
 
-La Fase 3 anotó, para la app **nativa** de Android: **172 µs el piso del cruce**
-(`coreVersion()`, sin argumentos ni cómputo) y **444 µs `add("0.1","0.2")`**. En iOS nativo el
-piso es 0,33 µs.
+**Esta app es la que vuelve interesante al cuadro comparativo**, por dos motivos:
 
-**La comparación que vale es `add` contra `add`:** 444 / 3,96 ≈ **112×**. No 43× — ese número
-salía de comparar el `add` de React Native contra el **piso** de Android, que son funciones
-distintas, y contradecía al propio `demo-runbook.md`, que usa los 444. Corregido en los dos
-documentos.
+1. **El orden se da vuelta.** En el Pixel 6, React Native cruza **15× más barato** que la app
+   nativa de Kotlin; en el iPhone 12, la app nativa cruza **11× más barato** que React Native. No
+   hay un ganador de plataforma: hay un puente caro, que es JNA.
+2. **Es el único control del hardware que existe en la POC.** Como usa el mismo puente JSI en los
+   dos teléfonos, la diferencia entre sus dos filas **es** el aparato: 1,8× en el piso y 1,76× en
+   la baseline de JS. Sin eso, a la comparación Android-nativo contra iOS-nativo se le puede
+   objetar que son teléfonos distintos.
 
-**No lo afirmes todavía.** No es una comparación limpia: distinto arnés de medición, emulador
-contra aparato, y `performance.now()` de Hermes contra `System.nanoTime()` de la JVM. Antes de
-decirlo en una presentación hay que medir las tres con el mismo criterio y sobre el mismo tipo
-de hardware.
+**El emulador mentía, y para el lado optimista.** La tabla anterior de este archivo daba 3,96 µs
+para `add` en emulador; en el teléfono da 9,44. Misma lección que se llevó la app nativa de
+Android.
 
-**Ya hay con qué hacerlo.** Al 2026-09-13 hay un dispositivo Android físico y un **iPhone 12 con
-iOS 18** disponibles para pruebas de rendimiento reales (el mismo iPhone que destraba el pendiente
-equivalente de `apps/ios/PENDING.md`). Sin conectar todavía. Cuando se retomen tareas: repetir
-esta tabla en los dos aparatos en vez de emulador/simulador, que es lo único que falta para que la
-comparación `add` contra `add` de arriba deje de tener la salvedad.
+### Cómo se mide, y por qué es más tosco que en las otras dos
+
+La sonda vive en `example/src/benchmark/FfiCostProbe.tsx` y **se prende cambiando `PROBE_ON` a
+`true`**, en vez de con un argumento del comando como en Android (`-e probe true`) o iOS
+(`PROBE=1`). No es pereza: el preset de Babel de React Native **no inlinea `process.env`**, así
+que una variable del build no llega al bundle sin agregar un plugin.
+
+Los comandos exactos, y las tres cosas que cuesta descubrir —que `console.log` no sobrevive al
+release, que hay que usar `nativeLoggingHook` **a nivel error**, y que en el iPhone el resultado
+se lee de una captura de pantalla— están en [BUILD.md](BUILD.md).
+
 
 ## Tres divergencias entre las apps, encontradas al escribir ésta
 
@@ -391,7 +398,7 @@ workspace cuyo **código fuente** consuma esta app tiene que declararlo; no alca
 tenga el consumidor.
 
 **Por qué ningún test lo agarró, que es lo que importa.** Jest resuelve módulos distinto que
-Metro y los 120 tests seguían en verde con la app rota. Es el mismo patrón que el
+Metro y los 129 tests seguían en verde con la app rota. Es el mismo patrón que el
 `collapsable={false}` de Fabric: **el aparato encuentra lo que el runner no puede**. Esta app no
 tiene corredor de tests en dispositivo, así que la única red es el smoke manual — y esta vez
 saltó recién al montar la demo de las cuatro apps, semanas después del cambio que lo introdujo.

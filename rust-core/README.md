@@ -62,15 +62,19 @@ dos lados: de los `#[uniffi::export]` de `crates/ffi` produce la capa C en Rust 
 en Kotlin, Swift y TypeScript. Por eso esos bindings son artefactos generados que **nunca se
 editan a mano**: si algo está mal ahí, se arregla en Rust y se regenera.
 
-**El mismo núcleo cruza de cuatro maneras distintas**, y eso no es cosmético — cada puente tiene
-su costo y sus trampas:
+**El mismo núcleo cruza de cuatro maneras distintas**, y eso no es cosmético: los cuatro puentes
+están medidos, en release y sobre aparatos físicos, y **el más caro cuesta 350× más que el más
+barato** — `add("0.1","0.2")`, p50:
 
 | App | Cómo cruza | Qué le cuesta |
 |---|---|---|
-| Android | `.so` + **JNA** con *direct mapping* | ~444 µs por llamada en un Pixel 6, casi todo marshalling |
-| iOS | `.a` enlazado **estáticamente** en un XCFramework | sin JNA de por medio; a medir en la Fase 3 |
-| React Native | C++ / JSI, vía `ubrn` | fase 4 |
-| Web | **WebAssembly** | fase 5 — y ahí **no hay red de `catch_unwind`** |
+| Android | `.so` + **JNA** con *direct mapping* | **145,9 µs** en un Pixel 6, casi todo marshalling — el más caro de los cuatro, por lejos |
+| React Native | C++ / **JSI**, vía `ubrn` | **9,44 µs** en el mismo Pixel 6 y **4,71 µs** en un iPhone 12: 15× más barato que JNA |
+| iOS | `.a` enlazado **estáticamente** en un XCFramework | **0,42 µs** en el iPhone 12 — tan barato que el reloj del sistema no lo resuelve llamada por llamada |
+| Web | **WebAssembly** | ~1,5 µs, pero en una Mac y con el reloj del navegador cuantizado: ubica el orden de magnitud y nada más. Y ahí **no hay red de `catch_unwind`** |
+
+El cuadro completo, con el piso del cruce y la descomposición de qué parte es el aparato, está en
+[docs/cross-app-pending.md](../docs/cross-app-pending.md).
 
 Ese último punto explica una regla que parece caprichosa: **`panic = "abort"` está prohibido**.
 uniffi envuelve cada llamada en un `catch_unwind`, así que un pánico de Rust vuelve como error

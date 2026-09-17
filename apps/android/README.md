@@ -6,7 +6,7 @@ otras tres apps de la POC (iOS, React Native, Angular) consumen **sin reescribir
 
 Lo que esta app hace con los datos es pedirlos y mostrarlos.
 
-**Estado:** funcional. 43 tests en verde, las cuatro pantallas andando.
+**Estado:** funcional. 56 tests en verde, las cuatro pantallas andando.
 
 | | |
 |---|---|
@@ -121,6 +121,19 @@ adb devices                    # debe listar un dispositivo
 adb shell am start -n dev.tohure.android_rust_test/.MainActivity
 ```
 
+**Para la demo, y sobre todo para el benchmark, conviene el release**, que va firmado con el
+keystore de debug justamente para poder instalarse:
+
+```bash
+./gradlew :app:installRelease
+adb shell am start -n dev.tohure.android_rust_test/.MainActivity
+```
+
+No es una firma de distribución —ese keystore es público y lo trae toda máquina con el SDK—,
+pero la diferencia de velocidad **no es cosmética**: el APK de debug corre el cruce FFI entre 3
+y 4 veces más lento, porque `debuggable=true` le pide al ART que no optimice. Medido, con la
+baseline nativa como control; ver [TESTING.md](TESTING.md).
+
 Cuatro pestañas abajo, y **el pie con la versión del núcleo visible en todas**: algo como
 `1.0.0+a0a40a5`. Ese string lleva el SHA del commit con el que se compiló el núcleo, y es la
 prueba en pantalla de que las cuatro apps de la demo corren **el mismo build**. Si el pie sale
@@ -141,10 +154,10 @@ los que se corrieron al cerrar la Fase 6, y los totales, los que dieron:
 
 | Módulo | JVM | Instrumentada | Qué prueba cada una |
 |---|---:|---:|---|
-| `:app` | **30** | **1** | JVM: ViewModels con `FakeCoreFinanciero`, formateo, la baseline nativa y la guardia de mutación de `Record`. Instrumentada: que la rotación no se lleve puesto el estado |
-| `:core-financiero` | **4** | **19** | JVM: el mapeo de error a nombre de contrato. Instrumentada: **el test de contrato (10), el smoke del FFI (2), el adapter real (3) y las fuentes de assets (2+2)** — las que cruzan la frontera de verdad |
+| `:app` | **31** | **1** | JVM: ViewModels con `FakeCoreFinanciero`, formateo, la baseline nativa y la guardia de mutación de `Record`. Instrumentada: que la rotación no se lleve puesto el estado |
+| `:core-financiero` | **4** | **20** | JVM: el mapeo de error a nombre de contrato. Instrumentada: **el test de contrato (10), el smoke del FFI (2), el adapter real (3) y las fuentes de assets (2+2)** — las que cruzan la frontera de verdad — más `FfiCostProbe`, que no aserta |
 
-**54 tests, 0 fallos.** Las 19 instrumentadas de `:core-financiero` son las que no se pueden
+**56 tests, 0 fallos.** Las 19 instrumentadas de `:core-financiero` que asertan algo son las que no se pueden
 falsear: cargan `libcore_financiero.so`, resuelven símbolos por JNA y comparan los 31 casos de
 `cases.json` con igualdad exacta de strings.
 
@@ -212,13 +225,21 @@ comparten clave, nonce y algoritmo desde el mismo núcleo.
 
 ### Benchmark — cuánto cuesta cruzar la frontera
 
-Mide el núcleo contra una suma en `Double`, N veces. El núcleo es **más lento** —cruzar el FFI
-cuesta ~444 µs por llamada en un Pixel 6, contra ~3,7 µs de la suma nativa— y esa es exactamente
-la comparación honesta: la alternativa nativa es más rápida **y da mal el resultado**.
+Mide el núcleo contra una suma en `Double`, N veces. El núcleo es **más lento** —en un Pixel 6
+con el APK de release, la pantalla da ~60 µs por llamada contra ~2,3 µs de la suma nativa— y esa
+es exactamente la comparación honesta: la alternativa nativa es más rápida **y da mal el
+resultado**.
 
-Los números que te salgan dependen del aparato, y bastante: en el emulador de un Mac con Apple
-Silicon el core baja a ~150 µs, porque esos cores son más rápidos que los de un teléfono. La
-descomposición de a dónde se va ese tiempo —y por qué **no** se puede optimizar— está en
+Tres cosas que conviene saber antes de citar un número de esta pantalla:
+
+- **Tocá `Ejecutar` dos veces y citá la segunda.** Con n = 1000 la primera corrida arrastra el
+  calentamiento del JIT y sale ~1,6× más alta.
+- **Con el APK de debug sale entre 3 y 4 veces peor** (~240 µs en vez de ~60). Es el efecto de
+  `debuggable=true` sobre el camino del binding, no del núcleo.
+- **Depende del aparato, y bastante**: en el emulador de un Mac con Apple Silicon baja, porque
+  esos cores son más rápidos que los de un teléfono.
+
+La descomposición de a dónde se va ese tiempo —y por qué **no** se puede optimizar— está en
 [TESTING.md](TESTING.md) y [PENDING.md](PENDING.md).
 
 ---

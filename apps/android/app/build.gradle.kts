@@ -32,6 +32,12 @@ android {
             optimization {
                 enable = false
             }
+            // Firmado con el keystore de DEBUG, y sólo para poder instalarlo en un aparato:
+            // AGP emite el release sin firmar (`app-release-unsigned.apk`) y un APK sin firma
+            // no se instala, así que sin esto no se pueden medir los percentiles del benchmark
+            // fuera de debug. NO es una firma de distribución — ese keystore es público y lo
+            // trae toda máquina con el SDK. Ver TESTING.md.
+            signingConfig = signingConfigs.getByName("debug")
         }
     }
     compileOptions {

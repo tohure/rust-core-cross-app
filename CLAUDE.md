@@ -157,7 +157,8 @@ construyó, así que hay que regenerar los cuatro desde el mismo HEAD antes de l
 
 ## Estado actual y flujo de trabajo (SDD con superpowers)
 
-**Las siete fases están completadas: la POC está cerrada y endurecida.** El núcleo existe, funciona, y las
+**Las ocho fases están completadas: la POC está cerrada, endurecida y medida sobre aparatos
+físicos.** El núcleo existe, funciona, y las
 **cuatro** apps lo consumen — Android, iOS, React Native y Angular.
 `rust-core/` tiene dos crates —`domain` (Rust puro, siete módulos) y `ffi` (paquete
 `core_financiero`, la fachada uniffi)— con **71 tests en verde** y el **test de contrato pasando
@@ -167,31 +168,43 @@ verificó que las nueve funciones cruzan la frontera.
 `apps/android/` es el primer consumidor real y **ya ejercita el borde FFI de verdad**. Desde la
 Fase 6 son **dos módulos Gradle**: `:core-financiero` se lleva todo el borde FFI —JNA, los
 bindings generados, las `.so` y el adapter— y `:app` queda con Compose y presentación, sin
-declarar JNA. **54 tests en verde** en cuatro suites: 30 de JVM y 1 instrumentado en `:app`; 4 de
-JVM y **19 instrumentados** en `:core-financiero`, que son los que cruzan el FFI de verdad —10 del
-test de contrato, 2 del smoke, 3 del adapter real y 4 de las fuentes de assets—. Las cuatro
+declarar JNA. **56 tests en verde** en cuatro suites: 31 de JVM y 1 instrumentado en `:app`; 4 de
+JVM y **20 instrumentados** en `:core-financiero`, que son los que cruzan el FFI de verdad —10 del
+test de contrato, 2 del smoke, 3 del adapter real y 4 de las fuentes de assets—, más `FfiCostProbe`,
+la sonda del benchmark, que no aserta y viene apagada. Las cuatro
 pantallas funcionando y el pie con `coreVersion()` visible en todas. Ver
 [apps/android/README.md](apps/android/README.md).
 
-`apps/ios/` es el segundo consumidor: las cuatro pantallas andando y **48 tests en verde**,
+`apps/ios/` es el segundo consumidor: las cuatro pantallas andando y **53 tests en verde**,
 incluido el test de contrato 31/31, **verificados también sobre hardware real** —o sea sobre el
 slice `aarch64-apple-ios`, que es el que se embarca y es un binario distinto del de simulador—.
-El benchmark ya tiene número, y confirma la hipótesis por goleada: el piso del cruce cuesta
-**0,33 µs en iOS contra 172 µs en Android**, o sea **521×** menos, porque iOS enlaza el `.a`
-estáticamente mientras Android paga JNA. Está medido en un iPad M1 y no en un teléfono, así que
-las cifras exactas son provisionales —la brecha es demasiado grande para que la explique el
-chip, pero hay que repetirlo en un iPhone con iOS 17+—. Ver
+El benchmark está medido en un **iPhone 12 con iOS 18** y en **Release**, y confirma la hipótesis
+por goleada: el piso del cruce cuesta **0,062 µs en iOS contra 47,1 µs en Android**, porque iOS
+enlaza el `.a` estáticamente mientras Android paga JNA. **El número defendible no es ese cociente
+sino el de aparato fijo**: en el mismo iPhone, `add` cuesta 0,42 µs por el `.a` contra 4,71 µs por
+el puente JSI de React Native. A esa escala el reloj de iOS no alcanza —un tick son ~41,67 ns— así
+que las cifras finas se toman **por lotes**, como en Angular. El cuadro de los cuatro puentes está
+en [docs/cross-app-pending.md](docs/cross-app-pending.md). Ver
 [apps/ios/README.md](apps/ios/README.md) y [apps/ios/PENDING.md](apps/ios/PENDING.md).
 
 `apps/react-native/` es el tercer consumidor y el **único que produce tres salidas** del mismo
 crate: el turbo module JSI que usa la app, los bindings N-API con que el test de contrato llama
 al core desde Node, y **el `.wasm` del que depende la Fase 5**. Las cuatro pantallas andan en
-Android y en iOS, con **126 tests en verde** y el contrato **31/31 por N-API y 31/31 por WASM**.
+Android y en iOS, con **129 tests en verde** y el contrato **31/31 por N-API y 31/31 por WASM**.
 
 Tiene una diferencia real con las otras dos que conviene decir en la demo: **ninguna prueba
 automatizada cruza JSI.** React Native no tiene corredor de tests en dispositivo —Jest mockea los
 nativos y un e2e con Detox está fuera de alcance—, así que el cruce se verifica con un smoke
-manual. Android tiene 15 tests instrumentados y iOS corre XCTest sobre aparato; acá no. Ver
+manual. Android tiene 20 tests instrumentados y iOS corre XCTest sobre aparato; acá no.
+
+Su benchmark dio **el resultado más interesante de la POC, y no es «iOS gana»**: el orden se da
+vuelta según la plataforma. En el Pixel 6, React Native es **15× más barato** que la app nativa
+(`add`: 9,44 contra 145,9 µs), porque JSI llama a C++ directo y Kotlin paga JNA. En el iPhone 12
+es al revés: la app nativa es **11× más barata** que React Native (0,42 contra 4,71 µs). *No hay
+un ganador; hay un perdedor, y es JNA.* Las dos filas de React Native sirven además de **control
+del hardware** —mismo puente en los dos teléfonos, 1,8× de diferencia—, que es lo que permite
+afirmar que el 760× entre las dos puntas no lo explica el aparato. Ver
+[docs/cross-app-pending.md](docs/cross-app-pending.md). Ver
 [apps/react-native/README.md](apps/react-native/README.md) y
 [apps/react-native/TESTING.md](apps/react-native/TESTING.md).
 
@@ -293,9 +306,11 @@ El orden no es negociable: lo impone el grafo de dependencias de build de arriba
   tres niveles corren en el mismo bundle — y por eso nada obliga a que el seam de
   `CoreFinanciero` exista, cosa que allá sí fuerza la plataforma.
   El benchmark quedó medido y el resultado es el más contundente de la POC: **el piso del cruce
-  cuesta 0,33 µs contra los 172 µs de Android, 521× menos.** El mismo núcleo; lo que cambia es
-  el puente. Provisional hasta repetirlo en un iPhone —está medido en un iPad M1—, pero la
-  brecha no la explica el chip. Ver [apps/ios/PENDING.md](apps/ios/PENDING.md).
+  cuesta 0,062 µs contra los 47,1 µs de Android**, los dos en release y los dos sobre un teléfono.
+  El mismo núcleo; lo que cambia es el puente. La Fase 7 lo re-midió en un iPhone 12 —el número
+  original era de un iPad M1 y en Debug— y de paso encontró que **la configuración del build es
+  la variable que más mueve la aguja en las dos plataformas**. Ver
+  [apps/ios/PENDING.md](apps/ios/PENDING.md).
 - **Fase 4 — `apps/react-native`.** ✅ **Completada.** Turbo Module vía `ubrn` 0.31.0-5 sobre
   React Native 0.87 con Fabric y Hermes. Entregó **109 tests en verde** —el contrato 28/28 por
   N-API y otros 28/28 por WASM, más los hooks y componentes— y las cuatro pantallas de
@@ -334,6 +349,22 @@ El orden no es negociable: lo impone el grafo de dependencias de build de arriba
   tests** repartidos en cuatro suites: 30 y 1 en `:app`, 4 y 19 en `:core-financiero`.
   Lo transversal que sigue abierto tiene dueño único desde esta fase:
   [docs/cross-app-pending.md](docs/cross-app-pending.md).
+
+- **Fase 7 — Benchmark sobre aparatos físicos.** ✅ **Completada.** Cerró el único pendiente
+  transversal que quedaba con fecha: los cuatro puentes medidos **con la misma sonda, en release y
+  sobre hardware real** —un Pixel 6 y un iPhone 12—, contra el mismo artefacto. El resultado no es
+  el que anticipaban los documentos: **el orden se da vuelta según la plataforma.** En el Pixel 6,
+  React Native cruza **15× más barato** que la app nativa de Kotlin (JSI contra JNA); en el
+  iPhone 12 es al revés, la nativa cruza **11× más barato** que React Native (`.a` estático contra
+  JSI). *No hay un ganador de plataforma; hay un puente caro, y es JNA.*
+  Tres cosas que la fase descubrió y que invalidaban los números anteriores: **la configuración
+  del build es la variable que más mueve la aguja** —un APK de debug castiga el cruce 3-4×, iOS en
+  Debug 6×, y toda la tabla vieja de 172/327/444 µs era de debug—; **el emulador y el simulador
+  mienten para el lado optimista**; y **en iOS el cruce cae debajo de la resolución del reloj**, así
+  que las cifras finas se toman por lotes. Cada plataforma tiene ahora su `FfiCostProbe`
+  **versionada y apagada por defecto**: borrarla después de medir, como hizo la Fase 6, obligó a
+  reescribirla, y una sonda reescrita no mide lo mismo.
+  El cuadro y su lectura viven en [docs/cross-app-pending.md](docs/cross-app-pending.md).
 
 Cada fase termina con tres cosas, no una:
 
@@ -383,6 +414,7 @@ Una rama por fase, mergeada a `main` recién cuando su test de contrato pasa:
 | 4 | `feat/phase-4-app-react-native` |
 | 5 | `feat/phase-5-app-web-angular` |
 | 6 | `feat/phase-6-hardening` (los dos bloques) |
+| 7 | `feat/phase-7-benchmark-on-device` |
 
 Commits en **Conventional Commits, en español**, con scope = subproyecto:
 `feat(rust-core):`, `feat(android):`, `test(ios):`, `docs(contracts):`, `chore(ffi):`.
@@ -418,7 +450,7 @@ Los comandos exactos están en el plan de cada fase.
 
 ```bash
 # Desarrollo del core (desde rust-core/)
-cargo test --workspace              # todo: 67 tests
+cargo test --workspace              # todo: 71 tests
 cargo test -p domain                # un solo crate, sin compilar uniffi
 cargo test -p domain rounds_half_away_from_zero_not_to_even   # un solo test por nombre
 cargo test -p core_financiero --test contract       # los vectores y las guardias del contrato

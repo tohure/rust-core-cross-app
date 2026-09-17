@@ -48,19 +48,24 @@ aparecer, esto es lo que se midió en un Pixel 6 (el detalle y el método están
 | Idea | Veredicto |
 |---|---|
 | **Pasar de JNA a JNI** | **No aplica: ya estás en JNI.** uniffi 0.32 genera *direct mapping* (`Native.register` + `external fun`), o sea métodos nativos enlazados de verdad. No hay despacho reflexivo por llamada que eliminar |
-| **Subir `opt-level` de `"z"` a `3`** | **Descartado por medición.** `coreVersion()` —sin argumentos y sin parseo— cuesta 172 µs y `add` cuesta 444: si cada `String` vale ~150 µs, el cómputo de Rust cae dentro del ruido. Comprimir el binario o no da igual, así que la prioridad de tamaño se sostiene |
+| **Subir `opt-level` de `"z"` a `3`** | **Descartado por medición.** `coreVersion()` —sin argumentos y sin parseo— cuesta 47 µs y `add` cuesta 146: si cada `String` vale ~49 µs, el cómputo de Rust cae dentro del ruido. Comprimir el binario o no da igual, así que la prioridad de tamaño se sostiene |
 | **`java.lang.foreign` (Panama)** | **No existe en Android.** ART no implementa la FFM API |
 | **Menos cruces por interacción** | **Es el único lever real… y ya está aplicado.** Cada pantalla hace una o dos llamadas. El Benchmark cruza N veces *a propósito*, que es su razón de ser |
 | **Menos argumentos `String` por llamada** | Un `Record` de uniffi viaja como **un** `RustBuffer`, mientras que N `String` sueltos son N. La API ya usa `Record` donde hay varios campos (`TransferRequest`). Cambiar `add(a, b)` sería tocar el contrato y las cuatro apps para ahorrar microsegundos en algo que no es ruta caliente |
 | **Calentar el puente al arrancar** | Innecesario: el pie llama `coreVersion()` en la primera composición, así que la librería ya está cargada antes de que el usuario toque nada |
 
-El piso de 172 µs vive en **código generado que no se edita**: `RustBuffer` y
+El piso de 47 µs vive en **código generado que no se edita**: `RustBuffer` y
 `UniffiRustCallStatus` son `Structure` de JNA —con reflexión de campos y memoria nativa por
 llamada— y devolver un `String` cuesta un cruce extra para liberar el buffer. Bajar eso es
 trabajo *upstream* en uniffi, no en esta app.
 
-**Y no hace falta:** 444 µs es el 2,7% de un frame a 60 Hz, con una o dos llamadas por
+**Y no hace falta:** 146 µs es el 0,9% de un frame a 60 Hz, con una o dos llamadas por
 interacción.
+
+**Lo que sí se puede bajar, y está medido: cambiar de puente.** React Native, en este mismo
+Pixel 6 y contra el mismo núcleo, cruza en 4,23 µs por JSI — 11× menos que JNA. No es una opción
+para esta app, que es nativa a propósito, pero conviene saber que **el costo no es del FFI en
+general sino de JNA en particular**.
 
 Lo único que quedó sin verificar es si un APK de **release** cambia algo; se midió con el de
 debug (el `.so` sí es release). No debería, porque el camino del binding no lleva

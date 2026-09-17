@@ -59,8 +59,10 @@ Corren con las apps ya instaladas y abiertas (ver la tabla de abajo).
 adb shell uiautomator dump /sdcard/ui.xml >/dev/null
 adb shell cat /sdcard/ui.xml | tr '>' '>\n' | grep -oE 'text="[^"]*1\.0\.0[^"]*"'
 
-# iOS: captura del simulador booteado, y se mira el pie
+# iOS: captura de pantalla. Del simulador booteado…
 xcrun simctl io booted screenshot /tmp/ios-footer.png
+# …o del APARATO, que es lo que conviene si la demo se hace en un teléfono
+xcrun devicectl device capture screenshot --device <udid> --destination /tmp/ios-footer.png
 
 # Angular: el DOM después de que corre el JS, contra el servidor estático
 "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" --headless=new --disable-gpu \
@@ -68,8 +70,13 @@ xcrun simctl io booted screenshot /tmp/ios-footer.png
   | grep -oE '1\.0\.0\+[0-9a-f]{7}'
 ```
 
-Qué se debe ver — el mismo `1.0.0+<sha>` en los tres, y el mismo en la captura de iOS. En la
-corrida de la Fase 6 los cuatro dieron `1.0.0+959025f`.
+Qué se debe ver — el mismo `1.0.0+<sha>` en los tres, y el mismo en la captura de iOS.
+
+**Verificado dos veces, y la segunda sobre aparatos físicos.** En la Fase 6 los cuatro dieron
+`1.0.0+959025f` sobre emulador y simulador; en la Fase 7 volvieron a dar `1.0.0+959025f`, esta vez
+con Android nativo y React Native **instalados en release en un Pixel 6 físico**, iOS leído del
+simulador —y el mismo string confirmado sobre el iPhone 12 por la sonda, que lo imprime— y Angular
+por Chrome headless.
 
 Para comprobar los **binarios** en vez de las pantallas —más rápido, y sirve aunque las apps no
 estén instaladas— está el bucle sobre los seis artefactos en
@@ -307,50 +314,63 @@ Alguien va a preguntar cuánto cuesta. Esta pantalla contesta con números en ve
 Cruzar el FFI cuesta. Lo que la pantalla exhibe es que la alternativa rápida **da mal el
 resultado** — es la misma aritmética en `Double` del Acto 1.
 
-| Llamada | iOS (iPad Air 5) | Android (Pixel 6) |
+| Llamada | iOS nativo (iPhone 12) | Android nativo (Pixel 6) |
 |---|---|---|
-| `coreVersion()` — piso del cruce | **0,33 µs** | 172 µs |
-| `add("0.1","0.2")` | **1,58 µs** | 444 µs |
-| baseline nativa | 0,38 µs | 3,7 µs |
+| `coreVersion()` — piso del cruce | **0,062 µs** | 47,1 µs |
+| `add("0.1","0.2")` | **0,42 µs** | 145,9 µs |
+| baseline nativa | 0,15 µs | 2,1 µs |
 
-Desgloses en [apps/ios/TESTING.md](../apps/ios/TESTING.md) y
+Los dos en **release**, los dos sobre un **teléfono**, los dos con la sonda `FfiCostProbe` de su
+plataforma —2.000 iteraciones de calentamiento y 20.000 medidas—. Desgloses en
+[apps/ios/TESTING.md](../apps/ios/TESTING.md) y
 [apps/android/TESTING.md](../apps/android/TESTING.md).
 
-**React Native mide su propio par en la misma pantalla**, y el número es llamativo: `add` cuesta
-**3,96 µs** en Android y **8,75 µs** en iOS (p50, 1000 iteraciones). Contra los **444 µs** que
-cuesta el mismo `add` en la app nativa de Android —`add` contra `add`, no contra el piso— son
-unas **112× menos**, que es exactamente lo que uno esperaría: JSI llama C++ directo, sin
-reflexión ni marshalling de `Structure`.
+### Los cuatro puentes, y el resultado que no es «iOS gana»
 
-> **Pero no lo afirmes como medición comparable, porque no lo es.** Los números de React Native
-> están tomados en un **emulador y un simulador**, no en aparatos, y con otro reloj
-> (`performance.now()` de Hermes contra `System.nanoTime()`). Si alguien pregunta, la respuesta
-> honesta es: «la diferencia apunta fuerte a favor de JSI, y todavía no la medimos con el mismo
-> criterio en el mismo hardware». Anotado en
-> [apps/react-native/PENDING.md](../apps/react-native/PENDING.md).
+**Los cuatro consumidores, con la misma sonda, en release, sobre aparatos físicos, contra el mismo
+artefacto `1.0.0+959025f`.** Es la tabla que más discusión genera:
 
-**El número que importa es el piso**, porque es una función sin argumentos y sin cómputo: lo
-único que mide es cruzar. En Android son 172 µs; en iOS, 0,33. **El mismo núcleo, y el puente
-elegido cuesta 500 veces más.**
+| Puente | Aparato | piso del cruce | `add` | baseline |
+|---|---|---|---|---|
+| Kotlin → **JNA** | Pixel 6 | 47,10 µs | 145,9 µs | 2,12 µs |
+| JS → **JSI** → C++ | Pixel 6 | 4,23 µs | 9,44 µs | 1,18 µs |
+| JS → **JSI** → C++ | iPhone 12 | 2,29 µs | 4,71 µs | 0,67 µs |
+| Swift → **`.a` estático** | iPhone 12 | **0,062 µs** | **0,42 µs** | 0,15 µs |
 
-Android paga JNA —`Structure` con reflexión de campos y memoria nativa por llamada, más un
-cruce extra para liberar el buffer de la respuesta—. iOS enlaza el `.a` estáticamente y Swift
-llama la función de C directo. **La diferencia no está en Rust: está en cómo cada plataforma
-llega hasta él.**
+**El orden se da vuelta según la plataforma, y ese es el punto.** En Android, React Native es
+**15× más barato** que la app nativa. En iOS es al revés: la nativa es **11× más barata** que
+React Native. *No hay un ganador; hay un perdedor, y es JNA* —`Structure` con reflexión de campos
+y memoria nativa por llamada, más un cruce extra para liberar el buffer de la respuesta—.
 
-Y en cada una manda un costo distinto. En Android, cada `String` suma ~150 µs, así que
-`172 + 2×150 ≈ 472` contra los 444 medidos: **la aritmética decimal cae dentro del ruido.** En
-iOS el cruce es casi gratis, así que lo que se mide ya es el cálculo real — `add` cuesta 4,2×
-la baseline nativa, contra 120× en Android.
+**Presentalo comparando a aparato fijo, que es lo que no admite objeción:** las dos filas del
+Pixel 6 son el mismo teléfono, el mismo sistema y el mismo núcleo; lo único que cambia es el
+puente. Ídem las dos del iPhone.
 
-**Por si preguntan si es lento:** los 444 µs de Android son el 2,7 % de un frame a 60 Hz, con
-una o dos llamadas por interacción.
+> **Si alguien dice «pero son teléfonos distintos», la respuesta ya está medida: el aparato
+> explica ~1,8×.** Las dos filas de React Native usan **el mismo puente** en los dos teléfonos, así
+> que funcionan como control del hardware: 4,23 contra 2,29 µs en el piso (1,8×) y 1,18 contra 0,67
+> en la baseline de JS (1,76×). Dos medidas independientes que coinciden. De los 760× que separan
+> las dos puntas de la tabla, ~1,8 es el teléfono.
 
-> **Decir la salvedad antes de que la encuentren.** El número de iOS está tomado en un **iPad
-> Air 5 con M1**, no en un teléfono, porque no había ninguno con iOS 17+ a mano. Entre un M1 y
-> un Pixel 6 hay 2× o 3×, no 500×, así que la conclusión se sostiene — pero las cifras exactas
-> son provisionales y hay que repetirlas en un iPhone. Está anotado en
-> [apps/ios/PENDING.md](../apps/ios/PENDING.md).
+Y en cada una manda un costo distinto. En Android, cada `String` suma ~49 µs, así que
+`47 + 2×49 ≈ 145` contra los 145,9 medidos: **la aritmética decimal cae dentro del ruido.** En
+iOS el cruce es casi gratis, así que lo que se mide ya es el cálculo real — `add` cuesta 2,8×
+la baseline nativa, contra 70× en Android.
+
+**Por si preguntan si es lento:** los 145,9 µs de Android son el **0,9 %** de un frame a 60 Hz,
+con una o dos llamadas por interacción.
+
+> **Decir la salvedad antes de que la encuentren, y acá son dos.**
+>
+> 1. **En iOS el cruce no se puede medir llamada por llamada.** El tick de `ContinuousClock` es de
+>    ~41,67 ns, así que el piso del cruce medía **dos ticks**: se estaba midiendo el reloj. Las
+>    cifras finas se toman cronometrando **lotes de 1.000 llamadas**, igual que en Angular. El
+>    número que muestra la pantalla de iOS está en ese régimen y sirve para la comparación lado a
+>    lado, no como cifra publicable.
+> 2. **La configuración del build mueve la aguja más que cualquier otra cosa.** Un APK de debug
+>    castiga el cruce entre 3 y 4 veces, y en iOS Debug lo castiga 6×. Si alguien mide en la
+>    máquina de al lado y le da distinto, eso es lo primero que hay que preguntar. **Para la demo
+>    se instalan los builds de release.**
 
 ### Angular, la cuarta medida — y la que hay que presentar con más cuidado
 

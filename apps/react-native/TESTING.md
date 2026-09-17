@@ -22,7 +22,7 @@ pnpm run wasm:generate   # idem, para la ruta WASM
 pnpm test
 ```
 
-Salida esperada: **127 tests en verde**, 16 suites — 8 del proyecto `napi` y 8 del
+Salida esperada: **129 tests en verde**, 16 suites — 8 del proyecto `napi` y 8 del
 `react-native`.
 
 | Suite | Qué cubre |
