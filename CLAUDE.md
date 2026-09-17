@@ -37,7 +37,7 @@ Este CLAUDE.md solo cubre lo transversal; el detalle vive en esos archivos.
 |---|---|---|
 | `rust-core/` | [rust-core/CONTEXT.md](rust-core/CONTEXT.md) | Núcleo de dominio. Fuente de verdad del contrato de API. |
 | `apps/android/` | [apps/android/CONTEXT.md](apps/android/CONTEXT.md) | Kotlin + Compose, vía uniffi (`.so` + bindings Kotlin). |
-| `apps/ios/` | [apps/ios/CONTEXT.md](apps/ios/CONTEXT.md) | Swift + SwiftUI, vía uniffi (XCFramework). |
+| `apps/ios/` | [apps/ios/CONTEXT.md](apps/ios/CONTEXT.md) | Swift + SwiftUI, vía uniffi (XCFramework). **Dos targets** desde el split: `CoreFinancieroKit` y `ios-rust-test`. |
 | `apps/react-native/` | [apps/react-native/CONTEXT.md](apps/react-native/CONTEXT.md) | RN nueva arquitectura, vía `ubrn`. **También produce el WASM.** |
 | `apps/web-angular/` | [apps/web-angular/CONTEXT.md](apps/web-angular/CONTEXT.md) | Angular standalone, consume el WASM. |
 
@@ -53,7 +53,7 @@ No es una estrella. Angular **no** consume el core directamente:
 rust-core/crates/ffi  (único crate exportado; crates/domain es Rust puro y no conoce uniffi)
    │
    ├── cargo ndk + uniffi-bindgen kotlin ──> apps/android  (jniLibs/*.so + java/uniffi/core_financiero/)
-   ├── xcodebuild -create-xcframework    ──> apps/ios      (CoreFinanciero.xcframework + Generated/)
+   ├── xcodebuild -create-xcframework    ──> apps/ios      (CoreFinanciero.xcframework + CoreFinancieroKit/Generated/)
    └── ubrn (desde apps/react-native)
          ├── build android|ios --and-generate ──> apps/react-native (cpp/, src/generated/)
          └── build web                        ──> paquete WASM ──> apps/web-angular
@@ -175,7 +175,24 @@ la sonda del benchmark, que no aserta y viene apagada. Las cuatro
 pantallas funcionando y el pie con `coreVersion()` visible en todas. Ver
 [apps/android/README.md](apps/android/README.md).
 
-`apps/ios/` es el segundo consumidor: las cuatro pantallas andando y **54 tests en verde**,
+`apps/ios/` es el segundo consumidor. Desde el split son **dos targets de Xcode**, espejo de lo
+que hizo Android en la Fase 6: **`CoreFinancieroKit`** —framework **estático**— se lleva el borde
+FFI (`Adapter/`, `Contract/` y el Swift generado) y `ios-rust-test` queda con las pantallas, que
+lo consumen con `import CoreFinancieroKit`. **Estático y no dinámico a propósito:** el piso de
+cruce de 0,062 µs depende de que el `.a` quede enlazado dentro del binario de la app, y uno
+dinámico metería indirección de `dyld` en cada llamada. Re-medido tras el split y **idéntico al
+dígito**.
+
+**El split NO impone el seam por compilador, y conviene no volver a escribir que sí.** El PENDING
+de iOS lo afirmaba y era falso: el bundle de tests hostea en la app, que enlaza el framework, y
+los tests de ViewModel tienen que importarlo igual porque `ContractMessages`, `ValidCci` y
+`DomainError` viven ahí. En Android el seam lo cierra el **runtime** —la JVM no puede cargar la
+`.so`—, no el compilador; iOS no tiene ese mecanismo porque el core se enlaza estáticamente.
+Por eso el ítem del seam **sigue abierto** en [apps/ios/PENDING.md](apps/ios/PENDING.md) aunque el
+split esté hecho. Lo que el split sí compra: el `import` explícito como marcador en el diff,
+paridad estructural con las otras tres apps, y caché de compilación.
+
+Tiene las cuatro pantallas andando y **54 tests en verde**,
 incluido el test de contrato 31/31, **verificados también sobre hardware real** —o sea sobre el
 slice `aarch64-apple-ios`, que es el que se embarca y es un binario distinto del de simulador—.
 El benchmark está medido en un **iPhone 12 con iOS 18** y en **Release**, y confirma la hipótesis
@@ -364,6 +381,15 @@ El orden no es negociable: lo impone el grafo de dependencias de build de arriba
   reescribirla, y una sonda reescrita no mide lo mismo.
   El cuadro y su lectura viven en [docs/cross-app-pending.md](docs/cross-app-pending.md).
 
+**Después de las ocho fases — el split de targets de iOS.** ✅ **Mergeado** (PR #9,
+`feat/ios-target-split`). **No es una fase**: es el último ítem de deuda estructural, que dejaba a iOS como la única de las
+cuatro apps con el borde FFI mezclado con la presentación. Nació `CoreFinancieroKit`. Cerró
+además dos afirmaciones falsas que vivían en los PENDING —la de iOS sobre el seam, y la de
+Android, que seguía diciendo que iOS no lo había resuelto— y documentó un footgun que ya había
+mordido antes: **`strings` sobre el `.a` no sirve para leer el `coreVersion`**, porque las
+strings de Rust no son null-terminated y el SHA queda pegado al literal siguiente. La autoridad
+es el pie en pantalla. Ver [apps/ios/BUILD.md](apps/ios/BUILD.md).
+
 Cada fase termina con tres cosas, no una:
 
 1. **Su test de contrato en verde** contra `cases.json`.
@@ -413,6 +439,7 @@ Una rama por fase, mergeada a `main` recién cuando su test de contrato pasa:
 | 5 | `feat/phase-5-app-web-angular` |
 | 6 | `feat/phase-6-hardening` (los dos bloques) |
 | 7 | `feat/phase-7-benchmark-on-device` |
+| — | `feat/ios-target-split` (no es una fase; el split de targets de iOS) |
 
 Commits en **Conventional Commits, en español**, con scope = subproyecto:
 `feat(rust-core):`, `feat(android):`, `test(ios):`, `docs(contracts):`, `chore(ffi):`.
