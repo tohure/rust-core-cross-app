@@ -18,36 +18,47 @@ Dos suites, y la distinción importa: una corre en la JVM y la otra **sobre un d
 
 ```bash
 # JVM — rápidos, sin emulador. Usan FakeCoreFinanciero: NO cruzan el FFI.
-./gradlew :app:testDebugUnitTest
+./gradlew :app:testDebugUnitTest :core-financiero:testDebugUnitTest
 ```
 
-Qué se debe ver — `BUILD SUCCESSFUL` y **28 tests, 0 failures**, en ocho clases:
+**Son cuatro suites y no dos desde la Fase 6**, cuando el borde FFI se mudó al módulo
+`:core-financiero`. Qué se debe ver — `BUILD SUCCESSFUL` y **35 tests de JVM, 0 failures**:
 
-| Clase | Tests |
-|---|---|
-| `format.MoneyFormatterTest` | 3 |
-| `adapter.ContractMessagesTest` | 3 |
-| `adapter.CoreFinancieroAdapterTest` | 2 |
-| `ui.arithmetic.ArithmeticViewModelTest` | 4 |
-| `ui.transfer.TransferViewModelTest` | 6 |
-| `ui.card.CardViewModelTest` | 6 |
-| `ui.benchmark.NativeBaselineTest` | 1 |
-| `ui.benchmark.BenchmarkViewModelTest` | 3 |
+| Módulo | Clase | Tests |
+|---|---|---|
+| `:app` | `format.MoneyFormatterTest` | 3 |
+| `:app` | `adapter.CoreFinancieroAdapterTest` | 2 |
+| `:app` | `ui.arithmetic.ArithmeticViewModelTest` | 5 |
+| `:app` | `ui.transfer.TransferViewModelTest` | 6 |
+| `:app` | `ui.card.CardViewModelTest` | 7 |
+| `:app` | `ui.benchmark.NativeBaselineTest` | 1 |
+| `:app` | `ui.benchmark.BenchmarkViewModelTest` | 5 |
+| `:app` | `UniffiRecordsAreNotMutatedTest` | 2 |
+| **`:core-financiero`** | `adapter.ContractMessagesTest` | **4** |
+
+`ContractMessagesTest` vive en el módulo y no en `:app` porque el mapeo de error a texto de
+usuario se mudó ahí con el adapter. Sus cuatro tests incluyen que un `Throwable` que **no** es de
+dominio no filtre su texto de diagnóstico a la pantalla.
 
 ```bash
 # Instrumentados — necesitan un emulador o dispositivo conectado. Estos SÍ cruzan el FFI.
 adb devices                              # debe listar uno como `device`
-./gradlew :app:connectedDebugAndroidTest
+./gradlew :app:connectedDebugAndroidTest :core-financiero:connectedDebugAndroidTest
 ```
 
-Qué se debe ver — `BUILD SUCCESSFUL` y **15 tests, 0 failures**:
+Qué se debe ver — `BUILD SUCCESSFUL` y **20 tests, 0 failures**:
 
-| Clase | Tests | Qué prueba |
-|---|---|---|
-| `CoreSmokeTest` | 2 | que la `.so` carga y JNA resuelve símbolos |
-| `ContractAssetsTest` | 2 | que los dos JSON del contrato llegaron a los dos APK |
-| `contract.AssetSourcesTest` | 2 | que los seams leen los assets reales |
-| **`ContractTest`** | **9** | **los 28 casos del contrato, más sus guardias** |
+| Módulo | Clase | Tests | Qué prueba |
+|---|---|---|---|
+| **`:core-financiero`** | `CoreSmokeTest` | 2 | que la `.so` carga y JNA resuelve símbolos |
+| **`:core-financiero`** | `ContractAssetsTest` | 2 | que los dos JSON del contrato llegaron a los dos APK |
+| **`:core-financiero`** | `contract.AssetSourcesTest` | 2 | que los seams leen los assets reales |
+| **`:core-financiero`** | `adapter.UniffiCoreFinancieroTest` | 3 | que el `runCatching` del adapter **real** traduce un error del core a `Result.failure` |
+| **`:core-financiero`** | **`ContractTest`** | **10** | **los 31 casos del contrato, más sus guardias** |
+| `:app` | `RotationTest` | 1 | que rotar no se lleve puesta la pestaña ni lo tecleado |
+
+**Las 19 del módulo son las que no se pueden falsear**: cargan la librería nativa de verdad. La
+de `:app` prueba presentación, que es lo único que le quedó a ese módulo.
 
 Para acotar una corrida instrumentada a una clase, **`--tests` no sirve** —ese flag es de la
 tarea de unit tests JVM y AGP 9 lo rechaza acá—. El equivalente que funciona:
@@ -137,7 +148,41 @@ adb logcat -d -s FfiCostProbe:I
 ```
 
 **Salvedad:** el APK medido es el de **debug**; el `.so` sí es release. No debería cambiar mucho
-en esta ruta —el camino del binding no lleva instrumentación de debug— pero no se verificó.
+en esta ruta —el camino del binding no lleva instrumentación de debug— pero **no se verificó**, y
+la Fase 6 tampoco pudo cerrarlo del todo. Ver abajo.
+
+### El APK de release: medido en tamaño, no en velocidad
+
+La Fase 6 construyó los dos y los pesó:
+
+```bash
+cd apps/android && ./gradlew :app:assembleDebug :app:assembleRelease
+ls -l app/build/outputs/apk/debug/*.apk app/build/outputs/apk/release/*.apk
+```
+
+| APK | Bytes | |
+|---|---:|---|
+| `app-debug.apk` | 32 695 932 | ~31,2 MiB |
+| `app-release-unsigned.apk` | 25 555 744 | ~24,4 MiB |
+
+De dónde sale el peso, en el de release: **22,9 MB son los dos `classes.dex`**; todo lo nativo
+junto son 1,9 MB, y de eso 1,4 MB son los tres slices de `libcore_financiero.so` —uno por ABI— y
+458 KB las `.so` de JNA.
+
+> **El de release NO está minificado, así que ese número no es el de un build embarcable.** El
+> `buildTypes.release` de este proyecto lleva `optimization { enable = false }`, o sea que R8 no
+> corre: no hay shrinking ni ofuscación, y por eso la diferencia con debug es sólo del 22 %. Con
+> R8 la mayor parte de esos 22,9 MB de dex se iría. Está así a propósito —es una POC y un APK
+> minificado complica leer un stack trace en la demo—, pero cualquiera que cite este tamaño como
+> «lo que pesa la app» se va a equivocar por un factor grande.
+
+**Lo que quedó sin medir, y por qué:** los percentiles del benchmark en un APK de release. Dos
+razones concretas, ninguna de fondo: AGP emite el release **sin firmar** (`app-release-unsigned.apk`),
+así que no se puede instalar sin configurarle una firma; y el único aparato disponible al cerrar la
+Fase 6 era un emulador, mientras que el número con el que habría que comparar —los 444 µs de más
+arriba— salió de un Pixel 6 físico. Medir en emulador y ponerlo al lado de ese número daría una
+comparación falsa. **Queda abierto: firmar el release con el keystore de debug y repetir la pantalla
+de Benchmark en el Pixel 6, con las mismas iteraciones.**
 
 Lo que el benchmark **sí** exhibe es lo otro: `NativeBaseline` es más rápido y **da mal el
 resultado**. Su test aserta que *diverge* del core; si alguna vez deja de fallar contra `0.30`,

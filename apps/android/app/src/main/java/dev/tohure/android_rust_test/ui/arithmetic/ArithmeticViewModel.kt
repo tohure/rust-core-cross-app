@@ -71,7 +71,7 @@ class ArithmeticViewModel(
                 _uiState.value = s.copy(
                     coreResult = "",
                     nativeResult = "",
-                    error = (e as? DomainException)?.let(messages::userMessage) ?: e.toString(),
+                    error = messages.userMessage(e),
                 )
             }
     }

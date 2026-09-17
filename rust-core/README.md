@@ -3,8 +3,8 @@
 Núcleo de dominio de la POC. Es el único lugar donde vive lógica de negocio: las cuatro
 apps lo consumen sin reescribirlo.
 
-**Estado: Fase 1 completada.** 67 tests en verde —47 unitarios de `domain`, 6 de `proptest`,
-3 del lib de `ffi` y 11 del test de contrato— contra `contracts/cases.json` v2.3.0, 28 casos.
+**Estado: Fase 1 completada.** 71 tests en verde —50 unitarios de `domain`, 6 de `proptest`,
+3 del lib de `ffi` y 12 del test de contrato— contra `contracts/cases.json` v2.4.0, 31 casos.
 
 Todos los comandos de esta documentación —los de [BUILD.md](BUILD.md) y los de
 [TESTING.md](TESTING.md)— **se ejecutaron tal como están escritos**, desde `rust-core/`, y la
@@ -18,7 +18,7 @@ salida que sigue a cada uno es la que devolvieron. Ninguno está deducido del
 graph TD
     ffi["<b>crates/ffi</b> · paquete core_financiero<br/>uniffi::export · cdylib + staticlib + lib<br/>único crate exportado"]
     domain["<b>crates/domain</b><br/>Rust puro · NO declara uniffi<br/>error · arithmetic · itf · transfer<br/>cci · card · crypto"]
-    contrato[("contracts/cases.json<br/>v2.3.0 · 28 casos")]
+    contrato[("contracts/cases.json<br/>v2.4.0 · 31 casos")]
     bindings["target/release/libcore_financiero.dylib<br/>+ bindings Kotlin / Swift"]
 
     ffi --> domain
@@ -100,12 +100,12 @@ un README que contesta cinco preguntas a la vez no contesta bien ninguna.
 
 | Archivo | La pregunta que contesta |
 |---|---|
-| **[BUILD.md](BUILD.md)** | ¿Qué herramientas necesito, cómo lo compilo y cómo genero los bindings? |
+| **[BUILD.md](BUILD.md)** | ¿Qué herramientas necesito, cómo lo compilo y cómo genero los bindings? Incluye [el paso único para generar los artefactos de las cuatro apps](BUILD.md#generar-el-core-que-consumen-las-cuatro-apps). |
 | **[TESTING.md](TESTING.md)** | ¿Qué suites hay, qué prueba el test de contrato y qué **no** prueba? |
 | **[FFI.md](FFI.md)** | ¿Qué cruza el FFI y qué no? **Léelo antes de escribir una app consumidora.** |
 | **[PENDING.md](PENDING.md)** | ¿Qué no hace y qué queda abierto? |
 | [CONTEXT.md](CONTEXT.md) | La spec: reglas duras, contrato de API pública, comandos de exportación por plataforma |
-| [../contracts/README.md](../contracts/README.md) | El contrato compartido: los 28 casos y de dónde salen |
+| [../contracts/README.md](../contracts/README.md) | El contrato compartido: los 31 casos y de dónde salen |
 
 ## `core_version()` congela el SHA del build
 
@@ -135,6 +135,35 @@ mismo string" es una propiedad **verificable, no automática**: si los artefacto
 commits distintos, las cuatro pantallas van a mostrar cuatro strings distintos y la prueba
 en pantalla se cae. Hay que **regenerar los cuatro artefactos desde el mismo HEAD** antes de
 poner las apps lado a lado.
+
+### Comprobar los cuatro artefactos de una vez
+
+Después de regenerarlos —[el paso único de BUILD.md](BUILD.md#generar-el-core-que-consumen-las-cuatro-apps)—
+y **antes** de levantar las apps:
+
+```bash
+SHA=$(git rev-parse --short HEAD)
+for p in \
+  apps/android/core-financiero/src/generated/jniLibs/arm64-v8a/libcore_financiero.so \
+  apps/ios/CoreFinanciero.xcframework/ios-arm64/libcore_financiero.a \
+  apps/ios/CoreFinanciero.xcframework/ios-arm64-simulator/libcore_financiero.a \
+  apps/react-native/android/src/main/jniLibs/arm64-v8a/libcore_financiero.a \
+  apps/react-native/src/generated-napi/libcore_financiero.dylib \
+  packages/core-financiero-wasm/generated/core_financiero.wasm
+do
+  printf '%-70s %s\n' "$p" "$(strings -a "$p" | grep -oE "1\.0\.0\+$SHA" | sort -u)"
+done
+```
+
+Qué se debe ver — el **mismo** `1.0.0+<sha>` en las seis líneas, y ninguna vacía. Una línea
+vacía es un artefacto que quedó de otro commit: se regenera ése y se vuelve a correr.
+
+> **El patrón va anclado al SHA de `HEAD`, nunca abierto como `[0-9a-f]{7,}`.** Rust empaqueta
+> los literales de string contiguos y **sin terminador**, así que `strings` los devuelve
+> pegados: un patrón abierto se come los caracteres hex del literal siguiente y devuelve, por
+> ejemplo, `1.0.0+56acc05ca` en un binario y `1.0.0+56acc05` en otro — el `ca` es el principio
+> de `called \`Result::unwrap()\`...`. Los dos artefactos son del mismo commit y el comando
+> dice que no. Verificado en la Fase 6.
 
 Si en pantalla aparece `1.0.0+sin-git`, el build corrió sin `git` disponible o fuera de un
 checkout: ese binario no lleva identificación y no sirve para la comparación.

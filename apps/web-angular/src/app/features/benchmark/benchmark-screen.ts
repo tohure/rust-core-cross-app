@@ -1,6 +1,6 @@
 import { Component, OnDestroy, inject, signal, viewChild } from '@angular/core';
 import { CoreFinancieroService } from '../../core/core-financiero.service';
-import { userMessage } from '../../core/user-message';
+import { userMessage } from '@banco/contract';
 import { LabeledField } from '../../ui/labeled-field/labeled-field';
 import { PrimaryButton } from '../../ui/primary-button/primary-button';
 import { ResultRow } from '../../ui/result-row/result-row';

@@ -53,7 +53,7 @@ rust-core/
 │       ├── src/lib.rs            uniffi::export, los Record y DomainError con piel de uniffi
 │       ├── build.rs              inyecta el SHA de git para core_version()
 │       ├── uniffi-bindgen.rs     el [[bin]] que genera los bindings
-│       └── tests/contract.rs       los 28 casos de ../contracts/cases.json
+│       └── tests/contract.rs       los 31 casos de ../contracts/cases.json
 ```
 
 `domain` NO conoce uniffi. Solo `ffi` depende de uniffi, y eso **no es una convención**:
@@ -149,6 +149,8 @@ pub enum DomainError {
     InsufficientFunds { available: String, required: String },
     #[error("error de cifrado: {detail}")]
     Encryption { detail: String },
+    #[error("error de descifrado: {detail}")]
+    Decryption { detail: String },
     #[error("parámetro fuera de rango: {field}")]
     OutOfRange { field: String },
 }
@@ -157,9 +159,9 @@ pub enum DomainError {
 **Los identificadores están en inglés y los nombres del contrato en español.** El enum vive
 dos veces —`domain::DomainError`, sin uniffi, y este, con la piel de uniffi— y el puente
 hacia `contracts/cases.json` es `DomainError::contract_name()`, que devuelve `"MismaCuenta"`
-para `SameAccount` y así con las nueve. **Ese método es Rust y no cruza el FFI:** en Kotlin
+para `SameAccount` y así con las diez. **Ese método es Rust y no cruza el FFI:** en Kotlin
 y Swift el enum generado trae solo los nombres en inglés, así que cada app necesita escribir
-ese mapeo de nueve líneas **en su test de contrato**, no en producción. Si diverge, el test de contrato de
+ese mapeo de diez líneas **en su test de contrato**, no en producción. Si diverge, el test de contrato de
 esa app falla contra el contrato. Ver [FFI.md](FFI.md).
 
 `core_version()` devuelve versión del crate + SHA corto de git, inyectados en
@@ -253,13 +255,14 @@ El formato de `cases.json` y la especificación normativa de cada algoritmo est�
 
 ```bash
 # Android: .so por ABI + Kotlin
-cargo ndk -t arm64-v8a -t armeabi-v7a -t x86_64 -o ../apps/android/app/src/main/jniLibs build --release
+cargo ndk -t arm64-v8a -t armeabi-v7a -t x86_64 \
+  -o ../apps/android/core-financiero/src/generated/jniLibs build --release
 # bindgen lee el `.dylib` del **host**, NO el `.so` de Android, por dos razones verificadas
 # en la Fase 2: en macOS el host no produce `.so` (produce `.dylib`), y el `.so` de Android
 # sale con `strip = true` del perfil release, que borra la metadata de uniffi — apuntarle da
 # "No UniFFI metadata found". Los bindings no dependen de la arquitectura.
 cargo run --bin uniffi-bindgen -- generate --library target/release/libcore_financiero.dylib \
-  --language kotlin --out-dir ../apps/android/app/src/main/java
+  --language kotlin --out-dir ../apps/android/core-financiero/src/generated/java
 
 # iOS: XCFramework + Swift
 cargo build --release --target aarch64-apple-ios

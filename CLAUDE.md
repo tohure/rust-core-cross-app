@@ -52,7 +52,7 @@ No es una estrella. Angular **no** consume el core directamente:
 ```
 rust-core/crates/ffi  (único crate exportado; crates/domain es Rust puro y no conoce uniffi)
    │
-   ├── cargo ndk + uniffi-bindgen kotlin ──> apps/android  (jniLibs/*.so + core/)
+   ├── cargo ndk + uniffi-bindgen kotlin ──> apps/android  (jniLibs/*.so + java/uniffi/core_financiero/)
    ├── xcodebuild -create-xcframework    ──> apps/ios      (CoreFinanciero.xcframework + Generated/)
    └── ubrn (desde apps/react-native)
          ├── build android|ios --and-generate ──> apps/react-native (cpp/, src/generated/)
@@ -157,20 +157,24 @@ construyó, así que hay que regenerar los cuatro desde el mismo HEAD antes de l
 
 ## Estado actual y flujo de trabajo (SDD con superpowers)
 
-**Las seis fases están completadas: la POC está cerrada.** El núcleo existe, funciona, y las
+**Las siete fases están completadas: la POC está cerrada y endurecida.** El núcleo existe, funciona, y las
 **cuatro** apps lo consumen — Android, iOS, React Native y Angular.
 `rust-core/` tiene dos crates —`domain` (Rust puro, siete módulos) y `ffi` (paquete
-`core_financiero`, la fachada uniffi)— con ~1930 líneas de Rust, **67 tests en verde** y el
-**test de contrato pasando 28/28** contra `contracts/cases.json` **v2.3.0**. Los bindings Kotlin
-y Swift se generaron y se verificó que las nueve funciones cruzan la frontera.
+`core_financiero`, la fachada uniffi)— con **71 tests en verde** y el **test de contrato pasando
+31/31** contra `contracts/cases.json` **v2.4.0**. Los bindings Kotlin y Swift se generaron y se
+verificó que las nueve funciones cruzan la frontera.
 
-`apps/android/` es el primer consumidor real y **ya ejercita el borde FFI de verdad**: 43
-tests en verde —28 de JVM y 15 instrumentados sobre dispositivo, de los cuales 9 son el
-test de contrato—, las cuatro pantallas funcionando y el pie con `coreVersion()` visible en todas. Ver
+`apps/android/` es el primer consumidor real y **ya ejercita el borde FFI de verdad**. Desde la
+Fase 6 son **dos módulos Gradle**: `:core-financiero` se lleva todo el borde FFI —JNA, los
+bindings generados, las `.so` y el adapter— y `:app` queda con Compose y presentación, sin
+declarar JNA. **54 tests en verde** en cuatro suites: 30 de JVM y 1 instrumentado en `:app`; 4 de
+JVM y **19 instrumentados** en `:core-financiero`, que son los que cruzan el FFI de verdad —10 del
+test de contrato, 2 del smoke, 3 del adapter real y 4 de las fuentes de assets—. Las cuatro
+pantallas funcionando y el pie con `coreVersion()` visible en todas. Ver
 [apps/android/README.md](apps/android/README.md).
 
-`apps/ios/` es el segundo consumidor: las cuatro pantallas andando y **47 tests en verde**,
-incluido el test de contrato 28/28, **verificados también sobre hardware real** —o sea sobre el
+`apps/ios/` es el segundo consumidor: las cuatro pantallas andando y **48 tests en verde**,
+incluido el test de contrato 31/31, **verificados también sobre hardware real** —o sea sobre el
 slice `aarch64-apple-ios`, que es el que se embarca y es un binario distinto del de simulador—.
 El benchmark ya tiene número, y confirma la hipótesis por goleada: el piso del cruce cuesta
 **0,33 µs en iOS contra 172 µs en Android**, o sea **521×** menos, porque iOS enlaza el `.a`
@@ -182,7 +186,7 @@ chip, pero hay que repetirlo en un iPhone con iOS 17+—. Ver
 `apps/react-native/` es el tercer consumidor y el **único que produce tres salidas** del mismo
 crate: el turbo module JSI que usa la app, los bindings N-API con que el test de contrato llama
 al core desde Node, y **el `.wasm` del que depende la Fase 5**. Las cuatro pantallas andan en
-Android y en iOS, con **109 tests en verde** y el contrato **28/28 por N-API y 28/28 por WASM**.
+Android y en iOS, con **126 tests en verde** y el contrato **31/31 por N-API y 31/31 por WASM**.
 
 Tiene una diferencia real con las otras dos que conviene decir en la demo: **ninguna prueba
 automatizada cruza JSI.** React Native no tiene corredor de tests en dispositivo —Jest mockea los
@@ -192,8 +196,8 @@ manual. Android tiene 15 tests instrumentados y iOS corre XCTest sobre aparato; 
 [apps/react-native/TESTING.md](apps/react-native/TESTING.md).
 
 `apps/web-angular` es el cuarto y último consumidor, y el que cierra la POC: con él las cuatro
-pantallas existen a la vez y la comparación lado a lado se puede hacer de verdad. **99 tests en
-verde** con el contrato **28/28**, y las cuatro pantallas andando sobre el WASM real.
+pantallas existen a la vez y la comparación lado a lado se puede hacer de verdad. **102 tests en
+verde** con el contrato **31/31**, y las cuatro pantallas andando sobre el WASM real.
 
 Tiene dos particularidades que conviene decir en la demo. **`ng serve` no funciona** —el
 optimizador de dependencias de Vite se rompe con `@banco/contract`—, así que la app se levanta con
@@ -315,6 +319,22 @@ El orden no es negociable: lo impone el grafo de dependencias de build de arriba
   instancia del módulo. Lo único que la protege es la regla 5 y los proptests `*_never_panics` del
   core. Ver [apps/web-angular/PENDING.md](apps/web-angular/PENDING.md).
 
+- **Fase 6 — Contrato v2.4.0 y hardening.** ✅ **Completada.** Transversal, en dos bloques.
+  El **bloque 0** separó `Descifrado` de `Cifrado` —una décima variante de `DomainError` con
+  mensaje propio—, llevó el contrato a **v2.4.0 con 31 casos** (grupo `descifrado` nuevo, 3
+  casos) y lo propagó a las cinco bases de código en el mismo cambio: Rust **71**, Android, iOS
+  **48**, React Native **126** y Angular **102**. Cerró regenerando los cuatro artefactos desde
+  el mismo HEAD y **verificando los cuatro pies en pantalla**, no a ojo: `uiautomator dump` en
+  Android y React Native, captura del simulador en iOS, Chrome headless en Angular.
+  El **bloque 1** endureció `apps/android`: nació el módulo Gradle **`:core-financiero`** con
+  todo el borde FFI —JNA, los bindings, las `.so` y el adapter—, de modo que `:app` ya no declara
+  JNA; se verificó el `runCatching` del adapter contra la `.so` real; el estado sobrevive a la
+  rotación; hay una guardia automatizada contra mutar un `Record` de uniffi; y se cerraron dos
+  divergencias de paridad —el campo de hex y el silencio con cero iteraciones—. Quedó en **54
+  tests** repartidos en cuatro suites: 30 y 1 en `:app`, 4 y 19 en `:core-financiero`.
+  Lo transversal que sigue abierto tiene dueño único desde esta fase:
+  [docs/cross-app-pending.md](docs/cross-app-pending.md).
+
 Cada fase termina con tres cosas, no una:
 
 1. **Su test de contrato en verde** contra `cases.json`.
@@ -362,6 +382,7 @@ Una rama por fase, mergeada a `main` recién cuando su test de contrato pasa:
 | 3 | `feat/phase-3-app-ios` |
 | 4 | `feat/phase-4-app-react-native` |
 | 5 | `feat/phase-5-app-web-angular` |
+| 6 | `feat/phase-6-hardening` (los dos bloques) |
 
 Commits en **Conventional Commits, en español**, con scope = subproyecto:
 `feat(rust-core):`, `feat(android):`, `test(ios):`, `docs(contracts):`, `chore(ffi):`.

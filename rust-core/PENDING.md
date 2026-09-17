@@ -10,15 +10,15 @@ Nada de acá bloquea la demo. Son decisiones tomadas, no olvidos.
 ### Borrar una función `contract_*` entera no lo caza ninguna guardia
 
 Las seis guardias del test de contrato cazan un grupo vaciado, una clave nueva, una variante
-sin mensaje. **No cazan que alguien borre una de las cinco funciones `contract_*`**: el
+sin mensaje. **No cazan que alguien borre una de las seis funciones `contract_*`**: el
 contador se borra junto con la función, y ni el conteo por grupo ni el set de claves saben
-qué funciones existen. Verificado: borrando `contract_cci` la corrida da diez tests, todo
+qué funciones existen. Verificado: borrando `contract_cci` la corrida da once tests, todo
 verde, sin un warning.
 
-Cerrarlo requeriría extraer los cinco cuerpos a funciones normales referenciadas desde una
-tabla `[(&str, fn(&Value)); 5]`. **No se hizo**, y la decisión se toma una sola vez acá y no
+Cerrarlo requeriría extraer los seis cuerpos a funciones normales referenciadas desde una
+tabla `[(&str, fn(&Value)); 6]`. **No se hizo**, y la decisión se toma una sola vez acá y no
 cuatro veces cuando Kotlin, Swift y TypeScript espejen este archivo: esa tabla colapsaría los
-cinco nombres de test, que es justo lo que se lee cuando algo falla.
+seis nombres de test, que es justo lo que se lee cuando algo falla.
 
 El detalle completo y la prueba por mutación están en
 [TESTING.md](TESTING.md#sus-seis-guardias-y-el-hueco-que-queda-abierto).
@@ -61,7 +61,7 @@ en Swift). Ni Android ni iOS tocaron una línea de código de app.
 2026-08-21, y su autor presupuesta la migración como *"real migration rather than a dependency
 bump"*: el cambio de `[ByRef] bytes` a `ForeignBytes` toca 22 sitios en cuatro flavours.
 Cuando salga, subir las dos versiones a la vez —el core y ubrn— y volver a correr los tres
-gates: los 67 de aquí, los 43 de Android y los 47 de iOS.
+gates: los 71 de aquí, los 43 de Android y los 47 de iOS.
 
 ## Fuera de alcance por diseño
 

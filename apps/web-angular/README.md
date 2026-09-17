@@ -7,7 +7,7 @@ Es la app que cierra la POC. Con ésta, las cuatro pantallas existen a la vez y 
 lado a lado —cuatro plataformas produciendo el mismo string carácter por carácter— se puede
 hacer de verdad.
 
-**99 tests en verde**, 15 archivos, con el test de contrato **28/28** contra
+**102 tests en verde**, 14 archivos, con el test de contrato **31/31** contra
 `contracts/cases.json` v2.3.0.
 
 ## Cómo está armada
@@ -28,14 +28,14 @@ flowchart TD
         GEN["core-financiero-wasm/generated/<br/>core_financiero.wasm + index.ts<br/>GENERADO, gitignoreado, @ts-nocheck"]
         FACADE["core-financiero-wasm/src/index.ts<br/>fachada estable a mano<br/>initCore angosta WasmSource a bytes"]
         GUARD["core-financiero-wasm/src/guard.ts<br/>guardia 4 del contrato"]
-        CONTRACT["packages/contract<br/>contractName + messageFor<br/>lee cases.json y messages.es.json"]
+        CONTRACT["packages/contract<br/>contractName · messageFor · userMessage<br/>lee cases.json y messages.es.json"]
         GEN --> FACADE
     end
 
     subgraph app["apps/web-angular/src/app/"]
         LOAD["core/core-financiero.service.ts<br/>loadCore: fetch bytes + initCore<br/>en un app initializer"]
         SVC["CoreFinancieroService<br/>9 funciones SÍNCRONAS, reexportadas"]
-        MSG["core/user-message.ts<br/>DomainError → texto de usuario"]
+        MSG["userMessage<br/>de @banco/contract<br/>DomainError → texto de usuario"]
         FMT["format/money.pipe.ts<br/>formatPEN, string a string"]
         UI["ui/<br/>7 componentes compartidos"]
         SCREENS["features/<br/>arithmetic · transfer · card · benchmark"]
@@ -49,7 +49,7 @@ flowchart TD
 
     FFI --> UBRN --> GEN
     FACADE --> SVC
-    GUARD -.-> TEST["core/contract.spec.ts<br/>28/28"]
+    GUARD -.-> TEST["core/contract.spec.ts<br/>31/31"]
     CONTRACT --> MSG
     CONTRACT --> TEST
     GEN -.symlink.-> WASMFILE --> LOAD
@@ -73,12 +73,21 @@ flowchart TD
   una sola vez al arrancar (`loadCore` en un app initializer) y después las nueve funciones se
   reexportan tal cual. La alternativa —un `await` en cada método— habría vuelto `async` a las
   cuatro pantallas para nada: el WASM ya está cargado antes de que se pinte la primera.
-- **`packages/contract` lo comparten producción y test.** `user-message.ts` usa el mismo
-  `contractName`/`messageFor` que el test de contrato, en vez de una segunda copia que se
-  desincroniza. Se importa del barrel y no de `@banco/contract/testing`, que toca `node:fs` y no
-  se puede empaquetar para el navegador.
+- **`packages/contract` lo comparten producción y test, y desde la Fase 6 también las dos apps
+  de TypeScript.** `userMessage` —el borde donde un `DomainError` se vuelve texto humano— vive
+  ahí, no acá: estaba escrita dos veces, casi idéntica, en esta app y en React Native, y el
+  arreglo de la Fase 6 —que el diagnóstico dejara de llegar a la pantalla— hubo que aplicarlo en
+  los dos lugares. Usa el mismo `contractName`/`messageFor` que el test de contrato, en vez de
+  una segunda copia que se desincroniza. Se importa del barrel y no de
+  `@banco/contract/testing`, que toca `node:fs` y no se puede empaquetar para el navegador.
 
 ## Antes de correrla
+
+**El binario de Rust se genera primero, para las cuatro apps a la vez.** La secuencia
+completa, en orden, vive en
+[rust-core/BUILD.md](../../rust-core/BUILD.md#generar-el-core-que-consumen-las-cuatro-apps);
+el paso que le toca a esta app no se corre acá ni en `rust-core/`, sino desde
+`apps/react-native/` — ver abajo.
 
 El `.wasm` **no está en git**. En un clone limpio hay que construirlo, y es lo primero:
 
@@ -120,7 +129,7 @@ El `.wasm` **no necesita** servirse con MIME `application/wasm` — ver «Qué N
 
 ```bash
 cd apps/web-angular
-pnpm test          # 99 passed (15 archivos), incluye el contrato 28/28
+pnpm test          # 102 passed (14 archivos), incluye el contrato 31/31
 pnpm lint          # All files pass linting
 pnpm build         # bundle inicial 215.08 kB (57.98 kB transferidos)
 pnpm format:check  # All matched files use Prettier code style!

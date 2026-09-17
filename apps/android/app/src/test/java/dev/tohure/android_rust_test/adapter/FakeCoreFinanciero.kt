@@ -19,7 +19,11 @@ class FakeCoreFinanciero(
     private var nextItf: Result<String> = Result.success("0.05"),
     private var nextCci: Result<ValidCci> = Result.success(ValidCci("002", "Banco Demo Uno", "191", "001234567890")),
     private var nextCard: Result<ValidCard> = Result.success(ValidCard("Visa", "4111 **** **** 1111")),
-    private var nextEncrypt: Result<String> = Result.success("bdca3931"),
+    // El cifrado de `tj-001` en `contracts/cases.json`, COMPLETO. Antes era un hex de 8
+    // caracteres, que contradecía el comentario de esta clase: prometía el del contrato y
+    // entregaba uno truncado.
+    private var nextEncrypt: Result<String> =
+        Result.success("bdca39311826947186b20ec2a92c3f521aacff902e37d519bcd2754fc7c7c0dd"),
     private var nextDecrypt: Result<String> = Result.success("4111111111111111"),
     private var nextTransfer: Result<TransferResult> = Result.success(
         TransferResult(emptyList(), "0.05", "100.05", "TRF-0001", 120u),

@@ -64,6 +64,14 @@ Reglas que valen en las cuatro:
    aritmética en el ViewModel, estás escribiendo lógica de negocio fuera de `rust-core`.
 3. **Un error del core es un campo del estado**, no una excepción que sube a la vista. Se
    guarda ya resuelto a texto de usuario, leído de `contracts/messages.es.json`.
+   **Y lo que no es un error de dominio tampoco muestra su texto crudo**: el fallback es
+   `No se pudo completar la operación.`, normativo e igual en las cuatro apps. El adapter
+   atrapa *todo*, no sólo los errores de negocio —un fallo al cargar la librería nativa, una
+   excepción de JNA—, así que sin esta regla el usuario termina viendo
+   `java.lang.UnsatisfiedLinkError: dlopen failed: …` en la pantalla de Aritmética. Verificado
+   con un test, no supuesto. El diagnóstico **no se tira**: se loguea donde se atrapa, que es
+   el adapter. Y el texto no dice «vuelve a intentarlo» a propósito: si la librería no cargó,
+   reintentar no arregla nada.
 4. **Las listas del estado van inmutables** donde la plataforma lo permita
    (`ImmutableList`/`persistentListOf` en Kotlin), para que el motor de UI pueda saltarse
    recomposiciones.
@@ -84,7 +92,7 @@ Navegación: cuatro pestañas (Aritmética, Transferencia, Tarjeta, Benchmark) y
 │         contenido                   │
 │                                     │
 ├─────────────────────────────────────┤
-│  core 1.0.0 · a0a40a5               │  pie: coreVersion(), SIEMPRE visible
+│  1.0.0+a0a40a5                      │  pie: coreVersion() PELADO, SIEMPRE visible
 ├─────────────────────────────────────┤
 │  [Aritmética][Transf.][Tarjeta][Bm] │  navegación
 └─────────────────────────────────────┘
@@ -92,6 +100,13 @@ Navegación: cuatro pestañas (Aritmética, Transferencia, Tarjeta, Benchmark) y
 
 El pie es la prueba en pantalla de que las cuatro corren el mismo build. Por eso va en todas
 y no escondido en un "Acerca de".
+
+**Se pinta tal cual lo devuelve `core_version()`: sin prefijo `core `, sin `·`, sin separar la
+versión del SHA.** Hasta la Fase 6 este wireframe dibujaba `core 1.0.0 · a0a40a5`, que ninguna
+de las cuatro apps renderiza y que contradice a la regla de la sección 5 de más abajo. No es
+cosmético: iOS llegó a anteponer `"core "` siguiendo este dibujo, y con builds idénticos los dos
+pies **no eran el mismo string** — que es lo único que este pie existe para probar. Ver el
+comentario de `apps/ios/.../UI/Components/Components.swift`.
 
 ### 1. Aritmética
 
@@ -192,8 +207,8 @@ importan: valida por Luhn, cifra, y **descifra**.
 │                                     │
 │  ─── Descifrar un hex de otra ───   │
 │      plataforma                     │
-│  Pega aquí el hex que produjo la    │
-│  app de iOS, React Native o Angular…│
+│  Pega aquí el hex que produjo        │
+│  cualquiera de las otras apps…      │
 │  Hex cifrado  [ bcce3d351c2290… ]   │
 │           [  Descifrar  ]           │
 │  Número recuperado 5555555555554444 │
@@ -203,6 +218,11 @@ importan: valida por Luhn, cifra, y **descifra**.
 - Labels exactos: `Número`, `Validar y cifrar`, `Resultado`, `Marca`, `Enmascarado`,
   `Cifrado (hex)`, `Descifrado`, `Descifrar un hex de otra plataforma`, `Hex cifrado`,
   `Descifrar`, `Número recuperado`.
+- **El texto del bloque de pegado no nombra plataformas.** Este wireframe decía «el hex que
+  produjo la app de iOS, React Native o Angular», escrito desde la perspectiva de Android — así
+  que en la app de **iOS** el texto se autolistaba, invitando a pegar un hex producido por la app
+  en la que uno ya está parado. La lista además hay que mantenerla cada vez que se agrega una
+  plataforma. El texto normativo es `Pega aquí el hex que produjo cualquiera de las otras apps.`
 - **El texto de ayuda bajo `Número` es obligatorio**, con estas dos líneas exactas:
   `Puedes probar 4111111111111111 (Visa) o 5555555555554444 (Mastercard).` y
   `Un número inválido lo rechaza el core, no esta pantalla.`
@@ -273,6 +293,15 @@ real es otro problema, y no está acá.
   del todo le restaría credibilidad frente a alguien que sí lo conoce. Van los dos.
 - **La frase "El core es más lento porque cada llamada cruza la frontera al código Rust" es
   obligatoria.** Sin ella, un número más grande parece un defecto en vez del argumento que es.
+- **Con `Iteraciones` en cero, la pantalla explica por qué no pasó nada**, con este texto exacto:
+  `Ingresa un número de iteraciones mayor que cero.` Normativo desde la Fase 6. Un botón que no
+  hace nada y no dice nada se lee como una app rota, y en la demo eso se paga caro. React Native
+  y Angular ya lo hacían; Android e iOS lo adoptaron en la Fase 6. **Las cuatro lo cumplen.**
+- **Los tiempos se formatean con separador decimal PUNTO, independiente del locale del
+  dispositivo.** No es cosmético: `"%.2f".format(...)` de Kotlin usa el locale por defecto y en
+  un aparato es-PE imprime `1,23 µs`, mientras `toFixed(2)` de JavaScript siempre da `1.23 µs`.
+  Dos apps lado a lado con distinto separador rompen la comparación carácter por carácter, que es
+  toda la tesis. En Kotlin: `String.format(Locale.ROOT, …)`.
 - **Filas etiqueta–valor agrupadas por `SectionDivider`, no una tabla de dos ejes.** Se fijó
   así porque solo usa los componentes compartidos —`SectionDivider(title)` y
   `ResultRow(label, value)`—, y una tabla 2D obligaría a un componente nuevo solo para esta

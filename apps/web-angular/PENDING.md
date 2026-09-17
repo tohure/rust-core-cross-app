@@ -3,6 +3,14 @@
 Lo que quedó abierto al cerrar la Fase 5, con el porqué de cada cosa. Nada de acá bloquea la
 demo; lo que sí la toca está marcado.
 
+> **Lo transversal no está acá.** El benchmark que falta repetir en aparato físico, la ausencia
+> de CI en las cinco bases de código, el `catch` genérico que muestra texto de diagnóstico como
+> mensaje de usuario, las divergencias de paridad abiertas y la regla de que un `Record` de uniffi
+> se reemplaza y no se muta viven en
+> **[docs/cross-app-pending.md](../../docs/cross-app-pending.md)**. Un tema, un dueño: antes estaban escritos con distintas
+> palabras en tres archivos, y corregirlo en uno dejaba mintiendo a los otros dos.
+
+
 ## `ng serve` no funciona, y no es de esta fase — **toca la demo**
 
 El optimizador de dependencias de Vite se rompe con `@banco/contract`, que es un paquete del
@@ -97,16 +105,25 @@ red: no la debiliten.** Ver [`rust-core/PENDING.md`](../../rust-core/PENDING.md)
 app consume. Quitar el `@ts-nocheck` rompe el typecheck del paquete; mover la fachada a
 `generated/` la haría desaparecer en la próxima regeneración.
 
-## Minors del review de las Tareas 10-12, diferidos a propósito
+## ~~Minors del review de las Tareas 10-12~~ — CERRADOS en la Fase 6
 
-Ninguno es de corrección; los tres son de cobertura o de claridad:
+Los tres eran de cobertura o de claridad, ninguno de corrección, y los tres están cerrados:
 
-- **`Comisión ITF` y `Total debitado` sólo se verifican en el navegador**, no por `data-testid`
-  en el spec de Transferencia.
-- **El test de «editar consume el error» cubre `setOrigin`** pero no `setDestination` ni
-  `setAmount`, que son idénticos.
-- **El patrón imperativo `child.value.set(...)`** de `LabeledField` provoca una llamada
-  re-entrante inocua que merece un comentario donde ocurre.
+- **`Comisión ITF` y `Total debitado` sólo se verificaban en el navegador.** No tenían
+  `data-testid`, así que el spec no podía mirarlos — y son justamente los dos números que la demo
+  compara centavo a centavo entre las cuatro apps. Ahora los tiene y hay un test que los aserta
+  formateados (`S/ 0.01`, `S/ 100.01`), con timers falsos, porque la pantalla espera
+  `simulatedLatencyMs` antes de pintar y con `whenStable()` todavía no están en el DOM.
+- **El test de «editar consume el error» cubría sólo `setOrigin`.** Ahora es `it.each` sobre los
+  tres campos. Eran idénticos en implementación, y por eso mismo se daba por cubiertos los otros
+  dos: así es como una regresión en `setAmount` pasa desapercibida.
+- **La llamada re-entrante de `child.value.set(...)`** está documentada **donde ocurre**, en
+  `LabeledField.onInput`, con la cadena completa y el argumento de por qué termina en el segundo
+  `set` en vez de ciclar.
+
+De paso, una trampa que costó una compilación rota y que conviene no volver a pisar: **el
+`template` de un componente es un template literal**, así que un backtick dentro de un comentario
+HTML lo cierra a la mitad. El error sale en `styles:`, veinte líneas más abajo.
 
 ## No hay CI
 

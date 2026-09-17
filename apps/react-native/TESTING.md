@@ -22,21 +22,22 @@ pnpm run wasm:generate   # idem, para la ruta WASM
 pnpm test
 ```
 
-Salida esperada: **109 tests en verde**, 12 suites — 4 del proyecto `napi` y 8 del
+Salida esperada: **127 tests en verde**, 16 suites — 8 del proyecto `napi` y 8 del
 `react-native`.
 
 | Suite | Qué cubre |
 |---|---|
-| `__tests__/contract.napi.test.ts` | los 28 casos del contrato, por N-API |
-| `__tests__/contract.wasm.test.ts` | los mismos 28, por WASM |
+| `__tests__/contract.napi.test.ts` | los 31 casos del contrato, por N-API |
+| `__tests__/contract.wasm.test.ts` | los mismos 31, por WASM |
 | `__tests__/core.napi.test.ts` | que el `cdylib` carga y las nueve funciones responden |
 | `__benchmarks__/divergence.test.ts` | que la baseline de TypeScript **sigue divergiendo** del contrato |
 | `example/__tests__/useArithmetic` · `useTransfer` · `useCard` · `useBenchmark` | las transiciones de estado de las cuatro pantallas, contra `FakeCore` |
-| `example/__tests__/ContractMessages` · `money` | el mensaje de usuario y el formateador sobre el string |
+| `example/__tests__/money` | el formateador sobre el string |
+| `packages/contract/src/__tests__/userMessage` | el mensaje de usuario, incluido que el texto de diagnóstico NO llegue a la pantalla. **Vive en el paquete, no en esta app**: desde la Fase 6 `userMessage` la comparten React Native y Angular, y tener el test en un solo lugar es la mitad del punto de haberla unificado |
 | `example/__tests__/PrimaryButton` | el label sin transformar, y que los contenedores compartidos no se aplanen |
 | `src/__tests__/jest-setup` | las dos guardias de la configuración de Jest bajo pnpm |
 
-## El test de contrato: 28/28
+## El test de contrato: 31/31
 
 `__tests__/contract.napi.test.ts` lee `contracts/cases.json` **v2.3.0** —la misma copia que leen
 las otras cuatro bases de código— y compara con **igualdad exacta de strings** (`toBe`), nunca con
@@ -52,7 +53,7 @@ tolerancia numérica. Que eso pase en las cuatro plataformas *es* la demostraci�
 
 Más las 4 guardias que son `it`, dan los **32** de esa suite.
 
-### Y los mismos 28 otra vez, por WASM
+### Y los mismos 31 otra vez, por WASM
 
 `__tests__/contract.wasm.test.ts` es **el mismo archivo con otro import**, y la duplicación es
 deliberada: los dos runtimes tienen que poder fallar por separado. Si sólo rompe uno, el problema
@@ -61,7 +62,7 @@ Factorizarlo en una función parametrizada por runtime ahorraría líneas y cost
 
 **Éste importa de `@banco/core-financiero-wasm` (Fase 5, Task 4), el paquete que también
 consumirá Angular** — no de un generado local de esta app. Probarlo acá contra el mismo paquete
-es lo que hace que esa fase arranque sin deuda: 28/28, contra los mismos vectores y con la misma
+es lo que hace que esa fase arranque sin deuda: 31/31, contra los mismos vectores y con la misma
 igualdad exacta de strings.
 
 Dos diferencias con la ruta N-API, las dos en el arranque y ninguna en las comparaciones:

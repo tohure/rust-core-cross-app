@@ -9,7 +9,10 @@ import org.junit.runner.RunWith
 
 @RunWith(AndroidJUnit4::class)
 class AssetSourcesTest {
-    private val assets get() = InstrumentationRegistry.getInstrumentation().targetContext.assets
+    // `context`, no `targetContext`: desde la Fase 6 el `Copy` de contratos vive en
+    // `:core-financiero` y alimenta el APK de **test** de este módulo. El `targetContext` de
+    // una librería no es la app, y con él `open("cases.json")` tira FileNotFoundException.
+    private val assets get() = InstrumentationRegistry.getInstrumentation().context.assets
 
     @Test
     fun theInitialAccountsComeFromTheContract() {
@@ -20,12 +23,16 @@ class AssetSourcesTest {
         assertEquals("5000.00", accounts[0].balance)
         assertEquals("01122000987654321065", accounts[1].id)
         assertEquals("Luis Ramos", accounts[1].holder)
+        // El saldo de la segunda cuenta faltaba: se asertaban id y titular, y el único campo
+        // que es DINERO quedaba sin comprobar. Valor tomado de cases.json, no del plan, que
+        // decía "3200.50".
+        assertEquals("1200.50", accounts[1].balance)
     }
 
     @Test
-    fun theNineUserMessagesComeFromTheContract() {
+    fun theTenUserMessagesComeFromTheContract() {
         val messages = AssetMessageSource(assets).messages()
-        assertEquals(9, messages.size)
+        assertEquals(10, messages.size)
         assertEquals(
             "La cuenta de origen y la de destino son la misma.",
             messages["MismaCuenta"],

@@ -4,11 +4,12 @@ import { describe, expect, it } from '@jest/globals';
 import { contractName, CONTRACT_NAMES } from '../index';
 
 describe('contractName', () => {
-  it('traduce las nueve variantes al nombre del contrato', () => {
+  it('traduce las diez variantes al nombre del contrato', () => {
     expect(contractName({ tag: 'SameAccount' })).toBe('MismaCuenta');
     expect(contractName({ tag: 'CheckDigit' })).toBe('DigitoControl');
     expect(contractName({ tag: 'Length' })).toBe('Longitud');
-    expect(Object.keys(CONTRACT_NAMES)).toHaveLength(9);
+    expect(contractName({ tag: 'Decryption' })).toBe('Descifrado');
+    expect(Object.keys(CONTRACT_NAMES)).toHaveLength(10);
   });
 
   it('lanza con un tag que no reconoce, y eso es la guardia', () => {

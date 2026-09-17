@@ -29,7 +29,16 @@ final class BenchmarkViewModel {
     /// La **única** acción de la app que sale del hilo principal: son miles de llamadas y
     /// bloquearían la UI.
     func run() async {
-        guard let n = Int(state.iterations), n > 0 else { return }
+        guard let n = Int(state.iterations), n > 0 else {
+            // Antes era un `return` mudo: el botón no hacía nada y la pantalla parecía rota.
+            // Android, React Native y Angular ya lo explican con este texto exacto, que
+            // `docs/ui-spec.md` volvió normativo — la demo consiste en poner las cuatro
+            // pantallas lado a lado.
+            state.error = "Ingresa un número de iteraciones mayor que cero."
+            state.isRunning = false
+            return
+        }
+        state.error = nil
         state.isRunning = true
         let core = self.core
         let measured = await Task.detached(priority: .userInitiated) {

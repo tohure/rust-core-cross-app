@@ -166,7 +166,6 @@ construido, que es lo que manda:
 ```
 src/app/
 ├── core/core-financiero.service.ts    único punto de contacto con el WASM (SÍNCRONO)
-├── core/user-message.ts               DomainError → texto de usuario, en el borde de UI
 ├── contract/sources.ts
 ├── format/money.pipe.ts
 ├── ui/                                7 componentes compartidos por las cuatro pantallas
@@ -176,6 +175,13 @@ src/app/
     ├── card/
     └── benchmark/          incluye baseline.ts, la implementación en `number` que diverge
 ```
+
+**`userMessage` ya no vive acá.** Hasta la Fase 6 era `core/user-message.ts`, una copia casi
+idéntica de la de React Native; ahora es `@banco/contract`. El arreglo que lo movió —que el texto
+de diagnóstico dejara de llegar a la pantalla— hubo que aplicarlo en los dos lugares, que es
+exactamente el modo de fallo que una copia duplicada produce. Se importa del **barrel**
+(`@banco/contract`), nunca de `@banco/contract/testing`, que toca `node:fs` y rompe el bundle del
+navegador.
 
 `validateCci` y `calculateItf` no tienen pantalla propia entre las cinco de la demo: hoy
 las consume el spec del test de contrato. Este CONTEXT listaba además un feature `validador-cci/` que

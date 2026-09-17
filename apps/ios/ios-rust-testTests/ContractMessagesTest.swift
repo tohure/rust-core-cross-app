@@ -8,8 +8,8 @@ struct ContractMessagesTest {
         ContractMessages(source: try BundleMessageSource(bundle: Bundle(for: BundleToken.self)))
     }
 
-    @Test("los nueve nombres del contrato salen de las nueve variantes")
-    func theNineVariantsMapToTheNineContractNames() {
+    @Test("los diez nombres del contrato salen de las diez variantes")
+    func theTenVariantsMapToTheTenContractNames() {
         #expect(
             DomainError.Length(field: "cci", expected: 20, received: 18).contractName
                 == "Longitud"
@@ -24,6 +24,7 @@ struct ContractMessagesTest {
                 == "SaldoInsuficiente"
         )
         #expect(DomainError.Encryption(detail: "nonce").contractName == "Cifrado")
+        #expect(DomainError.Decryption(detail: "tag").contractName == "Descifrado")
         #expect(DomainError.OutOfRange(field: "monto").contractName == "FueraDeRango")
     }
 
@@ -48,4 +49,26 @@ struct ContractMessagesTest {
     }
 
     private final class BundleToken {}
+
+    @Test("un error que NO es de dominio no muestra su texto de diagnóstico")
+    func aNonDomainErrorDoesNotShowDiagnosticText() throws {
+        // La rama NO es inalcanzable, contra lo que decía el PENDING de esta app. El `catch`
+        // final de cada ViewModel atrapa cualquier cosa, y en Android el equivalente llegó a
+        // poner `java.lang.UnsatisfiedLinkError: dlopen failed: …` en pantalla — verificado
+        // con un test, no supuesto.
+        struct BoomError: Error { let detail = "dlopen failed: library not found" }
+
+        let shown = try messages().userMessage(BoomError() as Error)
+        #expect(shown == "No se pudo completar la operación.")
+        #expect(!shown.contains("dlopen"))
+        #expect(!shown.contains("BoomError"))
+    }
+
+    @Test("la sobrecarga genérica sigue resolviendo los errores de dominio")
+    func theGenericOverloadStillResolvesDomainErrors() throws {
+        // Si esto fallara —o entrara en recursión— la sobrecarga estaría capturando también
+        // el camino normal, y las diez variantes perderían su mensaje.
+        let shown = try messages().userMessage(DomainError.SameAccount as Error)
+        #expect(shown == "La cuenta de origen y la de destino son la misma.")
+    }
 }

@@ -37,6 +37,12 @@ struct BenchmarkView: View {
             .tint(Palette.brand)
             .disabled(viewModel.state.isRunning)
 
+            // Mismo componente y mismo color que el error de las otras tres pantallas de esta
+            // app, y mismo texto que las otras tres apps.
+            if let error = viewModel.state.error {
+                Text(error).font(.footnote).foregroundStyle(Palette.wrong)
+            }
+
             // Los nombres de las dos implementaciones son LOS MISMOS que usa la pantalla de
             // Aritmética: quien mira la demo tiene que ver dos conceptos, no cuatro.
             // Labels normativos, iguales en las cuatro apps: ver docs/ui-spec.md.

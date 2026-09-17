@@ -5,39 +5,39 @@ README que mezcla "cómo se usa" con "qué falta" no sirve para ninguna de las d
 
 Nada de acá bloquea la demo. Son decisiones tomadas, no olvidos.
 
+> **Lo transversal no está acá.** El benchmark que falta repetir en aparato físico, la ausencia
+> de CI en las cinco bases de código, el `catch` genérico que muestra texto de diagnóstico como
+> mensaje de usuario, las divergencias de paridad abiertas y la regla de que un `Record` de uniffi
+> se reemplaza y no se muta viven en
+> **[docs/cross-app-pending.md](../../docs/cross-app-pending.md)**. Un tema, un dueño: antes estaban escritos con distintas
+> palabras en tres archivos, y corregirlo en uno dejaba mintiendo a los otros dos.
+
+
 ## Deuda técnica medible
 
-### El APK de debug pesa 32 MB
+### El APK pesa 31 MB en debug y 24 en release — y no está minificado
 
-JNA trae `libjnidispatch.so` para **seis** ABIs, incluidos `mips` y `mips64`, muertos desde
-2017. Se recorta con `abiFilters` en `app/build.gradle.kts`:
+JNA trae `libjnidispatch.so` para **seis** ABIs, incluidos `mips` y `mips64`, muertos desde 2017.
+**`abiFilters` ya está aplicado** —en `:core-financiero` y en `:app`, con los tres ABI que se
+usan—; este documento decía que no lo estaba y era falso desde hacía tiempo.
 
-```kotlin
-defaultConfig {
-    ndk { abiFilters += listOf("arm64-v8a", "armeabi-v7a", "x86_64") }
-}
-```
+Lo medido en la Fase 6: **31,2 MiB** el APK de debug y **24,4 MiB** el de release. De dónde sale
+el peso en el de release: 22,9 MB son los dos `classes.dex` y todo lo nativo junto son 1,9 MB, de
+los cuales 1,4 son los tres slices de `libcore_financiero.so`.
 
-No está aplicado todavía: el tamaño del binario es criterio de la demo, así que se mide
-antes y después en la Fase 2 en vez de aplicarlo a ciegas.
+**El release no está minificado**: `buildTypes.release` lleva `optimization { enable = false }`,
+o sea que R8 no corre. Por eso la diferencia es sólo del 22 %, y por eso este número **no** es el
+de un build embarcable. Está así a propósito —un APK minificado complica leer un stack trace en
+la demo—, pero citarlo como «lo que pesa la app» se equivoca por un factor grande. El desglose
+completo está en [TESTING.md](TESTING.md).
 
+En producción, empaquetar como **Android App Bundle (`.aab`)** entrega sólo el slice de la
+arquitectura del dispositivo destino.
 
-### Nada verifica el `runCatching` del adapter real
-
-`CoreFinancieroAdapterTest` corre en la JVM, así que no puede cargar la `.so`: ejercita
-`FakeCoreFinanciero`, no `UniffiCoreFinanciero`. Y el test de contrato llama a las funciones de
-uniffi **directamente**, sin pasar por el adapter.
-
-O sea que ninguna suite comprueba de forma automatizada que `UniffiCoreFinanciero` convierta una
-excepción del core en `Result.failure` contra la librería real. Hay evidencia de que funciona
-—se forzó un error en el emulador y el mensaje de usuario apareció— pero no es a prueba de
-regresiones. Se cierra con un test instrumentado chico.
-
-### El estado no sobrevive a la rotación
-
-`BancoApp` usa `remember` y no `rememberSaveable` para la pestaña activa, y los ViewModels se
-crean con `remember` en vez de `viewModel()`. Rotar la pantalla vuelve a Aritmética y limpia
-todo. No afecta la demo, que se hace sin rotar.
+> **Cerrados por la Fase 6, bloque 1:** que nada verificara el `runCatching` del adapter real
+> —ahora lo cubre `UniffiCoreFinancieroTest`, tres tests instrumentados contra la `.so`— y que el
+> estado no sobreviviera a la rotación —`rememberSaveable` sobre el índice de pestaña y
+> `viewModel(factory)` para los cuatro, con `RotationTest` vigilándolo—.
 
 ### Optimizar el cruce del FFI: se evaluó con mediciones y no hay nada que hacer
 
@@ -66,29 +66,20 @@ Lo único que quedó sin verificar es si un APK de **release** cambia algo; se m
 debug (el `.so` sí es release). No debería, porque el camino del binding no lleva
 instrumentación de debug.
 
-### El `@Immutable` de los `UiState` se apoya en disciplina, no en el compilador
+### El `@Immutable` de los `UiState` ya no se apoya sólo en disciplina
 
-Los tipos que genera uniffi son `data class` con propiedades **`var`**:
+Los tipos que genera uniffi son `data class` con propiedades **`var`**, y `@Immutable` **anula la
+inferencia** del compilador de Compose: si alguien escribiera `account.balance = "0.00"`, Compose
+no se enteraría y la pantalla mostraría un saldo viejo. Es un riesgo de **corrección**, no de
+rendimiento.
 
-```kotlin
-data class Account(var id: String, var holder: String, var balance: String)
-```
+**Desde la Fase 6 hay una guardia automatizada**: `UniffiRecordsAreNotMutatedTest` deriva la lista
+de campos del propio binding generado —así que regenerar no la pudre— y falla nombrando archivo y
+línea. Se la vio fallar antes de darla por buena.
 
-El reporte del compilador de Compose los lista como `unstable class`, y sin embargo
-`TransferUiState` figura `stable` — porque lleva `@Immutable`, que **anula la inferencia**. Esa
-anotación es una promesa, y acá se cumple solo porque la app **nunca muta un `Account` en el
-lugar**: reemplaza la lista entera con la que devuelve el core. Si alguien escribiera
-`account.balance = "0.00"`, Compose no se enteraría y la pantalla mostraría un saldo viejo.
-
-**Es un riesgo de corrección, no de rendimiento**, y por eso está acá arriba de los detalles
-menores. Las dos salidas obvias no sirven: los tipos son generados y no se editan, y envolverlos
-en tipos propios de la app es exactamente el `toDomain()` que el proyecto rechaza —duplicaría el
-contrato en Kotlin y se desincronizaría en la primera regeneración de bindings—.
-
-Queda entonces como **regla**: un `Record` de uniffi se trata como inmutable, se reemplaza y no
-se muta. Vale igual en las cuatro apps, aunque el riesgo no sea idéntico: en Swift los `Record`
-son `struct`, o sea tipos de valor, así que mutar una propiedad produce una copia y la
-asignación al estado sí se observa.
+La regla de fondo vale igual en las cuatro apps y vive en
+[docs/cross-app-pending.md](../../docs/cross-app-pending.md): **un `Record` de uniffi se reemplaza,
+no se muta.** Las otras tres todavía no tienen la guardia.
 
 ### Las advertencias de estabilidad de Compose, y por qué se anotó
 
@@ -128,12 +119,9 @@ cada build.
 
 ### Detalles menores
 
-- El default `nextEncrypt` de `FakeCoreFinanciero` es un hex truncado de 8 caracteres, no el de
-  64 del contrato. Es coherente con el único test que lo usa, pero contradice el comentario de
-  la clase.
-- `AssetSourcesTest` no aserta el `balance` de la segunda cuenta.
-- Los tiempos del benchmark se formatean con `"%.2f µs".format(...)`, que usa el locale por
-  defecto: en un dispositivo es-PE mostraría coma decimal.
+Los tres que estaban acá los cerró la Fase 6: el default de `nextEncrypt` ahora es el hex de 64
+del contrato, `AssetSourcesTest` aserta el saldo de la segunda cuenta, y el benchmark formatea con
+`Locale.ROOT` en vez de con el locale por defecto — que era la divergencia con React Native.
 
 ## Camino a producción: lo que una evaluación técnica marcó
 

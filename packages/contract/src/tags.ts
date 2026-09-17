@@ -1,5 +1,5 @@
 /**
- * Las nueve variantes de `DomainError` y su nombre en el contrato.
+ * Las diez variantes de `DomainError` y su nombre en el contrato.
  *
  * `contracts/cases.json` y `messages.es.json` están indexados por el nombre **en español**, y
  * ese mapeo **no cruza el FFI**: uniffi no propaga los `#[error("...")]` del core. Sin esta
@@ -17,6 +17,7 @@ export const CONTRACT_NAMES = {
   SameAccount: 'MismaCuenta',
   InsufficientFunds: 'SaldoInsuficiente',
   Encryption: 'Cifrado',
+  Decryption: 'Descifrado',
   OutOfRange: 'FueraDeRango',
 } as const;
 

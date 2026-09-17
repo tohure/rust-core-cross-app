@@ -1,6 +1,6 @@
 import { Component, inject, signal, viewChild } from '@angular/core';
 import { CoreFinancieroService } from '../../core/core-financiero.service';
-import { userMessage } from '../../core/user-message';
+import { userMessage } from '@banco/contract';
 import { demoKey, demoNonce } from '../../contract/sources';
 import { LabeledField } from '../../ui/labeled-field/labeled-field';
 import { PrimaryButton } from '../../ui/primary-button/primary-button';

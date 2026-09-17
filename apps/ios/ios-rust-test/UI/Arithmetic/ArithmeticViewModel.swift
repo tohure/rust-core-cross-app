@@ -57,7 +57,7 @@ final class ArithmeticViewModel {
         } catch {
             state.coreResult = ""
             state.nativeResult = ""
-            state.error = "\(error)"
+            state.error = messages.userMessage(error)
         }
     }
 

@@ -23,23 +23,23 @@ xcodebuild test -project ios-rust-test.xcodeproj -scheme ios-rust-test \
 ```
 
 Qué se debe ver — `** TEST SUCCEEDED **` y
-**`Test run with 47 tests in 12 suites passed`**:
+**`Test run with 52 tests in 12 suites passed`**:
 
 | Archivo | Tests | Qué prueba |
 |---|---|---|
-| **`ContractTest`** | **10** | **los 28 casos del contrato, más sus cinco guardias** |
+| **`ContractTest`** | **11** | **los 31 casos del contrato, más sus cinco guardias** |
 | `CoreSmokeTest` | 4 | que el `.a` está enlazado, que el adapter reexporta y que propaga el error crudo |
 | `ContractFixtures` | 2 | que los dos JSON del contrato llegaron al bundle de test |
-| `ContractMessagesTest` | 3 | el mapeo variante → texto de usuario, con placeholders **crudos** |
+| `ContractMessagesTest` | 5 | el mapeo variante → texto de usuario, con placeholders **crudos**, y que un `Error` que **no** es de dominio no filtre su texto de diagnóstico |
 | `MoneyFormatterTest` | 5 | `S/`, separadores, y que **nunca redondea** |
 | `ArithmeticViewModelTest` | 5 | |
 | `TransferViewModelTest` | 5 | |
 | `CardViewModelTest` | 6 | |
-| `BenchmarkViewModelTest` | 6 | |
+| `BenchmarkViewModelTest` | 8 | |
 | `ios_rust_testTests` | 1 | |
 
-Los 22 de ViewModel usan `FakeCoreFinanciero` y **no** cruzan el FFI: prueban el ViewModel, no
-el core. Quien prueba el core es `ContractTest`, contra los 28 casos reales.
+Los 24 de ViewModel usan `FakeCoreFinanciero` y **no** cruzan el FFI: prueban el ViewModel, no
+el core. Quien prueba el core es `ContractTest`, contra los 31 casos reales.
 
 Para acotar a una suite:
 
@@ -64,7 +64,7 @@ mostrar.
 `ContractTest.kt` de Android. Compara con `#expect` **sobre `String`**, nunca con tolerancia
 numérica. Que pase **es** la demostración de la POC en esta plataforma.
 
-Sus 10 tests son **5 guardias + 5 grupos parametrizados**; los grupos expanden a los 28 casos
+Sus 11 tests son **5 guardias + 6 grupos parametrizados**; los grupos expanden a los 31 casos
 (`@Test(arguments:)` cuenta como un test, no como uno por caso):
 
 | Grupo | Casos |
@@ -132,11 +132,11 @@ xcodebuild test -project ios-rust-test.xcodeproj -scheme ios-rust-test \
   -destination 'id=<identificador del aparato>' -allowProvisioningUpdates
 ```
 
-Resultado: **`Test run with 47 tests in 12 suites passed` · `** TEST SUCCEEDED **`** — el mismo
+Resultado: **`Test run with 52 tests in 12 suites passed` · `** TEST SUCCEEDED **`** — el mismo
 conteo y el mismo verde que el simulador, sobre un **iPad Air (5.ª gen, `iPad13,16`) con
 iPadOS 26.6.1**. Con eso queda probado lo que ninguna corrida de simulador podía probar: que el
 `.a` del slice de device está enlazado, que sus símbolos resuelven, y que el `strip` del perfil
-release no se comió nada. El test de contrato pasa **28/28 en el aparato**.
+release no se comió nada. El test de contrato pasa **31/31 en el aparato**.
 
 Si falla aquí y no en el simulador, el problema está en el slice de device del XCFramework:
 volver al Step 7 de la Task 1 y verificar que el `.xcframework` traiga los dos.

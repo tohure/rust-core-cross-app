@@ -24,3 +24,4 @@ dependencyResolutionManagement {
 
 rootProject.name = "android-rust-test"
 include(":app")
+include(":core-financiero")

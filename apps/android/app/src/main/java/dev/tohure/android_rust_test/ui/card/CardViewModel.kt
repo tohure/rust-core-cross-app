@@ -41,9 +41,12 @@ class CardViewModel(
     }
 
     fun foreignHexChanged(value: String) {
-        // Solo hex: filtro de texto. Que el hex sea descifrable lo decide el core.
-        if (!value.all { it.isDigit() || it in 'a'..'f' || it in 'A'..'F' }) return
-        _uiState.value = _uiState.value.copy(foreignHex = value.lowercase())
+        // Sólo hex EN MINÚSCULA: `docs/ui-spec.md:233` acepta `[0-9a-f]` y iOS ya lo cumple
+        // con `/^[0-9a-f]*$/`. Aceptar mayúsculas y normalizarlas con `lowercase()` hacía que
+        // la misma entrada se comportara distinto en dos apps que la demo pone lado a lado.
+        // Sigue siendo un filtro de texto: que el hex sea descifrable lo decide el core.
+        if (!value.all { it.isDigit() || it in 'a'..'f' }) return
+        _uiState.value = _uiState.value.copy(foreignHex = value)
         clearForeignError()
     }
 
@@ -79,7 +82,7 @@ class CardViewModel(
                     masked = "",
                     cipherHex = "",
                     roundTrip = "",
-                    error = (e as? DomainException)?.let(messages::userMessage) ?: e.toString(),
+                    error = messages.userMessage(e),
                 )
             }
     }
@@ -99,8 +102,7 @@ class CardViewModel(
             }.onFailure { e ->
                 _uiState.value = _uiState.value.copy(
                     foreignPlain = "",
-                    foreignError = (e as? DomainException)?.let(messages::userMessage)
-                        ?: e.toString(),
+                    foreignError = messages.userMessage(e),
                 )
             }
     }

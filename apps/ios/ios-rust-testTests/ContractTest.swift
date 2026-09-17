@@ -4,11 +4,11 @@ import Testing
 
 /// Espejo Swift de `rust-core/crates/ffi/tests/contract.rs` y de `ContractTest.kt`.
 ///
-/// Que este test pase **es** la demostración de la POC: los mismos 28 casos producen los
+/// Que este test pase **es** la demostración de la POC: los mismos 31 casos producen los
 /// mismos strings en Rust, Kotlin y Swift.
 ///
 /// Comparaciones con `==` sobre `String`, nunca numéricas con tolerancia.
-@Suite("Contrato v2.3.0")
+@Suite("Contrato v2.4.0")
 struct ContractTest {
     private var contract: ContractFile { ContractFixtures.contract }
 
@@ -16,7 +16,7 @@ struct ContractTest {
 
     @Test("guardia: el contrato es la versión y la moneda esperadas")
     func theContractIsTheExpectedVersion() {
-        #expect(contract.version == "2.3.0")
+        #expect(contract.version == "2.4.0")
         #expect(contract.currency == "PEN")
     }
 
@@ -27,6 +27,7 @@ struct ContractTest {
         #expect(contract.itf.count == 5)
         #expect(contract.card.count == 6)
         #expect(contract.transfer.count == 7)
+        #expect(contract.decrypt.count == 3)
         #expect(contract.initialAccounts.count == 2)
     }
 
@@ -38,14 +39,15 @@ struct ContractTest {
             "version", "moneda", "_nota", "_alicuota_itf",
             "_clave_demo_hex", "_nonce_demo_hex",
             "aritmetica", "cuentas_iniciales", "transferencia", "cci", "itf", "tarjeta",
+            "descifrado",
         ]
         let actual = Set(root.keys)
         #expect(actual.subtracting(known).isEmpty, "cases.json trae claves desconocidas")
         #expect(known.subtracting(actual).isEmpty, "a cases.json le faltan claves")
     }
 
-    @Test("guardia: las nueve variantes de DomainError tienen nombre de contrato distinto")
-    func theNineVariantsHaveNineDistinctContractNames() {
+    @Test("guardia: las diez variantes de DomainError tienen nombre de contrato distinto")
+    func theTenVariantsHaveTenDistinctContractNames() {
         let all: [DomainError] = [
             .Length(field: "cci", expected: 20, received: 18),
             .CheckDigit,
@@ -55,21 +57,23 @@ struct ContractTest {
             .SameAccount,
             .InsufficientFunds(available: "0.00", required: "1.00"),
             .Encryption(detail: "nonce"),
+            .Decryption(detail: "tag"),
             .OutOfRange(field: "monto"),
         ]
         let names = Set(all.map(\.contractName))
-        #expect(names.count == 9)
-        // Todo nombre de error que aparece en cases.json tiene que ser uno de los nueve.
+        #expect(names.count == 10)
+        // Todo nombre de error que aparece en cases.json tiene que ser uno de los diez.
         let used = Set(
             contract.transfer.compactMap(\.error)
                 + contract.cci.compactMap(\.error)
                 + contract.card.compactMap(\.error)
+                + contract.decrypt.compactMap(\.error)
         )
         #expect(used.subtracting(names).isEmpty, "cases.json usa un error que el core no tiene")
     }
 
-    @Test("guardia: el messages.es.json del bundle cubre las nueve variantes")
-    func theBundledMessagesCoverTheNineVariants() throws {
+    @Test("guardia: el messages.es.json del bundle cubre las diez variantes")
+    func theBundledMessagesCoverTheTenVariants() throws {
         // La única guardia que Rust no puede dar: Rust lee el archivo fuente con
         // `include_str!` y esta app lee lo que copió la Run Script Phase. Un asset viejo
         // o truncado dejaría a Rust en verde y a la pantalla de error mostrando otra cosa.
@@ -77,15 +81,16 @@ struct ContractTest {
         let table = source.messages()
         let names = [
             "Longitud", "DigitoControl", "BancoDesconocido", "MontoInvalido",
-            "CuentaNoEncontrada", "MismaCuenta", "SaldoInsuficiente", "Cifrado", "FueraDeRango",
+            "CuentaNoEncontrada", "MismaCuenta", "SaldoInsuficiente", "Cifrado", "Descifrado",
+            "FueraDeRango",
         ]
         for name in names {
             #expect(table[name] != nil, "messages.es.json no tiene el mensaje de `\(name)`")
         }
-        #expect(table.count == 9)
+        #expect(table.count == 10)
     }
 
-    // ── Los 28 casos ──────────────────────────────────────────────────────────
+    // ── Los 31 casos ──────────────────────────────────────────────────────────
 
     @Test("aritmetica", arguments: ContractFixtures.contract.arithmetic)
     func arithmetic(_ c: ArithmeticCase) throws {
@@ -188,6 +193,36 @@ struct ContractTest {
             let expected = try #require(c.error)
             do {
                 _ = try executeTransfer(accounts: accounts, request: request)
+                Issue.record("\(c.id): se esperaba \(expected) y no lanzó")
+            } catch let e as DomainError {
+                #expect(e.contractName == expected)
+            }
+        }
+    }
+
+    /// Espejo Swift de `contract_decrypt` (Rust) y de `theDecryptGroupMatches` (Kotlin).
+    ///
+    /// El caso válido comprueba el texto plano; los inválidos, que el error se llame
+    /// `Descifrado` y no `Cifrado` — que es justamente lo que la v2.4.0 vino a separar.
+    /// El nonce es FIJO a propósito, igual que en el grupo `tarjeta`.
+    @Test("descifrado", arguments: ContractFixtures.contract.decrypt)
+    func decryptGroup(_ c: DecryptCase) throws {
+        if c.valid {
+            let expected = try #require(c.expected)
+            let actual = try decrypt(
+                ciphertextHex: c.input,
+                keyHex: contract.demoKeyHex,
+                nonceHex: contract.demoNonceHex
+            )
+            #expect(actual == expected.text)
+        } else {
+            let expected = try #require(c.error)
+            do {
+                _ = try decrypt(
+                    ciphertextHex: c.input,
+                    keyHex: contract.demoKeyHex,
+                    nonceHex: contract.demoNonceHex
+                )
                 Issue.record("\(c.id): se esperaba \(expected) y no lanzó")
             } catch let e as DomainError {
                 #expect(e.contractName == expected)

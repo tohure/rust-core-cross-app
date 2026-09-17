@@ -4,6 +4,7 @@ import androidx.compose.runtime.Stable
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dev.tohure.android_rust_test.adapter.CoreFinanciero
+import java.util.Locale
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -49,9 +50,19 @@ class BenchmarkViewModel(
         // cuando el mínimo supera al máximo. La corrutina moría después de prender
         // isRunning, así que el spinner quedaba colgado — y en un aparato la excepción sin
         // capturar en viewModelScope se lleva puesta la app. iOS tiene el mismo guard.
-        val n = _uiState.value.iterations.toIntOrNull()?.takeIf { it > 0 } ?: return
+        val n = _uiState.value.iterations.toIntOrNull()?.takeIf { it > 0 }
+        if (n == null) {
+            // Antes era un `?: return` mudo: sin spinner colgado, pero sin decir por qué no
+            // pasó nada. React Native y Angular ya lo explican, con este texto exacto — la
+            // demo consiste en poner las pantallas lado a lado, así que el string es el mismo.
+            _uiState.value = _uiState.value.copy(
+                error = "Ingresa un número de iteraciones mayor que cero.",
+                isRunning = false,
+            )
+            return
+        }
         viewModelScope.launch {
-            _uiState.value = _uiState.value.copy(isRunning = true)
+            _uiState.value = _uiState.value.copy(isRunning = true, error = null)
             // ESTA es la única pantalla donde las llamadas al core salen del hilo principal.
             // En el resto son síncronas y de microsegundos: envolverlas sería puro ruido.
             val core50to95 = withContext(worker) { measure(n) { core.add("0.1", "0.2") } }
@@ -73,7 +84,15 @@ class BenchmarkViewModel(
             samples[i] = System.nanoTime() - start
         }
         samples.sort()
-        fun at(p: Double) = "%.2f µs".format(samples[(n * p).toInt().coerceIn(0, n - 1)] / 1000.0)
+        // `Locale.ROOT`, no el locale por defecto: `"%.2f".format(...)` en un aparato es-PE
+        // imprime `1,23 µs` mientras React Native, que usa `toFixed(2)`, siempre da
+        // `1.23 µs`. Dos apps lado a lado con distinto separador rompen la comparación
+        // carácter por carácter, que es toda la tesis.
+        fun at(p: Double) = String.format(
+            Locale.ROOT,
+            "%.2f µs",
+            samples[(n * p).toInt().coerceIn(0, n - 1)] / 1000.0,
+        )
         return at(0.50) to at(0.95)
     }
 }

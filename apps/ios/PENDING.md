@@ -5,6 +5,14 @@ README que mezcla "cómo se usa" con "qué falta" no sirve para ninguna de las d
 
 Nada de aquí bloquea la demo. Son decisiones tomadas, no olvidos.
 
+> **Lo transversal no está acá.** El benchmark que falta repetir en aparato físico, la ausencia
+> de CI en las cinco bases de código, el `catch` genérico que muestra texto de diagnóstico como
+> mensaje de usuario, las divergencias de paridad abiertas y la regla de que un `Record` de uniffi
+> se reemplaza y no se muta viven en
+> **[docs/cross-app-pending.md](../../docs/cross-app-pending.md)**. Un tema, un dueño: antes estaban escritos con distintas
+> palabras en tres archivos, y corregirlo en uno dejaba mintiendo a los otros dos.
+
+
 ## Lo que falta medir
 
 ### El benchmark está medido en un iPad, y hay que repetirlo en un iPhone
@@ -118,9 +126,9 @@ cambiar los dos es una decisión de cuatro apps que no le toca a la Fase 3.
 Un label se cambia en [`docs/ui-spec.md`](../../docs/ui-spec.md) y en las cuatro apps, **en el
 mismo cambio**. Estos dos están mal y se corrigen cuando exista la tercera app:
 
-- El subtítulo del bloque de pegado de la pantalla de Tarjeta dice *"Pega aquí el hex que
-  produjo la app de iOS, React Native o Angular…"* — estando parado en la propia app de iOS.
-  `docs/ui-spec.md:195` lo escribió desde la perspectiva de Android.
+- ~~El subtítulo del bloque de pegado se autolistaba.~~ **Cerrado en la Fase 6.** El texto
+  normativo dejó de enumerar plataformas —`Pega aquí el hex que produjo cualquiera de las otras
+  apps.`— porque la lista hay que mantenerla cada vez que se agrega una y el defecto reaparece.
 - Un fallo al **descifrar** muestra *"No se pudo cifrar los datos de la tarjeta."* El core
   tiene un solo mensaje para la variante `Cifrado` y lo usa en las dos direcciones, así que
   el texto viene de `contracts/messages.es.json` y es normativo tal cual. Corregirlo es tocar

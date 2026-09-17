@@ -4,8 +4,14 @@ use chacha20poly1305::{
     ChaCha20Poly1305, Key, Nonce,
 };
 
-fn error(detail: &str) -> DomainError {
+fn encryption(detail: &str) -> DomainError {
     DomainError::Encryption {
+        detail: detail.to_string(),
+    }
+}
+
+fn decryption(detail: &str) -> DomainError {
+    DomainError::Decryption {
         detail: detail.to_string(),
     }
 }
@@ -15,28 +21,33 @@ fn error(detail: &str) -> DomainError {
 /// o sea no comparable entre plataformas — que es justo lo que el contrato prueba.
 ///
 /// ⚠️ Reutilizar el par (clave, nonce) es catastrófico en producción. Acá es a propósito.
-fn prepare(key_hex: &str, nonce_hex: &str) -> Result<(ChaCha20Poly1305, Vec<u8>), DomainError> {
-    let key = hex::decode(key_hex.trim()).map_err(|_| error("la clave no es hex válido"))?;
-    let nonce = hex::decode(nonce_hex.trim()).map_err(|_| error("el nonce no es hex válido"))?;
+///
+/// `prepare` no decide la variante: devuelve el detalle y cada función pública lo
+/// envuelve en la suya. Sin esto, un nonce inválido pasado a `decrypt` se reportaría
+/// como error de cifrado, que es el defecto que este bloque vino a cerrar.
+fn prepare(key_hex: &str, nonce_hex: &str) -> Result<(ChaCha20Poly1305, Vec<u8>), String> {
+    let key = hex::decode(key_hex.trim()).map_err(|_| "la clave no es hex válido".to_string())?;
+    let nonce =
+        hex::decode(nonce_hex.trim()).map_err(|_| "el nonce no es hex válido".to_string())?;
     let key: &Key = key
         .as_slice()
         .try_into()
-        .map_err(|_| error("la clave debe tener 32 bytes"))?;
+        .map_err(|_| "la clave debe tener 32 bytes".to_string())?;
     if nonce.len() != 12 {
-        return Err(error("el nonce debe tener 12 bytes"));
+        return Err("el nonce debe tener 12 bytes".to_string());
     }
     Ok((ChaCha20Poly1305::new(key), nonce))
 }
 
 pub fn encrypt(text: &str, key_hex: &str, nonce_hex: &str) -> Result<String, DomainError> {
-    let (cipher, nonce) = prepare(key_hex, nonce_hex)?;
+    let (cipher, nonce) = prepare(key_hex, nonce_hex).map_err(|d| encryption(&d))?;
     let nonce: &Nonce = nonce
         .as_slice()
         .try_into()
-        .map_err(|_| error("nonce inválido"))?;
+        .map_err(|_| encryption("nonce inválido"))?;
     let output = cipher
         .encrypt(nonce, text.as_bytes())
-        .map_err(|_| error("no se pudo cifrar"))?;
+        .map_err(|_| encryption("no se pudo cifrar"))?;
     Ok(hex::encode(output))
 }
 
@@ -45,17 +56,17 @@ pub fn decrypt(
     key_hex: &str,
     nonce_hex: &str,
 ) -> Result<String, DomainError> {
-    let (cipher, nonce) = prepare(key_hex, nonce_hex)?;
+    let (cipher, nonce) = prepare(key_hex, nonce_hex).map_err(|d| decryption(&d))?;
     let nonce: &Nonce = nonce
         .as_slice()
         .try_into()
-        .map_err(|_| error("nonce inválido"))?;
-    let bytes =
-        hex::decode(ciphertext_hex.trim()).map_err(|_| error("el cifrado no es hex válido"))?;
+        .map_err(|_| decryption("nonce inválido"))?;
+    let bytes = hex::decode(ciphertext_hex.trim())
+        .map_err(|_| decryption("el cifrado no es hex válido"))?;
     let plain = cipher
         .decrypt(nonce, bytes.as_slice())
-        .map_err(|_| error("no se pudo descifrar: clave, nonce o tag incorrectos"))?;
-    String::from_utf8(plain).map_err(|_| error("el texto descifrado no es UTF-8"))
+        .map_err(|_| decryption("no se pudo descifrar: clave, nonce o tag incorrectos"))?;
+    String::from_utf8(plain).map_err(|_| decryption("el texto descifrado no es UTF-8"))
 }
 
 #[cfg(test)]
@@ -109,7 +120,7 @@ mod tests {
         );
         assert_eq!(
             decrypt("zzzz", KEY, NONCE).unwrap_err().contract_name(),
-            "Cifrado"
+            "Descifrado"
         );
     }
 
@@ -126,7 +137,7 @@ mod tests {
         );
         assert_eq!(
             decrypt("00", KEY, "0001").unwrap_err().contract_name(),
-            "Cifrado"
+            "Descifrado"
         );
     }
 
@@ -137,11 +148,11 @@ mod tests {
     fn a_ciphertext_shorter_than_the_tag_errors_without_panicking() {
         assert_eq!(
             decrypt("00112233", KEY, NONCE).unwrap_err().contract_name(),
-            "Cifrado"
+            "Descifrado"
         );
         assert_eq!(
             decrypt("", KEY, NONCE).unwrap_err().contract_name(),
-            "Cifrado"
+            "Descifrado"
         );
     }
 
@@ -150,5 +161,53 @@ mod tests {
         let mut ciphertext = encrypt("4111111111111111", KEY, NONCE).unwrap();
         ciphertext.replace_range(0..1, "0");
         assert!(decrypt(&ciphertext, KEY, NONCE).is_err());
+    }
+
+    /// Las cuatro ramas de error de `decrypt` devuelven `Descifrado`, incluidas las que
+    /// vienen de validar clave y nonce: el error nombra lo que el usuario pidió hacer,
+    /// no en qué línea interna falló.
+    #[test]
+    fn every_decrypt_failure_is_named_descifrado() {
+        // hex del ciphertext inválido
+        assert_eq!(
+            decrypt("zzzz", KEY, NONCE).unwrap_err().contract_name(),
+            "Descifrado"
+        );
+        // clave de largo incorrecto
+        assert_eq!(
+            decrypt("00", "0001", NONCE).unwrap_err().contract_name(),
+            "Descifrado"
+        );
+        // nonce de largo incorrecto
+        assert_eq!(
+            decrypt("00", KEY, "0001").unwrap_err().contract_name(),
+            "Descifrado"
+        );
+        // tag adulterado
+        let mut ciphertext = encrypt("4111111111111111", KEY, NONCE).unwrap();
+        ciphertext.replace_range(0..1, "0");
+        assert_eq!(
+            decrypt(&ciphertext, KEY, NONCE)
+                .unwrap_err()
+                .contract_name(),
+            "Descifrado"
+        );
+    }
+
+    /// El otro lado de la misma moneda: cifrar sigue fallando como `Cifrado`.
+    #[test]
+    fn every_encrypt_failure_is_named_cifrado() {
+        assert_eq!(
+            encrypt("x", "zzzz", NONCE).unwrap_err().contract_name(),
+            "Cifrado"
+        );
+        assert_eq!(
+            encrypt("x", "0001", NONCE).unwrap_err().contract_name(),
+            "Cifrado"
+        );
+        assert_eq!(
+            encrypt("x", KEY, "0001").unwrap_err().contract_name(),
+            "Cifrado"
+        );
     }
 }

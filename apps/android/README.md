@@ -29,20 +29,51 @@ flowchart TD
         domain --> ffi
     end
 
-    ffi -->|"cargo ndk"| so["jniLibs/*.so<br/>arm64-v8a · armeabi-v7a · x86_64"]
-    ffi -.->|"uniffi-bindgen"| kt["uniffi/core_financiero.kt<br/>generado, no se edita"]
+    subgraph modulo[":core-financiero — Android Library, TODO el borde FFI"]
+        so["src/generated/jniLibs/*.so<br/>arm64-v8a · armeabi-v7a · x86_64"]
+        kt["src/generated/java/uniffi/<br/>core_financiero.kt"]
+        jna["JNA<br/>libjnidispatch.so"]
+        adapter["adapter/<br/>CoreFinanciero · UniffiCoreFinanciero"]
+        source["contract/<br/>ContractSource · MessageSource"]
+        so --> jna
+        kt --> jna
+        jna --> adapter
+    end
 
-    so --> jna["JNA<br/>libjnidispatch.so"]
-    kt --> jna
-    jna --> adapter["adapter/<br/>CoreFinanciero"]
-    adapter --> vm["ui/*/XxxViewModel<br/>StateFlow&lt;XxxUiState&gt;"]
-    vm --> screens["ui/*/XxxScreen<br/>Compose"]
+    subgraph app[":app — Compose, ViewModels, formateo"]
+        vm["ui/*/XxxViewModel<br/>StateFlow&lt;XxxUiState&gt;"]
+        screens["ui/*/XxxScreen<br/>Compose"]
+        vm --> screens
+    end
+
+    ffi -->|"cargo ndk"| so
+    ffi -.->|"uniffi-bindgen"| kt
+    adapter --> vm
+    source --> vm
 
     contrato[("contracts/<br/>cases.json · messages.es.json")]
-    contrato --> source["contract/<br/>ContractSource · MessageSource"]
-    source --> vm
-    contrato -.->|"verifica"| adapter
+    contrato -->|"Copy en :core-financiero"| source
+
+    insCore["androidTest de :core-financiero<br/>19 tests · cruzan el FFI de verdad"]
+    jvmCore["test de :core-financiero<br/>4 tests"]
+    insApp["androidTest de :app<br/>1 test · rotación"]
+    jvmApp["test de :app<br/>30 tests · con FakeCoreFinanciero"]
+
+    insCore -.->|"verifica"| adapter
+    jvmCore -.->|"verifica"| adapter
+    insApp -.->|"verifica"| screens
+    jvmApp -.->|"verifica"| vm
 ```
+
+**Dos módulos, no uno, y la frontera la sostiene Gradle.** `:app` no declara JNA ni conoce la
+`.so`: todo el borde FFI vive en `:core-financiero`. Lo que sí cruza son los **tipos** del core
+—`Account`, `TransferResult`, `DomainException`, `TransferRequest`—, y es deliberado: el adapter
+los reexporta en vez de traducirlos, porque una segunda nomenclatura en Kotlin se desincroniza en
+la primera regeneración de bindings.
+
+**Los generados no se versionan** —están en `.gitignore`— y por eso viven en un source set
+separado, `src/generated/`, en vez de en `build/`: un `clean` dejaría la app sin compilar hasta
+volver a correr el paso de Rust, y eso se descubre el día de la demo.
 
 ### Qué es cada pieza y por qué existe
 
@@ -63,6 +94,11 @@ flowchart TD
 
 ## Antes de correrla
 
+**El binario de Rust se genera primero, para las cuatro apps a la vez.** La secuencia
+completa, en orden, vive en
+[rust-core/BUILD.md](../../rust-core/BUILD.md#generar-el-core-que-consumen-las-cuatro-apps);
+acá abajo está solo el paso puntual que le toca a esta app.
+
 Necesitás **Java 21**, el **SDK de Android** y un emulador o teléfono conectado.
 
 Si el repo ya viene con los artefactos construidos, eso alcanza. **Si no**, hay que compilar el
@@ -72,7 +108,7 @@ núcleo Rust primero — eso pide `rustup`, `cargo-ndk` y el NDK r27+, y está t
 Para saber en cuál de los dos casos estás:
 
 ```bash
-ls app/src/main/jniLibs/*/libcore_financiero.so
+ls core-financiero/src/generated/jniLibs/*/libcore_financiero.so
 ```
 
 Si lista tres archivos, podés correrla ya. Si no, andá a [BUILD.md](BUILD.md).
@@ -89,6 +125,38 @@ Cuatro pestañas abajo, y **el pie con la versión del núcleo visible en todas*
 `1.0.0+a0a40a5`. Ese string lleva el SHA del commit con el que se compiló el núcleo, y es la
 prueba en pantalla de que las cuatro apps de la demo corren **el mismo build**. Si el pie sale
 vacío, la librería nativa no cargó — andá a [BUILD.md](BUILD.md).
+
+## Correr los tests
+
+**Son cuatro suites, no dos**, desde que el borde FFI vive en su propio módulo. Los comandos son
+los que se corrieron al cerrar la Fase 6, y los totales, los que dieron:
+
+```bash
+# Las dos de JVM: no necesitan aparato
+./gradlew :app:testDebugUnitTest :core-financiero:testDebugUnitTest
+
+# Las dos instrumentadas: NECESITAN emulador o teléfono
+./gradlew :app:connectedDebugAndroidTest :core-financiero:connectedDebugAndroidTest
+```
+
+| Módulo | JVM | Instrumentada | Qué prueba cada una |
+|---|---:|---:|---|
+| `:app` | **30** | **1** | JVM: ViewModels con `FakeCoreFinanciero`, formateo, la baseline nativa y la guardia de mutación de `Record`. Instrumentada: que la rotación no se lleve puesto el estado |
+| `:core-financiero` | **4** | **19** | JVM: el mapeo de error a nombre de contrato. Instrumentada: **el test de contrato (10), el smoke del FFI (2), el adapter real (3) y las fuentes de assets (2+2)** — las que cruzan la frontera de verdad |
+
+**54 tests, 0 fallos.** Las 19 instrumentadas de `:core-financiero` son las que no se pueden
+falsear: cargan `libcore_financiero.so`, resuelven símbolos por JNA y comparan los 31 casos de
+`cases.json` con igualdad exacta de strings.
+
+Para correr **un solo** test instrumentado, `--tests` no sirve —es de las tareas `Test` de la
+JVM— y hay que usar:
+
+```bash
+./gradlew :app:connectedDebugAndroidTest \
+  -Pandroid.testInstrumentationRunnerArguments.class=dev.tohure.android_rust_test.RotationTest
+```
+
+El detalle de qué prueba y qué **no** prueba cada suite está en **[TESTING.md](TESTING.md)**.
 
 ---
 
@@ -186,4 +254,4 @@ Y dos reglas que valen si vas a tocar el código:
 | **[PENDING.md](PENDING.md)** | Deuda técnica conocida y qué quedó fuera por diseño |
 | **[CONTEXT.md](CONTEXT.md)** | La spec: arquitectura de UI, convenciones de ViewModel, prohibiciones |
 | [../../docs/ui-spec.md](../../docs/ui-spec.md) | Los labels y el orden de campos que las cuatro apps comparten |
-| [../../contracts/README.md](../../contracts/README.md) | El contrato: los 28 casos y de dónde salen |
+| [../../contracts/README.md](../../contracts/README.md) | El contrato: los 31 casos y de dónde salen |

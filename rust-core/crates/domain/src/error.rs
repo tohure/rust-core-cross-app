@@ -32,6 +32,9 @@ pub enum DomainError {
     #[error("error de cifrado: {detail}")]
     Encryption { detail: String },
 
+    #[error("error de descifrado: {detail}")]
+    Decryption { detail: String },
+
     #[error("parámetro fuera de rango: {field}")]
     OutOfRange { field: String },
 }
@@ -51,6 +54,7 @@ impl DomainError {
             Self::SameAccount => "MismaCuenta",
             Self::InsufficientFunds { .. } => "SaldoInsuficiente",
             Self::Encryption { .. } => "Cifrado",
+            Self::Decryption { .. } => "Descifrado",
             Self::OutOfRange { .. } => "FueraDeRango",
         }
     }
@@ -59,6 +63,26 @@ impl DomainError {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn decryption_has_its_own_contract_name() {
+        // El contrato distingue las dos direcciones: cifrar y descifrar fallan distinto
+        // y la pantalla de Tarjeta muestra textos distintos.
+        assert_eq!(
+            DomainError::Decryption {
+                detail: "no se pudo descifrar".into()
+            }
+            .contract_name(),
+            "Descifrado"
+        );
+        assert_eq!(
+            DomainError::Encryption {
+                detail: "no se pudo cifrar".into()
+            }
+            .contract_name(),
+            "Cifrado"
+        );
+    }
 
     #[test]
     fn the_contract_name_matches_the_contract() {

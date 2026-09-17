@@ -3,7 +3,7 @@
 **Este archivo es de lectura obligatoria antes de escribir una app consumidora.** Los
 CONTEXT de las cuatro apps apuntan acá.
 
-uniffi hace cruzar las nueve funciones, los cinco `Record` y las nueve variantes de
+uniffi hace cruzar las nueve funciones, los cinco `Record` y las diez variantes de
 `DomainError`. Hay **dos cosas que no cruzan**, y las dos hay que reimplementarlas en cada
 app: el mapeo de variante a nombre del contrato, y los mensajes de error en español.
 
@@ -16,22 +16,22 @@ Que no crucen no es un descuido de uniffi: son un método de Rust y unos atribut
 Swift el enum generado trae solo los nombres en inglés (`SameAccount`, `CheckDigit`,
 `InsufficientFunds`), mientras `contracts/cases.json` compara contra los nombres en español
 (`"MismaCuenta"`, `"DigitoControl"`, `"SaldoInsuficiente"`). Verificado sobre los bindings
-generados: los nueve nombres del contrato aparecen **0 veces** en el `.kt` y 0 veces en el
+generados: los diez nombres del contrato aparecen **0 veces** en el `.kt` y 0 veces en el
 `.swift`, y `contract_name` tampoco cruza.
 
 ```bash
 for n in Longitud DigitoControl BancoDesconocido MontoInvalido CuentaNoEncontrada \
-         MismaCuenta SaldoInsuficiente Cifrado FueraDeRango; do
+         MismaCuenta SaldoInsuficiente Cifrado Descifrado FueraDeRango; do
   k=$(grep -c "$n" target/bindings-smoke/kotlin/uniffi/core_financiero/core_financiero.kt)
   s=$(grep -c "$n" target/bindings-smoke/swift/core_financiero.swift)
   printf "%-20s kotlin:%s swift:%s\n" "$n" "$k" "$s"
 done
 ```
 
-Qué se debe ver — `kotlin:0 swift:0` en las nueve líneas.
+Qué se debe ver — `kotlin:0 swift:0` en las diez líneas.
 
 Consecuencia práctica, y es lo primero que va a chocar en la Fase 2: **cada app va a
-escribir esas nueve líneas de mapeo variante → nombre del contrato.** Y van en código de
+escribir esas diez líneas de mapeo variante → nombre del contrato.** Y van en código de
 producción, no solo en el test: `contracts/messages.es.json` indexa los mensajes de usuario
 por el nombre del contrato, así que la pantalla de error necesita ese mapeo tanto como el
 test de contrato.
@@ -43,9 +43,9 @@ garantía que el contrato compartido existe para dar.
 
 **Ese mapeo va exhaustivo y sin rama por defecto.** El `when` de Kotlin sobre la
 `sealed class DomainException` y el `switch` de Swift sobre el `enum DomainError` cubren las
-nueve variantes **una por una, sin `else` y sin `default`** — y en Kotlin el `when` tiene que
+diez variantes **una por una, sin `else` y sin `default`** — y en Kotlin el `when` tiene que
 ser una *expresión* (asignada o devuelta), porque solo así el compilador exige exhaustividad.
-La razón es lo que pasa cuando el core crece: agregar una décima variante tiene que **romper
+La razón es lo que pasa cuando el core crece: agregar una undécima variante tiene que **romper
 la compilación de las cuatro apps**, que es un fallo ruidoso y ubicado, en vez de caer en
 un `"Desconocido"` que compila, pasa en verde y solo se descubre el día de la demo, cuando
 una app muestra un error que las otras tres no. En TypeScript no hay exhaustividad del
@@ -55,20 +55,21 @@ compilador de por sí: se consigue con un `default` que asigne a `never`
 ## Los mensajes de error en español NO cruzan el FFI
 
 Es el segundo agujero de la misma familia que el anterior, y es peor porque no se ve. Los
-nueve `#[error("...")]` de `crates/ffi/src/lib.rs` están en español y **no llegan a ninguna
+diez `#[error("...")]` de `crates/ffi/src/lib.rs` están en español y **no llegan a ninguna
 app**: uniffi no usa el `Display` de `thiserror`, arma el mensaje él mismo a partir de los
 campos de la variante. Verificado sobre los bindings generados:
 
 ```bash
 for m in "longitud inválida" "dígito de control inválido" "banco no reconocido" \
          "monto inválido" "cuenta no encontrada" "origen y destino" \
-         "saldo insuficiente" "error de cifrado" "parámetro fuera de rango"; do
+         "saldo insuficiente" "error de cifrado" "error de descifrado" \
+         "parámetro fuera de rango"; do
   printf "%-32s %s\n" "$m" \
     "$(grep -c "$m" target/bindings-smoke/kotlin/uniffi/core_financiero/core_financiero.kt)"
 done
 ```
 
-Qué se debe ver — **`0` en las nueve líneas**. Lo que el binding Kotlin genera en su lugar
+Qué se debe ver — **`0` en las diez líneas**. Lo que el binding Kotlin genera en su lugar
 se lee con
 `sed -n '/sealed class DomainException/,/^}/p' target/bindings-smoke/kotlin/uniffi/core_financiero/core_financiero.kt`,
 y es esto (mismo texto, con los saltos de línea de uniffi colapsados):
@@ -121,7 +122,7 @@ los **nombres** de las variantes, no sus **mensajes**.
 
 ### La tabla que las cuatro apps copian
 
-Estos nueve strings son normativos igual que los labels de las pantallas: si se cambia uno,
+Estos diez strings son normativos igual que los labels de las pantallas: si se cambia uno,
 se cambia en las cuatro apps. Están derivados de los `#[error(...)]` del core, pero
 reescritos como texto de usuario — el `#[error]` es un diagnóstico para quien lee un log.
 
@@ -129,7 +130,7 @@ reescritos como texto de usuario — el `#[error]` es un diagnóstico para quien
 que las cuatro apps leen igual que `cases.json`, indexados por el nombre del contrato
 (`Longitud`, `DigitoControl`, …) en vez de por el de la variante. Los dos textos son el
 mismo y no pueden divergir: si se cambia uno, se cambia el otro. La guardia está en el
-test de contrato —`the_messages_file_covers_the_nine_error_variants`— y el porqué del archivo, en
+test de contrato —`the_messages_file_covers_the_ten_error_variants`— y el porqué del archivo, en
 [contracts/README.md](../contracts/README.md).
 
 | Variante | Mensaje de usuario |
@@ -142,6 +143,7 @@ test de contrato —`the_messages_file_covers_the_nine_error_variants`— y el p
 | `SameAccount` | `La cuenta de origen y la de destino son la misma.` |
 | `InsufficientFunds` | `Saldo insuficiente: tienes {available} y se necesitan {required}.` |
 | `Encryption` | `No se pudo cifrar los datos de la tarjeta.` |
+| `Decryption` | `No se pudo descifrar el hex ingresado: revisa que esté completo y que venga de otra app de esta demo.` |
 | `OutOfRange` | `El valor de {field} está fuera del rango permitido.` |
 
 Cuatro detalles que hacen la diferencia entre que esto funcione y que no:

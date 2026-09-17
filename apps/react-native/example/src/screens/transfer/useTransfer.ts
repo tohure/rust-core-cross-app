@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import type { Core } from '../../adapter/core';
-import { userMessage } from '../../adapter/ContractMessages';
+import { userMessage } from '@banco/contract';
 import { initialTransferState, type TransferUiState } from './TransferUiState';
 
 /**

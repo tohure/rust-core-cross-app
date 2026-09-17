@@ -13,6 +13,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Before
+import java.util.Locale
 import org.junit.Test
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -66,5 +67,43 @@ class BenchmarkViewModelTest {
         assertTrue(vm.uiState.value.coreP95.endsWith("µs"))
         assertTrue(vm.uiState.value.nativeP50.endsWith("µs"))
         assertTrue(vm.uiState.value.nativeP95.endsWith("µs"))
+    }
+
+    @Test
+    fun zeroIterationsExplainsWhyNothingHappened() = runTest {
+        // Android volvía MUDO: sin spinner colgado, pero sin decir por qué no pasó nada.
+        // React Native y Angular ya explican, con este mismo texto.
+        val vm = BenchmarkViewModel(FakeCoreFinanciero(), testDispatcher)
+        vm.iterationsChanged("0")
+        vm.run()
+        advanceUntilIdle()
+
+        assertEquals(
+            "Ingresa un número de iteraciones mayor que cero.",
+            vm.uiState.value.error,
+        )
+        assertFalse(vm.uiState.value.isRunning)
+    }
+
+    @Test
+    fun aValidRunFormatsWithADotRegardlessOfLocale() = runTest {
+        // `"%.2f".format(...)` usa el locale POR DEFECTO: en un aparato es-PE sale con coma
+        // mientras React Native, que usa `toFixed(2)`, siempre da punto. Dos apps lado a lado
+        // mostrando `1,23 µs` y `1.23 µs` rompen la comparación carácter por carácter.
+        val previous = Locale.getDefault()
+        Locale.setDefault(Locale.forLanguageTag("es-PE"))
+        try {
+            val vm = BenchmarkViewModel(FakeCoreFinanciero(), testDispatcher)
+            vm.iterationsChanged("10")
+            vm.run()
+            advanceUntilIdle()
+
+            assertTrue(
+                "se esperaba punto decimal y llegó ${vm.uiState.value.coreP50}",
+                vm.uiState.value.coreP50.contains("."),
+            )
+        } finally {
+            Locale.setDefault(previous)
+        }
     }
 }

@@ -7,3 +7,4 @@
 export { CONTRACT_NAMES, type ContractTag } from './tags';
 export { contractName } from './contractName';
 export { messageFor } from './messageFor';
+export { FALLBACK, userMessage } from './userMessage';
