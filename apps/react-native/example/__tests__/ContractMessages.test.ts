@@ -1,6 +1,6 @@
 import { describe, expect, it } from '@jest/globals';
 import { DomainError_Tags } from '@banco/core-financiero';
-import { userMessage } from '../src/adapter/ContractMessages';
+import { FALLBACK, userMessage } from '../src/adapter/ContractMessages';
 
 describe('userMessage', () => {
   it('interpola los placeholders CRUDOS, sin formatear el monto', () => {
@@ -24,13 +24,24 @@ describe('userMessage', () => {
     // `userMessage` se llama SIEMPRE dentro de un `catch`. Si lanza, la excepción sale del
     // handler y llega al onPress de React: caja roja en desarrollo, botón muerto en release.
     // Pasa con cualquier cosa que no sea un DomainError — un TypeError de la capa JSI, un trap
-    // de WebAssembly, un error del bundler. Android tiene el mismo fallback:
-    // `(e as? DomainException)?.let(messages::userMessage) ?: e.toString()`.
+    // de WebAssembly, un error del bundler.
     expect(() => userMessage(new TypeError('algo del runtime'))).not.toThrow();
     expect(() => userMessage(null)).not.toThrow();
     expect(() => userMessage(undefined)).not.toThrow();
     expect(() => userMessage({ tag: 'NoExisteEstaVariante' })).not.toThrow();
     // Y devuelve algo que se pueda leer, no vacío.
     expect(userMessage(new TypeError('algo del runtime'))).not.toBe('');
+  });
+
+  it('el texto de diagnóstico NO llega a la pantalla', () => {
+    // Antes volvía `Ocurrió un error inesperado: ${String(e)}`, citando que Android hacía lo
+    // mismo — y Android lo hacía mal: su test rojo mostraba `java.lang.UnsatisfiedLinkError:
+    // dlopen failed: …` al usuario. El texto es normativo en `docs/ui-spec.md` y es el mismo
+    // en las cuatro apps.
+    const shown = userMessage(new TypeError('dlopen failed: library not found'));
+    expect(shown).toBe(FALLBACK);
+    expect(shown).toBe('No se pudo completar la operación.');
+    expect(shown).not.toContain('dlopen');
+    expect(shown).not.toContain('TypeError');
   });
 });

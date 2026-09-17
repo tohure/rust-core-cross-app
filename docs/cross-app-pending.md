@@ -34,18 +34,37 @@ artefactos salgan del mismo `HEAD`**, que es la precondición del primer paso de
 El chequeo que habría que automatizar primero está escrito y verificado:
 [rust-core/README.md § Comprobar los cuatro artefactos de una vez](../rust-core/README.md#comprobar-los-cuatro-artefactos-de-una-vez).
 
-## 3. El `catch` genérico guarda texto de diagnóstico como mensaje de usuario
+## 3. ~~El `catch` genérico guarda texto de diagnóstico como mensaje de usuario~~ — CERRADO
 
-En las cuatro apps, el camino de error tiene un fallback que, ante un `Throwable` que no es del
-dominio, termina mostrando el texto de la excepción en pantalla.
+**Cerrado en la Fase 6, en las cuatro apps.** Vale dejar escrito cómo estaba, porque durante tres
+fases se lo dio por inofensivo con un argumento equivocado.
 
-**En Android el fallback `?: e.toString()` NO se dispara para un `DomainException`:**
-`ContractMessages` cubre las diez variantes con un `when` exhaustivo, así que ese camino es para
-cualquier *otro* `Throwable` — en la práctica, una excepción de JNA. O sea que el riesgo no es
-«un error de negocio se ve feo», es «un fallo de carga de la librería se muestra como si fuera un
-mensaje para el usuario».
+El PENDING de iOS lo declaraba **inalcanzable**, «porque el adapter sólo propaga `DomainError`
+desde el core». Es falso: `runCatching` de Kotlin atrapa **todo `Throwable`**, así que un fallo al
+cargar `libcore_financiero.so` o cualquier excepción de JNA vuelve como `Result.failure` por el
+mismo camino que un error de negocio. El test rojo que lo demostró mostraba esto, literal, en la
+pantalla de Aritmética:
 
-Ver [apps/ios/PENDING.md](../apps/ios/PENDING.md) para la versión de iOS, que es la misma forma.
+```
+java.lang.UnsatisfiedLinkError: dlopen failed: library not found
+```
+
+El fallback es ahora `No se pudo completar la operación.`, normativo en
+[docs/ui-spec.md](ui-spec.md) e igual en las cuatro. **No dice «vuelve a intentarlo»**: si la
+librería nativa no cargó —o si en Angular lo que llegó fue un trap de WebAssembly, que deja la
+instancia del módulo inutilizable— reintentar no arregla nada.
+
+El diagnóstico no se tira: se loguea donde cada plataforma tiene **un solo dueño** para hacerlo.
+En Android, en `UniffiCoreFinanciero`, porque `runCatching` es el único punto donde se atrapa; en
+iOS, en la sobrecarga de `ContractMessages`, porque allá los métodos del protocolo son `throws` y
+cada ViewModel tiene su propio `catch`; en React Native y Angular, en `userMessage`, con
+`console.error`.
+
+> **Queda una duplicación real, sin cerrar:** `userMessage` está escrita **dos veces**, casi
+> idéntica, en `apps/react-native/example/src/adapter/ContractMessages.ts` y en
+> `apps/web-angular/src/app/core/user-message.ts`, cuando las dos apps ya comparten
+> `packages/contract`. Este arreglo tuvo que aplicarse en los dos lugares, que es justo el modo de
+> fallo que una copia duplicada produce. Unificarla es una decisión de diseño que no se tomó acá.
 
 ## 4. Divergencias de paridad todavía abiertas
 

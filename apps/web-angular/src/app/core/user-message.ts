@@ -17,6 +17,13 @@ import { contractName, messageFor } from '@banco/contract';
  * función es el borde de presentación donde un `DomainError` se convierte en texto humano, y es
  * trabajo de la capa de UI, no del adapter.
  */
+/**
+ * Lo que ve el usuario cuando falla algo que **no** es un error de dominio. Normativo en
+ * `docs/ui-spec.md`, igual en las cuatro apps. No dice «vuelve a intentarlo» a propósito: si el
+ * módulo WASM quedó inutilizable por un trap, reintentar no arregla nada — hay que recargar.
+ */
+export const FALLBACK = 'No se pudo completar la operación.';
+
 export function userMessage(e: unknown): string {
   let plantilla: string;
   try {
@@ -29,9 +36,20 @@ export function userMessage(e: unknown): string {
     // `catch_unwind` de uniffi que sí tienen Android e iOS), un tag que `contractName` no
     // conoce —, porque `contractName` lanza a propósito con un tag desconocido (es la guardia
     // del Ruling P1, y el test de contrato **depende** de que lance: por eso el fallback va acá,
-    // en el borde de UI, y no ahí). Fase 4 (React Native) tuvo que agregar el mismo fallback:
-    // `apps/react-native/example/src/adapter/ContractMessages.ts`.
-    return `Ocurrió un error inesperado: ${String(e)}`;
+    // en el borde de UI, y no ahí).
+    //
+    // **El texto de diagnóstico NO va a la pantalla.** Antes acá volvía
+    // `Ocurrió un error inesperado: ${String(e)}`; la Fase 6 lo corrigió en las cuatro apps
+    // después de comprobar, con un test rojo en Android, que ese camino ponía
+    // `java.lang.UnsatisfiedLinkError: dlopen failed: …` en la cara del usuario. El texto es
+    // normativo y vive en `docs/ui-spec.md`.
+    //
+    // El diagnóstico va a la consola, y acá importa más que en las otras tres: si lo que llegó
+    // es un trap de WebAssembly, la instancia del módulo queda inutilizable y **todas** las
+    // operaciones siguientes van a fallar igual hasta recargar la página. Sin la consola, eso
+    // se ve como una app que dejó de responder sin decir por qué.
+    console.error('error no-dominio en el borde de UI:', e);
+    return FALLBACK;
   }
   const campos = (e as { inner?: Record<string, string> }).inner ?? {};
   return plantilla.replace(/\{(\w+)\}/g, (coincidencia, clave) =>

@@ -1,4 +1,4 @@
-import { userMessage } from './user-message';
+import { FALLBACK, userMessage } from './user-message';
 
 // Porteado de `apps/react-native/example/__tests__/ContractMessages.test.ts`. Los objetos de
 // prueba son planos, con `tag`/`inner`, en vez de instancias reales del `DomainError` del WASM:
@@ -33,4 +33,17 @@ describe('userMessage', () => {
     // Y devuelve algo legible, no vacío.
     expect(userMessage(new TypeError('algo del runtime'))).not.toBe('');
   });
+
+  it('el texto de diagnóstico NO llega a la pantalla', () => {
+    // Antes volvía `Ocurrió un error inesperado: ${String(e)}`. La Fase 6 lo corrigió en las
+    // cuatro apps después de comprobar, con un test rojo en Android, que ese camino ponía
+    // `java.lang.UnsatisfiedLinkError: dlopen failed: …` en la cara del usuario. El texto es
+    // normativo en `docs/ui-spec.md`.
+    const shown = userMessage(new TypeError('dlopen failed: library not found'));
+    expect(shown).toBe(FALLBACK);
+    expect(shown).toBe('No se pudo completar la operación.');
+    expect(shown).not.toContain('dlopen');
+    expect(shown).not.toContain('TypeError');
+  });
+
 });

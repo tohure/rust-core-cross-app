@@ -19,6 +19,13 @@ import { messageFor } from '../contract/sources';
  * carácter por carácter que es toda la tesis de la POC. El formateo va en el borde de
  * presentación, no acá.
  */
+/**
+ * Lo que ve el usuario cuando falla algo que **no** es un error de dominio. Normativo en
+ * `docs/ui-spec.md`, igual en las cuatro apps. No dice «vuelve a intentarlo» a propósito: si el
+ * módulo nativo no cargó, reintentar no arregla nada.
+ */
+export const FALLBACK = 'No se pudo completar la operación.';
+
 export function userMessage(e: unknown): string {
   let plantilla: string;
   try {
@@ -32,9 +39,15 @@ export function userMessage(e: unknown): string {
     // guardia del Ruling P1, y el test de contrato **depende** de que lance: por eso el fallback
     // va acá, en el borde de UI, y no ahí).
     //
-    // Android hace exactamente lo mismo:
-    // `(e as? DomainException)?.let(messages::userMessage) ?: e.toString()`.
-    return `Ocurrió un error inesperado: ${String(e)}`;
+    // **El texto de diagnóstico NO va a la pantalla.** Antes acá volvía
+    // `Ocurrió un error inesperado: ${String(e)}`, citando que Android hacía lo mismo — y
+    // Android lo hacía mal: su test rojo mostraba `java.lang.UnsatisfiedLinkError: dlopen
+    // failed: …` en la pantalla de Aritmética. La Fase 6 lo corrigió en las cuatro apps con
+    // este texto, normativo en `docs/ui-spec.md`.
+    //
+    // El diagnóstico no se pierde: va a la consola, que es donde sirve.
+    console.error('error no-dominio en el borde de UI:', e);
+    return FALLBACK;
   }
   const campos = (e as { inner?: Record<string, string> }).inner ?? {};
   return plantilla.replace(/\{(\w+)\}/g, (coincidencia, clave) =>
