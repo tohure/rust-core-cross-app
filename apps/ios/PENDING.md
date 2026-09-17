@@ -38,24 +38,51 @@ La consecuencia es que **nada obliga a que el seam exista**. En Android, un test
 intente tocar el core real falla al cargar la librería; aquí compila y pasa. La disciplina de
 inyectar `CoreFinanciero` la sostiene la revisión, no el compilador.
 
-### La app es un solo target, y el argumento para partirla vale igual que en Android
+**Esto sigue valiendo igual después del split de targets** (ver el ítem cerrado más abajo), y
+conviene decirlo sin rodeos porque es fácil asumir lo contrario: partir la app en
+`CoreFinancieroKit` + `ios-rust-test` no le da a iOS un mecanismo equivalente al de Android. En
+Android el seam lo cierra el **runtime** —la JVM del test de unidad no puede cargar la `.so`,
+así que un test que intentara tocar el core real fallaría al arrancar, no al compilar—. iOS no
+tiene ese mecanismo porque el core se enlaza **estáticamente**: el bundle de tests hostea
+dentro de la app, la app enlaza `CoreFinancieroKit`, y por lo tanto el core real está siempre
+disponible para cualquier test, esté en el target que esté. Ningún reparto de archivos entre
+targets cambia eso. La disciplina de inyectar `CoreFinanciero` en vez de llamar al core real
+sigue sostenida por la revisión, no por el compilador ni por el runtime.
 
-Una evaluación técnica de Android marcó como prioridad **Alta** extraer la capa FFI a su propio
-módulo, para que la capa de presentación no conozca ni el binario nativo ni los bindings
-generados. Aquí la situación es la misma —`ios-rust-test` es un único target que contiene el
-`Generated/`, el XCFramework, el adapter y las cuatro pantallas— y los tres beneficios se
-trasladan sin cambios: aislamiento, caché de compilación, y que un futuro `androidMain`/`iosMain`
-de KMP tenga dónde encajar sin tocar la UI.
+### ~~La app es un solo target, y el argumento para partirla vale igual que en Android~~ — CERRADO
 
-Aquí además cerraría el hueco ya anotado en "El seam de `CoreFinanciero` es más débil que en
-Android": si `Generated/` y el XCFramework vivieran en otro target, un test de presentación que
-intentara llamar al core real **no compilaría**, y la disciplina dejaría de depender de la
-revisión.
+Nació el target **`CoreFinancieroKit`** (plan `2026-09-17-ios-target-split`, commit `92b8b3c`):
+un framework **estático** (`MACH_O_TYPE = staticlib`) que se lleva `Generated/`, `Adapter/` y
+`Contract/`; `ios-rust-test` queda con `UI/`, `Format/`, `AppContainer` y el `App` de SwiftUI, y
+consume el kit con `import CoreFinancieroKit`. No hizo falta ningún plan B del enlace: el
+XCFramework quedó resuelto para los dos targets a la primera —el kit lo enlaza para ver el
+modulemap de `core_financieroFFI`, la app para el enlace final del binario—, verificado en
+simulador y **sobre el iPhone 12 físico** (UDID `00008101-001368940EC2001E`): **54 tests en 13
+suites**, el mismo conteo que antes del split. El detalle de qué se lleva cada target vive en
+[BUILD.md](BUILD.md) → "La estructura de targets".
 
-**Sigue abierto, y ahora es la única de las cuatro apps que no lo resolvió.** `apps/android` lo
+**Corrección de la premisa con la que se abrió este ítem, que es la parte que no se puede
+omitir.** El texto original decía que partir el target cerraría también el hueco de "El seam de
+`CoreFinanciero` es más débil que en Android", porque un test de presentación que llamara al
+core real "no compilaría" si `Generated/` y el XCFramework vivieran en otro target. **Es falso**,
+y la ejecución del split lo mostró: el bundle de tests (`ios-rust-testTests`) hostea **dentro del
+target de la app**, la app enlaza `CoreFinancieroKit` igual que antes enlazaba el XCFramework
+directo, y los tests de ViewModel —que usan `FakeCoreFinanciero`, no el core real— de todos
+modos tienen que hacer `import CoreFinancieroKit`, porque ahí viven `ContractMessages`,
+`ValidCci` y `DomainError`: los tipos con los que se arma el doble y se comparan los errores. No
+existe ningún test, real o hipotético, para el que `CoreFinancieroKit` no esté disponible — la
+app siempre lo enlaza, así que el bundle de tests siempre lo tiene disponible para importar.
+En Android el seam lo cierra el **runtime** —la JVM de un test de `:app` no puede cargar la
+`.so`, aunque quisiera—, no el compilador; iOS no tiene ese mecanismo porque el core se enlaza
+estáticamente, y partir el target no lo introduce. Por eso "El seam de `CoreFinanciero` es más
+débil que en Android" (arriba) **sigue abierto** pese a que este ítem ya se cerró: son dos
+beneficios distintos, y el split solo entregó el primero —aislamiento del binario nativo y de
+los bindings generados frente a la capa de presentación, caché de compilación por target, y un
+lugar natural para un futuro `androidMain`/`iosMain` de KMP—, no el segundo.
+
+Con este cierre, iOS deja de ser la única de las cuatro apps sin resolverlo: `apps/android` lo
 hizo en la Fase 6 —nació el módulo Gradle `:core-financiero` con todo el borde FFI, y `:app` dejó
 de declarar JNA—, y `apps/react-native` nace con la separación hecha por frontera de paquete.
-Las dos sirven de referencia de a qué se parece el resultado.
 
 ### Dos huecos conocidos de `MoneyFormatter`, verificados contra Kotlin
 

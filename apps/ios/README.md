@@ -19,7 +19,7 @@ Release: el piso del cruce cuesta **0,062 µs** contra los **47,1 µs** de Andro
 | **Deployment target** | **iOS 17.0** — no se negocia |
 | **Puente al núcleo** | uniffi 0.32 sobre un **XCFramework estático** |
 | **Núcleo** | Rust, `libcore_financiero.a` en dos slices |
-| **Target** | `ios-rust-test` |
+| **Targets** | `CoreFinancieroKit` (framework estático, el borde FFI) + `ios-rust-test` (la app, presentación) |
 
 ---
 
@@ -35,22 +35,38 @@ flowchart TD
 
     ffi -->|"cargo build --target aarch64-apple-ios"| dev["ios-arm64<br/>libcore_financiero.a"]
     ffi -->|"--target aarch64-apple-ios-sim"| sim["ios-arm64-simulator<br/>libcore_financiero.a"]
-    ffi -.->|"uniffi-bindgen swift"| gen["Generated/core_financiero.swift<br/>generado, no se edita"]
+    ffi -.->|"uniffi-bindgen swift"| gen["core_financiero.swift<br/>generado, no se edita"]
 
     dev --> xcf["CoreFinanciero.xcframework<br/>enlazado ESTÁTICAMENTE"]
     sim --> xcf
-    xcf --> adapter["Adapter/CoreFinanciero<br/>protocolo · 9 funciones"]
-    gen --> adapter
 
-    adapter --> vm["UI/*/XxxViewModel<br/>@MainActor @Observable"]
-    vm --> screens["UI/*/XxxView<br/>SwiftUI"]
-    screens --> tabs["UI/Navigation/BancoApp<br/>TabView · 4 pestañas + pie"]
+    subgraph kit["target CoreFinancieroKit — framework estático"]
+        gen2["Generated/core_financiero.swift"]
+        adapter["Adapter/CoreFinanciero<br/>protocolo · 9 funciones"]
+        source["Contract/<br/>ContractSource · MessageSource"]
+        gen2 --> adapter
+    end
+
+    subgraph app["target ios-rust-test — presentación"]
+        vm["UI/*/XxxViewModel<br/>@MainActor @Observable"]
+        screens["UI/*/XxxView<br/>SwiftUI"]
+        tabs["UI/Navigation/BancoApp<br/>TabView · 4 pestañas + pie"]
+        vm --> screens --> tabs
+    end
+
+    xcf --> kit
+    gen --> gen2
+    adapter -->|"import CoreFinancieroKit"| vm
+    source --> vm
 
     contrato[("contracts/<br/>cases.json · messages.es.json")]
-    contrato -->|"Run Script copia al bundle"| source["Contract/<br/>ContractSource · MessageSource"]
-    source --> vm
+    contrato -->|"Run Script copia al bundle de la APP"| source
     contrato -.->|"verifica 31 casos"| adapter
 ```
+
+Nota clave del diagrama: la Run Script que copia los contratos al bundle de test sigue en el
+target de la **app**, no en el kit, porque un framework estático no embarca recursos. Es una
+divergencia deliberada con Android, donde los assets viven en `:core-financiero`.
 
 ### Qué es cada pieza y por qué existe
 
@@ -59,10 +75,11 @@ flowchart TD
 | `crates/domain` | La lógica: decimales, ITF, Luhn, ChaCha20-Poly1305 | Rust puro, sin uniffi. Un `#[uniffi::export]` ahí **no compila**: la frontera la sostiene el compilador |
 | `crates/ffi` | Las nueve funciones públicas | La única superficie que cruza a Swift |
 | `CoreFinanciero.xcframework` | El núcleo compilado, dos slices | `ios-arm64` es el que se embarca; `ios-arm64-simulator` el que corren los tests. **Son binarios distintos**, y de ahí sale el pendiente de hardware |
-| `Generated/core_financiero.swift` | Bindings generados | **Artefacto generado y gitignored.** Nunca se edita; si algo está mal, se corrige en Rust y se regenera. SourceKit se queja de él en el editor; `xcodebuild` no |
-| `Adapter/CoreFinanciero` | La única superficie que llama al núcleo | Es un **protocolo** para que los ViewModels se testeen con un doble. Reexporta los tipos de uniffi: **no los traduce** |
-| `Adapter/ContractMessages` | Variante de error → texto de usuario | `localizedDescription` es diagnóstico y **nunca** llega a la pantalla. Desde la Fase 6 eso vale también para lo que **no** es un `DomainError`: el `catch` genérico de los ViewModels devolvía `"\(error)"` y ahora cae en `No se pudo completar la operación.`, con el diagnóstico al log |
-| `Contract/` | Lee `cases.json` y `messages.es.json` del bundle | Las cuentas iniciales, la clave y el nonce son **datos del contrato**, no de la app. Hardcodearlos los haría divergir entre las cuatro apps |
+| `CoreFinancieroKit` (target) | Framework **estático** con todo el borde FFI | Enlaza el XCFramework para exponer el modulemap de `core_financieroFFI` al compilar; la app lo consume con `import CoreFinancieroKit`. No embarca recursos — por eso el Run Script de contratos se queda en la app |
+| `CoreFinancieroKit/Generated/core_financiero.swift` | Bindings generados | **Artefacto generado y gitignored.** Nunca se edita; si algo está mal, se corrige en Rust y se regenera. SourceKit se queja de él en el editor; `xcodebuild` no |
+| `CoreFinancieroKit/Adapter/CoreFinanciero` | La única superficie que llama al núcleo | Es un **protocolo** para que los ViewModels se testeen con un doble. Reexporta los tipos de uniffi: **no los traduce** |
+| `CoreFinancieroKit/Adapter/ContractMessages` | Variante de error → texto de usuario | `localizedDescription` es diagnóstico y **nunca** llega a la pantalla. Desde la Fase 6 eso vale también para lo que **no** es un `DomainError`: el `catch` genérico de los ViewModels devolvía `"\(error)"` y ahora cae en `No se pudo completar la operación.`, con el diagnóstico al log |
+| `CoreFinancieroKit/Contract/` | Lee `cases.json` y `messages.es.json` del bundle | Las cuentas iniciales, la clave y el nonce son **datos del contrato**, no de la app. Hardcodearlos los haría divergir entre las cuatro apps |
 | `Format/MoneyFormatter` | Pone `S/` y separadores **al pintar** | Escrito a mano y no con `NumberFormatter`: el ICU de cada plataforma mete espacios duros y agrupa distinto, y la demo compara carácter por carácter |
 | `UI/*/XxxViewModel` | Un `struct` de estado por pantalla | La UI consume y no calcula. **Todos los montos son `String`** |
 | `UI/Components/` | Los cinco componentes compartidos | Las cuatro apps usan la misma descomposición para que las pantallas sean comparables. Es además el **único** lugar donde vive un `#available` |
@@ -113,16 +130,38 @@ xcodebuild build -project ios-rust-test.xcodeproj -scheme ios-rust-test \
   -destination 'platform=iOS Simulator,name=iPhone 17 Pro'
 ```
 
+> **Si tu máquina da `Unable to find a device matching the provided destination specifier`:**
+> el modelo "iPhone 17 Pro" no existe en todos los runtimes instalados. Verificado el
+> 2026-09-17: en esa máquina `OS:latest` resolvía a iOS 27.0, y "iPhone 17 Pro" solo existía
+> para el runtime 26.5, así que el `-destination` de arriba, sin más, fallaba. La salida fue
+> agregar el runtime explícito: `-destination 'platform=iOS Simulator,name=iPhone 17
+> Pro,OS=26.5'`. Corré `xcrun simctl list devices available` para ver qué modelo/runtime
+> existe en la tuya y ajustá el `OS=` en consecuencia — el síntoma es de entorno, no del
+> proyecto.
+
 Y para abrirla en el simulador, lo más simple es `open ios-rust-test.xcodeproj` y ⌘R.
 
 Qué se debe ver: cuatro pestañas —**Aritmética, Transferencia, Tarjeta, Benchmark**— y al pie
-de **las cuatro** el mismo string, hoy `1.0.0+b719da3` — **sin prefijo**, tal como lo devuelve
+de **las cuatro** el mismo string, hoy `1.0.0+959025f` — **sin prefijo**, tal como lo devuelve
 el core. El SHA cambia cada vez que se regenera el artefacto; lo que no puede cambiar es que sea
 **idéntico al de las otras apps**.
 
 **Ese pie no es decorativo.** Es la prueba en pantalla de que las cuatro apps corren el mismo
 build, y no es automático: cada artefacto congela el SHA del momento en que se construyó. Antes
 de una demo hay que regenerar los cuatro desde el mismo HEAD, o los pies no van a coincidir.
+
+### Diagnóstico rápido: compilar solo el borde FFI
+
+Cuando algo del borde FFI se rompe —un binding que no resuelve, un tipo que cambió de forma—,
+compilar el kit solo aísla el problema sin esperar a que compilen las cinco pantallas:
+
+```bash
+xcodebuild build -project ios-rust-test.xcodeproj -target CoreFinancieroKit \
+  -sdk iphonesimulator -destination 'platform=iOS Simulator,name=iPhone 17 Pro'
+```
+
+Qué se debe ver: `** BUILD SUCCEEDED **`. Si esta máquina tiene el mismo desajuste de runtime
+que la nota de arriba, agregá `,OS=26.5` (o el runtime que corresponda) a la `-destination`.
 
 ## Correr los tests
 
@@ -131,7 +170,8 @@ xcodebuild test -project ios-rust-test.xcodeproj -scheme ios-rust-test \
   -destination 'platform=iOS Simulator,name=iPhone 17 Pro'
 ```
 
-Qué se debe ver: `** TEST SUCCEEDED **` y `Test run with 54 tests in 13 suites passed`.
+Qué se debe ver: `** TEST SUCCEEDED **` y `Test run with 54 tests in 13 suites passed`. (Si el
+simulador falla en resolver el destino, ver la nota sobre `OS=26.5` más arriba.)
 
 Y sobre un aparato conectado, que es lo que ejercita el slice que de verdad se embarca:
 
@@ -141,9 +181,12 @@ xcodebuild test -project ios-rust-test.xcodeproj -scheme ios-rust-test \
   -destination 'id=<identificador del aparato>' -allowProvisioningUpdates
 ```
 
-Mismo conteo, mismo verde. La primera vez pide además **confiar el certificado en el aparato**;
-el mensaje de error exacto y el camino en Ajustes están en **[TESTING.md](TESTING.md)**, junto
-con el desglose de la suite, las cinco guardias del contrato y **qué no prueba**.
+Mismo conteo, mismo verde — verificado sobre el iPhone 12 físico (UDID
+`00008101-001368940EC2001E`) tras el split de targets: **54 tests en 13 suites**, sin
+diferencia con el conteo previo al split. La primera vez pide además **confiar el
+certificado en el aparato**; el mensaje de error exacto y el camino en Ajustes están en
+**[TESTING.md](TESTING.md)**, junto con el desglose de la suite, las cinco guardias del
+contrato y **qué no prueba**.
 
 ---
 

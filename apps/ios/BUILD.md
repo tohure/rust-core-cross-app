@@ -23,7 +23,7 @@ rust-core/crates/ffi
                                                                      │
                               se reparten a sus dos destinos ────────┘
                                         │
-                    ios-rust-test/Generated/core_financiero.swift  (carpeta sincronizada, la compila la app)
+                    CoreFinancieroKit/Generated/core_financiero.swift  (carpeta sincronizada, la compila el KIT)
                     Generated/include/core_financieroFFI.h
                     Generated/include/module.modulemap              (renombrado — ver más abajo)
                                         │
@@ -31,12 +31,13 @@ rust-core/crates/ffi
                                         │
                          CoreFinanciero.xcframework (ios-arm64 + ios-arm64-simulator)
                                         │
-        project.pbxproj: PBXBuildFile + PBXFileReference + Frameworks del target de app + grupo raíz
+        project.pbxproj: PBXBuildFile + PBXFileReference + Frameworks del target CoreFinancieroKit
+                          y Frameworks del target ios-rust-test + grupo raíz
                                         │
-                         ios-rust-test.app (enlace estático, sin "Embed")
+              CoreFinancieroKit (framework estático) ── import CoreFinancieroKit ──> ios-rust-test.app
 ```
 
-Los tres directorios generados (`Generated/`, `ios-rust-test/Generated/`,
+Los tres directorios generados (`Generated/`, `CoreFinancieroKit/Generated/`,
 `CoreFinanciero.xcframework/`) están en el `.gitignore` y se regeneran. Nunca se editan a
 mano: si algo generado está mal, se corrige en `rust-core` y se regenera desde ahí.
 
@@ -161,8 +162,11 @@ una corrida futura sí da `No UniFFI metadata found`, la salida documentada en e
 
 ## Step 6 — Repartir los tres archivos generados a sus dos destinos
 
-El `.swift` lo compila la app, así que va dentro de la carpeta sincronizada; los otros dos
-son headers del XCFramework y se quedan afuera.
+El `.swift` lo compila **`CoreFinancieroKit`**, no la app — desde el split de la Task 2 del
+plan `2026-09-17-ios-target-split`, el target que se lleva el borde FFI es el kit, y por eso
+la carpeta sincronizada del Swift generado vive dentro de él. Los otros dos son headers del
+XCFramework y se quedan afuera, en `Generated/include/`, porque eso lo consume
+`xcodebuild -create-xcframework`, no el compilador de Swift.
 
 **La trampa documentada, verificada:** `xcodebuild -create-xcframework -headers` exige que
 el modulemap se llame exactamente `module.modulemap`. Con el nombre que genera uniffi
@@ -172,11 +176,11 @@ descubrir esto en el Step 9.
 
 ```bash
 cd apps/ios
-mkdir -p Generated/include ios-rust-test/Generated
-mv Generated/core_financiero.swift     ios-rust-test/Generated/
+mkdir -p Generated/include CoreFinancieroKit/Generated
+mv Generated/core_financiero.swift     CoreFinancieroKit/Generated/
 mv Generated/core_financieroFFI.h      Generated/include/
 cp Generated/core_financieroFFI.modulemap Generated/include/module.modulemap
-ls Generated Generated/include ios-rust-test/Generated
+ls Generated Generated/include CoreFinancieroKit/Generated
 ```
 
 Qué se vio:
@@ -190,7 +194,7 @@ Generated/include:
 core_financieroFFI.h
 module.modulemap
 
-ios-rust-test/Generated:
+CoreFinancieroKit/Generated:
 core_financiero.swift
 ```
 
@@ -224,13 +228,69 @@ ios-arm64-simulator
 Los dos slices están presentes. Si solo apareciera uno, faltaría un `.a` y la app no
 correría en la mitad de los aparatos (dispositivo real o simulador, según cuál falte).
 
+## La estructura de targets
+
+Desde el plan `2026-09-17-ios-target-split`, el proyecto deja de ser un único target y pasa a
+dos:
+
+| Target | Qué se lleva | Qué NO se lleva |
+|---|---|---|
+| **`CoreFinancieroKit`** | `Generated/core_financiero.swift` (el binding), `Adapter/` (el protocolo `CoreFinanciero`, `UniffiCoreFinanciero` y `ContractMessages`) y `Contract/` (`ContractSource`, `MessageSource` y sus implementaciones `Bundle*`) | Nada de `UI/`, ni `AppContainer`, ni el `Run Script` que copia los contratos |
+| **`ios-rust-test`** (la app) | `UI/`, `Format/MoneyFormatter`, `AppContainer` y el `App` de SwiftUI | El `Generated/`, el adapter y el `Contract/` — ahora los consume vía `import CoreFinancieroKit` |
+
+**`CoreFinancieroKit` es un framework estático** (`MACH_O_TYPE = staticlib`), no dinámico:
+igual que la app misma enlaza el XCFramework de Rust sin "Embed", el kit tiene que enlazar
+del mismo modo para no meter un segundo binario dinámico en el bundle de una POC que no
+distribuye nada fuera del propio `.app`. La consecuencia práctica es que un framework
+estático no embarca recursos — por eso el `Run Script` que copia `cases.json` y
+`messages.es.json` al bundle de test **sigue viviendo en el target de la app**, no se movió
+al kit. Es una divergencia deliberada con Android, donde los assets sí viven en el módulo
+`:core-financiero`.
+
+**No hizo falta ningún plan B del enlace.** La preocupación de entrada era que
+`CoreFinanciero.xcframework` — que ya estaba enlazado por la app — no resolviera también
+para el kit, o que hiciera falta separar el enlace del framework de Rust (declararlo solo en
+un target y reexportarlo al otro, o recurrir a `-force_load`). No pasó: el XCFramework quedó
+declarado en la fase `Frameworks` de **los dos** targets — el kit lo necesita para ver el
+modulemap de `core_financieroFFI` al compilar `UniffiCoreFinanciero.swift`, y la app lo
+necesita porque ahí ocurre el enlace final del binario—, y compiló y linkeó a la primera en
+las tres corridas que lo ejercitaron (kit solo, simulador completo, aparato físico). El
+detalle línea por línea de cómo quedó declarado está en el diff del commit `92b8b3c`.
+
+**Diagnóstico rápido si el borde FFI se rompe:** compilar el kit solo, sin la app ni las
+pantallas de por medio:
+
+```bash
+xcodebuild build -project ios-rust-test.xcodeproj -target CoreFinancieroKit \
+  -sdk iphonesimulator -destination 'platform=iOS Simulator,name=iPhone 17 Pro,OS=26.5'
+```
+
+Qué se debe ver: `** BUILD SUCCEEDED **`. Si falla acá, el problema está en el binding
+generado o en el XCFramework — no hace falta compilar las cinco pantallas para descartar
+capas.
+
+El `,OS=26.5` no es parte del comando original de la Fase 3 (ahí bastaba `name=iPhone 17
+Pro` sin más): en esta máquina, al ejecutar este split, "OS:latest" resolvió a iOS 27.0 y el
+simulador "iPhone 17 Pro" solo existe en el runtime 26.5, no en el 27.0. El síntoma es
+`xcodebuild: error: Unable to find a device matching the provided destination specifier`. Si
+en tu máquina "iPhone 17 Pro" sí existe en el runtime "latest", el `-destination` sin `OS=`
+funciona igual; si no, corré `xcrun simctl list devices available` y agregá el `OS=` del
+runtime donde ese modelo exista. El mismo ajuste aplica a los comandos de
+[README.md](README.md) y [TESTING.md](TESTING.md).
+
+Esto es lo que reemplaza al script de Ruby que creó el target nuevo con la gem `xcodeproj`:
+ese script no se commitea porque no es re-ejecutable — corre una vez sobre un `.pbxproj` que
+todavía no tiene el target, y correrlo dos veces duplicaría entradas. Lo que queda como
+fuente de verdad reproducible es el `project.pbxproj` resultante (en git) y esta sección.
+
 ## Enlazar en Xcode y el smoke test
 
 El XCFramework se declara a mano en `project.pbxproj` (los grupos sincronizados cubren
 carpetas de fuentes, no `.xcframework`): sección `PBXBuildFile`, entrada en
-`PBXFileReference`, `files` de la fase `Frameworks` del target de app, y el archivo en el
-grupo raíz. Es una librería estática: no lleva "Embed", se enlaza y desaparece dentro del
-binario. El detalle línea por línea está en el diff del commit de esta tarea.
+`PBXFileReference`, `files` de la fase `Frameworks` de **cada** target que lo necesita —
+`CoreFinancieroKit` y `ios-rust-test`—, y el archivo en el grupo raíz. Es una librería
+estática: no lleva "Embed", se enlaza y desaparece dentro del binario. El detalle línea por
+línea está en el diff del commit de esta tarea.
 
 El smoke test (`apps/ios/ios-rust-testTests/CoreSmokeTest.swift`) llama a `coreVersion()` y
 verifica que el string no esté vacío y contenga `"+"`. Antes de enlazar el XCFramework,

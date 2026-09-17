@@ -76,11 +76,23 @@ apps/ios/
 ├── Generated/include/             headers generados por uniffi, no editar
 │                                  core_financieroFFI.h + module.modulemap
 ├── ios-rust-test.xcodeproj/
-└── ios-rust-test/                 carpeta de fuentes
-    ├── Generated/core_financiero.swift   Swift generado por uniffi, no editar
-    ├── Adapter/CoreFinanciero.swift
+├── CoreFinancieroKit/              target del framework estático — el borde FFI
+│   ├── Generated/core_financiero.swift   Swift generado por uniffi, no editar
+│   ├── Adapter/CoreFinanciero.swift
+│   ├── Adapter/UniffiCoreFinanciero.swift
+│   ├── Adapter/ContractMessages.swift
+│   └── Contract/  ContractSource.swift, MessageSource.swift, BundleContractSource.swift, BundleMessageSource.swift
+└── ios-rust-test/                 target de la app — presentación
     ├── Format/MoneyFormatter.swift
+    ├── AppContainer.swift
     └── UI/  ArithmeticView.swift, TransferView.swift, CardView.swift, BenchmarkView.swift
+
+`CoreFinancieroKit` es un target **aparte** desde el split de targets del plan
+`2026-09-17-ios-target-split`: se lleva `Generated/`, `Adapter/` y `Contract/`, es un
+framework estático (`MACH_O_TYPE = staticlib`), y la app lo consume con `import
+CoreFinancieroKit`. El detalle de qué se lleva cada target, por qué el kit es estático y el
+comando para compilarlo solo como diagnóstico rápido del borde FFI están en
+[BUILD.md](BUILD.md) → "La estructura de targets".
 
 El XCFramework **debe** construirse pasando `-headers` con el `.h` y el `module.modulemap`
 que genera uniffi; solo con los `.a` Swift no ve ningún símbolo. Es el fallo de
@@ -112,9 +124,10 @@ xcodebuild -create-xcframework \
 >
 > Qué se debe ver: `Generated/include` queda con **dos** archivos —`core_financieroFFI.h`
 > y `module.modulemap`—, que son los dos que el XCFramework necesita. Los otros dos se
-> quedan en `Generated/`: el `core_financiero.swift`, que es fuente Swift y se compila con
-> la app en vez de ir a un directorio de headers, y el `core_financieroFFI.modulemap`
-> original, porque el paso de arriba lo **copia** y no lo mueve.
+> quedan en `Generated/`: el `core_financiero.swift`, que es fuente Swift y va a
+> `CoreFinancieroKit/Generated/` para que lo compile el kit, en vez de ir a un directorio de
+> headers, y el `core_financieroFFI.modulemap` original, porque el paso de arriba lo
+> **copia** y no lo mueve.
 
 Enlaza el XCFramework en Build Phases. Verifica que incluya los slices
 arm64 device y arm64 simulator; sin el segundo no corre en Macs con Apple
@@ -374,7 +387,7 @@ resultados que Android, RN y web.
 
 ## Prohibiciones
 
-- No edites `Generated/` ni el `.xcframework`.
+- No edites `CoreFinancieroKit/Generated/` ni el `.xcframework`.
 - No agregues ninguna dependencia de cálculo financiero.
 - No uses `Double` para dinero, ni en tests.
 - No agregues red ni Core Data.

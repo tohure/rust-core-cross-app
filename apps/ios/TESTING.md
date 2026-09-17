@@ -22,6 +22,13 @@ xcodebuild test -project ios-rust-test.xcodeproj -scheme ios-rust-test \
   -destination 'platform=iOS Simulator,name=iPhone 17 Pro'
 ```
 
+> Si `xcodebuild` responde `Unable to find a device matching the provided destination
+> specifier`: el modelo "iPhone 17 Pro" no existe en todos los runtimes de simulador
+> instalados. Verificado el 2026-09-17: en esa máquina `OS:latest` resolvía a iOS 27.0, y ese
+> modelo solo existía para el runtime 26.5 — agregar `,OS=26.5` a la `-destination` lo resolvió.
+> Es un desajuste de entorno, no del proyecto; correr `xcrun simctl list devices available`
+> dice qué runtime tiene ese modelo en tu máquina.
+
 Qué se debe ver — `** TEST SUCCEEDED **` y
 **`Test run with 54 tests in 13 suites passed`**:
 
