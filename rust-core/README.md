@@ -3,8 +3,8 @@
 Núcleo de dominio de la POC. Es el único lugar donde vive lógica de negocio: las cuatro
 apps lo consumen sin reescribirlo.
 
-**Estado: Fase 1 completada.** 67 tests en verde —47 unitarios de `domain`, 6 de `proptest`,
-3 del lib de `ffi` y 11 del test de contrato— contra `contracts/cases.json` v2.3.0, 28 casos.
+**Estado: Fase 1 completada.** 71 tests en verde —50 unitarios de `domain`, 6 de `proptest`,
+3 del lib de `ffi` y 12 del test de contrato— contra `contracts/cases.json` v2.4.0, 31 casos.
 
 Todos los comandos de esta documentación —los de [BUILD.md](BUILD.md) y los de
 [TESTING.md](TESTING.md)— **se ejecutaron tal como están escritos**, desde `rust-core/`, y la
@@ -18,7 +18,7 @@ salida que sigue a cada uno es la que devolvieron. Ninguno está deducido del
 graph TD
     ffi["<b>crates/ffi</b> · paquete core_financiero<br/>uniffi::export · cdylib + staticlib + lib<br/>único crate exportado"]
     domain["<b>crates/domain</b><br/>Rust puro · NO declara uniffi<br/>error · arithmetic · itf · transfer<br/>cci · card · crypto"]
-    contrato[("contracts/cases.json<br/>v2.3.0 · 28 casos")]
+    contrato[("contracts/cases.json<br/>v2.4.0 · 31 casos")]
     bindings["target/release/libcore_financiero.dylib<br/>+ bindings Kotlin / Swift"]
 
     ffi --> domain
@@ -105,7 +105,7 @@ un README que contesta cinco preguntas a la vez no contesta bien ninguna.
 | **[FFI.md](FFI.md)** | ¿Qué cruza el FFI y qué no? **Léelo antes de escribir una app consumidora.** |
 | **[PENDING.md](PENDING.md)** | ¿Qué no hace y qué queda abierto? |
 | [CONTEXT.md](CONTEXT.md) | La spec: reglas duras, contrato de API pública, comandos de exportación por plataforma |
-| [../contracts/README.md](../contracts/README.md) | El contrato compartido: los 28 casos y de dónde salen |
+| [../contracts/README.md](../contracts/README.md) | El contrato compartido: los 31 casos y de dónde salen |
 
 ## `core_version()` congela el SHA del build
 

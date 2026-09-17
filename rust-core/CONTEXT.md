@@ -53,7 +53,7 @@ rust-core/
 │       ├── src/lib.rs            uniffi::export, los Record y DomainError con piel de uniffi
 │       ├── build.rs              inyecta el SHA de git para core_version()
 │       ├── uniffi-bindgen.rs     el [[bin]] que genera los bindings
-│       └── tests/contract.rs       los 28 casos de ../contracts/cases.json
+│       └── tests/contract.rs       los 31 casos de ../contracts/cases.json
 ```
 
 `domain` NO conoce uniffi. Solo `ffi` depende de uniffi, y eso **no es una convención**:

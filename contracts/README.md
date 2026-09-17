@@ -201,7 +201,8 @@ el hex exacto **y** el roundtrip `decrypt(encrypt(x)) == x`.
 | `cci` | 4 | válido, otro banco, dígito de control malo, longitud mala |
 | `itf` | 5 | incluye `itf-005`, el que distingue medio-hacia-afuera de banker's rounding |
 | `tarjeta` | 6 | Visa, Mastercard y Amex con su cifrado; dos Luhn inválidos; longitud mala |
-| **Total** | **28** | v2.3.0 |
+| `descifrado` | 3 | roundtrip válido; ciphertext alterado y hex malformado, los dos que devuelven `Descifrado` |
+| **Total** | **31** | v2.4.0 |
 
 `cuentas_iniciales` trae el estado de partida de las transferencias: las mismas dos cuentas
 en las cuatro apps, para que la comparación lado a lado sea limpia.
