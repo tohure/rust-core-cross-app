@@ -1,5 +1,13 @@
 # Pendientes y deuda de `apps/react-native`
 
+> **Lo transversal no está acá.** El benchmark que falta repetir en aparato físico, la ausencia
+> de CI en las cinco bases de código, el `catch` genérico que muestra texto de diagnóstico como
+> mensaje de usuario, las divergencias de paridad abiertas y la regla de que un `Record` de uniffi
+> se reemplaza y no se muta viven en
+> **[docs/cross-app-pending.md](../../docs/cross-app-pending.md)**. Un tema, un dueño: antes estaban escritos con distintas
+> palabras en tres archivos, y corregirlo en uno dejaba mintiendo a los otros dos.
+
+
 ## El WASM
 
 **`wasm2` funciona con este crate.** Verificado de punta a punta: el módulo carga en Node y
@@ -62,6 +70,11 @@ fijo a propósito. `getrandom` entraba transitivamente por `chacha20poly1305 →
 invocaba**. Los 67 tests del core siguen en verde con el feature apagado.
 
 Pero es un cambio al crate compartido: **Android e iOS entran en reverificación** (Task 14).
+
+> **Ya se hizo, y esto lo declaraba abierto.** La reverificación se cerró en la Task 14 de la
+> Fase 5, y su evidencia vivía sólo en el ledger de esa fase. La Fase 6 la volvió a confirmar por
+> tercera vez: las dos suites de Android en verde (54 tests) y las 48 de iOS, éstas **sobre un
+> iPhone físico**. Corregido acá para que el documento deje de pedir algo que ya está hecho.
 
 ### `ubrn.wasm.yaml`: por qué hay un segundo archivo de config
 
@@ -311,17 +324,17 @@ comparación `add` contra `add` de arriba deje de tener la salvedad.
 Ninguna rompe la comparación de strings, y ninguna se tocó desde acá porque son código de otras
 fases. Quedan anotadas para la revisión:
 
-1. **El campo `Hex cifrado` acepta mayúsculas en Android y no en iOS.** Android las convierte a
-   minúscula; iOS las rechaza. `docs/ui-spec.md` dice `[0-9a-f]`, así que React Native sigue la
-   spec y a iOS — **Android diverge de su propia spec**. Es inofensivo (el core sólo emite
-   minúsculas, así que pegar entre apps siempre entra), pero es comportamiento distinto.
+1. ~~**El campo `Hex cifrado` acepta mayúsculas en Android y no en iOS.**~~ **Cerrada** por la
+   Fase 6, bloque 1: Android era el que divergía de su propia spec y fue el que cedió. Ahora las
+   tres rechazan lo que no sea `[0-9a-f]`.
 2. **El texto de ayuda de iOS se lista a sí mismo:** dice «el hex que produjo la app de iOS,
    React Native o Angular» **dentro de la app de iOS**. Android nombra correctamente a las otras
    tres. No está entre los labels normativos, pero es incorrecto.
-3. **Con cero iteraciones, Android e iOS vuelven en silencio** (`?: return` y `guard … else
-   { return }`), así que el botón no hace nada y parece roto. React Native muestra «Ingresa un
-   número de iteraciones mayor que cero.». `ui-spec.md` no fija nada para ese caso; es una
-   mejora que las otras dos podrían adoptar.
+3. **Con cero iteraciones, iOS sigue volviendo en silencio** (`guard … else { return }`), así
+   que el botón no hace nada y parece roto. Android tenía el mismo defecto y la Fase 6 lo cerró;
+   React Native y Angular ya explicaban. **iOS es ahora la única de las cuatro que no dice nada**,
+   y el texto —`Ingresa un número de iteraciones mayor que cero.`— pasó a ser normativo en
+   `docs/ui-spec.md`. Ver [docs/cross-app-pending.md](../../docs/cross-app-pending.md).
 
 ## `theme.mono` tuvo que partirse por plataforma
 

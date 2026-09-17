@@ -199,8 +199,8 @@ importan: valida por Luhn, cifra, y **descifra**.
 │                                     │
 │  ─── Descifrar un hex de otra ───   │
 │      plataforma                     │
-│  Pega aquí el hex que produjo la    │
-│  app de iOS, React Native o Angular…│
+│  Pega aquí el hex que produjo        │
+│  cualquiera de las otras apps…      │
 │  Hex cifrado  [ bcce3d351c2290… ]   │
 │           [  Descifrar  ]           │
 │  Número recuperado 5555555555554444 │
@@ -210,6 +210,11 @@ importan: valida por Luhn, cifra, y **descifra**.
 - Labels exactos: `Número`, `Validar y cifrar`, `Resultado`, `Marca`, `Enmascarado`,
   `Cifrado (hex)`, `Descifrado`, `Descifrar un hex de otra plataforma`, `Hex cifrado`,
   `Descifrar`, `Número recuperado`.
+- **El texto del bloque de pegado no nombra plataformas.** Este wireframe decía «el hex que
+  produjo la app de iOS, React Native o Angular», escrito desde la perspectiva de Android — así
+  que en la app de **iOS** el texto se autolistaba, invitando a pegar un hex producido por la app
+  en la que uno ya está parado. La lista además hay que mantenerla cada vez que se agrega una
+  plataforma. El texto normativo es `Pega aquí el hex que produjo cualquiera de las otras apps.`
 - **El texto de ayuda bajo `Número` es obligatorio**, con estas dos líneas exactas:
   `Puedes probar 4111111111111111 (Visa) o 5555555555554444 (Mastercard).` y
   `Un número inválido lo rechaza el core, no esta pantalla.`
@@ -280,6 +285,17 @@ real es otro problema, y no está acá.
   del todo le restaría credibilidad frente a alguien que sí lo conoce. Van los dos.
 - **La frase "El core es más lento porque cada llamada cruza la frontera al código Rust" es
   obligatoria.** Sin ella, un número más grande parece un defecto en vez del argumento que es.
+- **Con `Iteraciones` en cero, la pantalla explica por qué no pasó nada**, con este texto exacto:
+  `Ingresa un número de iteraciones mayor que cero.` Normativo desde la Fase 6. Un botón que no
+  hace nada y no dice nada se lee como una app rota, y en la demo eso se paga caro. React Native
+  y Angular ya lo hacían; Android lo adoptó en la Fase 6. **iOS todavía vuelve en silencio**
+  (`guard … else { return }`) y lo adopta en su propia fase — ver
+  [cross-app-pending.md](cross-app-pending.md).
+- **Los tiempos se formatean con separador decimal PUNTO, independiente del locale del
+  dispositivo.** No es cosmético: `"%.2f".format(...)` de Kotlin usa el locale por defecto y en
+  un aparato es-PE imprime `1,23 µs`, mientras `toFixed(2)` de JavaScript siempre da `1.23 µs`.
+  Dos apps lado a lado con distinto separador rompen la comparación carácter por carácter, que es
+  toda la tesis. En Kotlin: `String.format(Locale.ROOT, …)`.
 - **Filas etiqueta–valor agrupadas por `SectionDivider`, no una tabla de dos ejes.** Se fijó
   así porque solo usa los componentes compartidos —`SectionDivider(title)` y
   `ResultRow(label, value)`—, y una tabla 2D obligaría a un componente nuevo solo para esta

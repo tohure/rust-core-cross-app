@@ -84,26 +84,53 @@ inventes labels acá: cambiarlos obliga a cambiarlos en las cuatro.
 
 ## Estructura
 
-app/src/main/java/
-├── uniffi/core_financiero/  bindings Kotlin generados (NO EDITAR, se regeneran)
-│                            uniffi-bindgen los emite acá solo: con
-│                            `--out-dir app/src/main/java` crea él mismo el árbol del
-│                            paquete `uniffi.core_financiero`. No hace falta moverlos.
-└── dev/tohure/android_rust_test/
-    ├── adapter/       CoreFinanciero.kt, la única clase que llama al core
-    ├── ui/            Compose, una carpeta por pantalla (ver "Arquitectura de UI")
-    └── format/        MoneyFormatter.kt
+**Son dos módulos Gradle desde la Fase 6**, y la frontera la sostiene el build: `:app` no declara
+JNA ni conoce la `.so`.
 
-`jniLibs/` contiene los `.so` por ABI. Ambos son artefactos generados: nunca los edites a
-mano, regenéralos con los comandos de `rust-core/CONTEXT.md`.
+```
+apps/android/
+├── core-financiero/            Android Library: TODO el borde FFI
+│   └── src/
+│       ├── generated/          NO EDITAR y NO VERSIONADO (está en .gitignore)
+│       │   ├── java/uniffi/core_financiero/   bindings Kotlin
+│       │   └── jniLibs/<abi>/  libcore_financiero.so, uno por ABI
+│       ├── main/java/dev/tohure/android_rust_test/
+│       │   ├── adapter/        CoreFinanciero, UniffiCoreFinanciero, ContractMessages
+│       │   └── contract/       ContractSource, MessageSource y sus fuentes de assets
+│       ├── test/               el mapeo de error a nombre de contrato (4)
+│       └── androidTest/        contrato, smoke del FFI, adapter real, assets (19)
+└── app/                        Android Application: Compose y presentación
+    └── src/
+        ├── main/java/dev/tohure/android_rust_test/
+        │   ├── ui/             una carpeta por pantalla (ver "Arquitectura de UI")
+        │   ├── format/         MoneyFormatter.kt
+        │   ├── AppContainer.kt         cableado manual
+        │   └── AppViewModelFactory.kt  para `viewModel()`, que sobrevive a la rotación
+        ├── test/               ViewModels con FakeCoreFinanciero, formateo, guardias (30)
+        └── androidTest/        que la rotación no se lleve el estado (1)
+```
+
+**Los generados no están versionados**, a diferencia de lo que decía este documento antes de la
+Fase 6: `/apps/android/core-financiero/src/generated/` entero está en el `.gitignore` de la raíz.
+Viven en un source set propio, y **no** en `build/`, para que un `clean` no deje la app sin
+compilar hasta volver a correr el paso de Rust. Se regeneran con los comandos de
+[`rust-core/CONTEXT.md`](../../rust-core/CONTEXT.md), que escriben directo a esas dos rutas.
+
+> **`kotlin.srcDir`, no `java.srcDir`.** Con el Kotlin integrado de AGP 9, declarar el directorio
+> de generados con `java.srcDir` lo deja **fuera del compilador de Kotlin**: el módulo compila,
+> el AAR sale con las `.so` adentro, y el jar de clases trae una sola —el `R`—. El fallo aparece
+> recién al compilar `:app`, como `Unresolved reference 'DomainException'`, a un módulo de
+> distancia de su causa.
 
 ## Dependencia obligatoria: JNA
 
 Los bindings Kotlin de uniffi corren sobre **JNA, no JNI**. Sin esto la app compila y
-revienta en runtime al primer llamado al core:
+revienta en runtime al primer llamado al core. **Va en `:core-financiero`, no en `:app`**, y con
+`api` y no `implementation`: los bindings generados exponen tipos de JNA en firmas públicas, así
+que `:app` los necesita en su classpath de compilación aunque no declare la dependencia.
 
 ```kotlin
-implementation("net.java.dev.jna:jna:5.14.0@aar")
+api(variantOf(libs.jna) { artifactType("aar") })
 ```
 
 ## Cómo consumir el core

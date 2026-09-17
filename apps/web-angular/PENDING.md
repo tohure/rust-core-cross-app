@@ -3,6 +3,14 @@
 Lo que quedó abierto al cerrar la Fase 5, con el porqué de cada cosa. Nada de acá bloquea la
 demo; lo que sí la toca está marcado.
 
+> **Lo transversal no está acá.** El benchmark que falta repetir en aparato físico, la ausencia
+> de CI en las cinco bases de código, el `catch` genérico que muestra texto de diagnóstico como
+> mensaje de usuario, las divergencias de paridad abiertas y la regla de que un `Record` de uniffi
+> se reemplaza y no se muta viven en
+> **[docs/cross-app-pending.md](../../docs/cross-app-pending.md)**. Un tema, un dueño: antes estaban escritos con distintas
+> palabras en tres archivos, y corregirlo en uno dejaba mintiendo a los otros dos.
+
+
 ## `ng serve` no funciona, y no es de esta fase — **toca la demo**
 
 El optimizador de dependencias de Vite se rompe con `@banco/contract`, que es un paquete del
