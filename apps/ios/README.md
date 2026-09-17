@@ -254,6 +254,37 @@ Native, o sea 11×. Y a esta escala el reloj no alcanza: un tick de `ContinuousC
 ns, así que las cifras finas se toman por lotes y **no** se leen de esta pantalla. La tabla de los
 cuatro puentes está en [docs/cross-app-pending.md](../../docs/cross-app-pending.md).
 
+#### Última medición, 2026-09-17 — después del split en dos targets
+
+Salida completa de `FfiCostProbe` en el iPhone 12, en Release, con `warmup=2000 runs=20000`. El
+comando que la produjo está en [TESTING.md](TESTING.md):
+
+```
+=== artefacto 1.0.0+959025f · Release · warmup=2000 runs=20000 ===
+(reloj, cuerpo vacío)    p50=    0.04 us  p95=    0.04 us
+coreVersion()            p50=    0.08 us  p95=    0.08 us
+validateCard("41111")    p50=    3.42 us  p95=    3.54 us
+add("0.1", "0.2")        p50=    0.42 us  p95=    0.46 us
+NativeBaseline.add       p50=    0.17 us  p95=    0.17 us
+coreVersion() x1000      media=   0.062 us  (lotes de 1000)
+add x1000                media=   0.410 us  (lotes de 1000)
+NativeBaseline.add x1000 media=   0.146 us  (lotes de 1000)
+```
+
+**Por qué se volvió a medir:** partir la app en `CoreFinancieroKit` + `ios-rust-test` ponía en
+riesgo justamente el piso de 0,062 µs. Si el framework hubiera quedado **dinámico**, cada llamada
+al core pagaría indirección de `dyld`. Se eligió estático por eso, y esta corrida lo confirma: el
+piso es idéntico al dígito.
+
+**Lo que la vuelve concluyente es `NativeBaseline`, no el piso.** Esa fila no cruza el FFI —es
+aritmética de `Double` en Swift— así que el split no puede haberla afectado por ningún mecanismo,
+y se movió **−1,4 %, exactamente lo mismo que `add`** (0,148 → 0,146 contra 0,416 → 0,410). Esa
+coincidencia identifica la variación como ruido entre corridas. Sin esa fila de control, un
+−1,4 % en `add` no se distingue de una regresión chica.
+
+`validateCard` bajó de 3,58 a 3,42 µs (−4,5 %), dentro del mismo ruido y en el caso más variable
+de los tres, que es el que recorre el camino de error.
+
 ---
 
 ## Qué NO se puede hacer, y por qué

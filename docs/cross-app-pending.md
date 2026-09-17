@@ -24,6 +24,30 @@ medidas, p50.
 Angular queda fuera de la tabla a propósito: corre en una Mac y no en un teléfono, y su reloj está
 cuantizado a ~100 µs. Ubica el orden de magnitud —`add` ~1,5 µs— y nada más.
 
+**Las cuatro filas son de la misma campaña de medición, la de la Fase 7, y no se editan de a una.**
+Cambiar una sola fila con una corrida posterior rompería lo único que hace comparable la tabla: que
+todas salieron de la misma sonda, en los mismos aparatos, en la misma tarde. Las re-mediciones se
+anotan debajo.
+
+**Re-medición del 2026-09-17 — la fila de iOS, después de partir la app en dos targets.** Partir
+`apps/ios` en `CoreFinancieroKit` + `ios-rust-test` ponía en riesgo el piso de 0,062 µs: con un
+framework **dinámico**, cada llamada al core pagaría indirección de `dyld`. Se eligió estático por
+eso y se volvió a medir en el mismo iPhone 12, en Release, con la misma sonda:
+
+| | Fase 7 | 2026-09-17 | |
+|---|---|---|---|
+| piso `coreVersion()` | 0,062 µs | **0,062 µs** | idéntico |
+| `add` x1000 | 0,416 µs | 0,410 µs | −1,4 % |
+| baseline nativa x1000 | 0,148 µs | 0,146 µs | −1,4 % |
+| `validateCard` p50 | 3,58 µs | 3,42 µs | −4,5 % |
+
+**La fila que hace concluyente esto es la baseline, no el piso.** No cruza el FFI —es aritmética de
+`Double` en Swift—, así que el split no puede haberla afectado por ningún mecanismo, y se movió
+exactamente lo mismo que `add`. Eso identifica la variación como ruido entre corridas y no como
+señal: si el framework hubiera agregado indirección, `add` se habría movido y la baseline no. La
+fila de la tabla de arriba **sigue valiendo**. Salida completa en
+[apps/ios/README.md](../apps/ios/README.md).
+
 ### Lo que la tabla dice, y es más interesante que «iOS gana»
 
 **1. El orden se da vuelta según la plataforma.** En Android, React Native es **15× más barato**
