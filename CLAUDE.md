@@ -411,8 +411,18 @@ Cada fase termina con tres cosas, no una:
 
 Una fase sin las cuatro no está terminada, por más que la UI se vea bien.
 
-**El cuarto criterio se agregó el 2026-09-17, y se agregó porque faltaba.** Las ocho fases se
-cerraron sin él y el resultado fue que **nadie arrancó nunca desde cero**: la primera vez fue
+**El cuarto criterio se agregó el 2026-09-17, y conviene decir con precisión qué lo hizo
+falta.** No fue que la documentación no se revisara: se revisó siempre, hay 129 commits de
+`docs` en la historia y una spec dedicada sólo a auditar los CONTEXT, con hallazgos numerados.
+Fue que **se revisó siempre leyendo, nunca ejecutando**.
+
+Y una revisión por lectura **no puede** encontrar un paso faltante. Lo que se verifica leyendo
+—coherencia, enlaces, rutas, comandos que existen, afirmaciones que no envejecieron— lo pasan
+los tres huecos que aparecieron ese día. `rust-core/CONTEXT.md` es impecable leído: los comandos
+son reales y hasta explica por qué bindgen lee el artefacto del host. Lo único que está mal es
+**el estado desde el que se arranca**, y eso no está escrito en ninguna parte del texto.
+
+El resultado fue que **nadie arrancó nunca desde cero**: la primera vez fue
 cinco días después de cerrar la última fase, y el `pnpm install` del README de Angular falló
 —el `prepare: bob build` de `apps/react-native` no puede generar los `.d.ts` porque importan de
 `src/generated/`, que está gitignoreado—. La demo web no se podía levantar siguiendo la
