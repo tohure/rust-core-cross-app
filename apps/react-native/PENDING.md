@@ -354,6 +354,12 @@ buena:** el modo de fallar es silencioso y sólo se ve mirando la pantalla.
 
 ## No hay CI, y el scaffold que simulaba tenerla se borró
 
+> **No es un pendiente: se decidió no hacer CI en esta POC.** El razonamiento completo —y por qué
+> el riesgo que iba a cubrir ya está cubierto por el chequeo del pie— está en
+> [docs/cross-app-pending.md](../../docs/cross-app-pending.md). Lo de abajo se conserva porque
+> explica por qué el scaffold que venía de fábrica no servía, que es lo que habría que evitar si
+> algún día se retoma.
+
 `create-react-native-library` dejó un `apps/react-native/.github/` con un `ci.yml`. **No podía
 correr nunca**, por tres razones independientes:
 
@@ -372,8 +378,9 @@ dejarlo simulando cobertura.
 **Si alguna vez se quiere CI de verdad**, tiene que vivir en la raíz del repo y hacer, como
 mínimo: instalar Rust con los targets, instalar pnpm, correr `napi:generate` y `wasm:generate`
 antes de `pnpm test`, y correr también `cargo test --workspace`. Los tests instrumentados de
-Android y los de iOS necesitan además emulador/simulador en el runner. **Nada de eso cruza JSI
-igual**, así que el smoke manual seguiría siendo obligatorio antes de una demo.
+Android y los de iOS necesitan además emulador/simulador en el runner —y los 53 de iOS, que
+corren sobre un iPhone, no los hace ningún runner—. **Nada de eso cruza JSI igual**, así que el
+smoke manual seguiría siendo obligatorio antes de una demo.
 
 ## `packages/contract` tiene que declarar `@babel/runtime` — ahora con guardia
 

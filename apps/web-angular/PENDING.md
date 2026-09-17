@@ -125,10 +125,11 @@ De paso, una trampa que costó una compilación rota y que conviene no volver a 
 `template` de un componente es un template literal**, así que un backtick dentro de un comentario
 HTML lo cierra a la mitad. El error sale en `styles:`, veinte líneas más abajo.
 
-## No hay CI
+## No hay CI, y es una decisión, no un olvido
 
-Igual que en las otras tres apps de la POC. Los cuatro gates (`pnpm test`, `pnpm lint`,
-`pnpm build`, `pnpm format:check`) se corren a mano. `pnpm format:check` se cableó recién al
+Igual que en las otras tres apps de la POC, y **se decidió que quede así**: el razonamiento está
+en [docs/cross-app-pending.md](../../docs/cross-app-pending.md). Los cuatro gates (`pnpm test`,
+`pnpm lint`, `pnpm build`, `pnpm format:check`) se corren a mano. `pnpm format:check` se cableó recién al
 cerrar la fase: había un `.prettierrc` que nadie ejecutaba y 13 archivos lo violaban.
 
 ## El pie de `coreVersion()` se congela al construir
