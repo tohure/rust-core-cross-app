@@ -22,7 +22,7 @@ const NONCE = CASES._nonce_demo_hex as string;
 describe('guardias del contrato', () => {
   it('1 — la versión y la moneda son las esperadas', () => {
     const c = loadCases();
-    expect(c.version).toBe('2.3.0');
+    expect(c.version).toBe('2.4.0');
     expect(c.moneda).toBe('PEN');
   });
 
@@ -39,6 +39,7 @@ describe('guardias del contrato', () => {
     expect(group('itf')).toHaveLength(5);
     expect(group('tarjeta')).toHaveLength(6);
     expect(group('transferencia')).toHaveLength(7);
+    expect(group('descifrado')).toHaveLength(3);
     expect(group('cuentas_iniciales')).toHaveLength(2);
   });
 
@@ -51,6 +52,7 @@ describe('guardias del contrato', () => {
       'aritmetica',
       'cci',
       'cuentas_iniciales',
+      'descifrado',
       'itf',
       'moneda',
       'tarjeta',
@@ -61,7 +63,7 @@ describe('guardias del contrato', () => {
     expect(Object.keys(loadCases()).sort()).toEqual(esperadas);
   });
 
-  it('5 — messages.es.json cubre las nueve variantes del core', () => {
+  it('5 — messages.es.json cubre las diez variantes del core', () => {
     const nombres = [
       'Longitud',
       'DigitoControl',
@@ -71,6 +73,7 @@ describe('guardias del contrato', () => {
       'MismaCuenta',
       'SaldoInsuficiente',
       'Cifrado',
+      'Descifrado',
       'FueraDeRango',
     ];
     expect(Object.keys(loadMessages().mensajes).sort()).toEqual(
@@ -81,7 +84,7 @@ describe('guardias del contrato', () => {
   });
 });
 
-// Los 28 vectores de `contracts/cases.json`. Las comparaciones son **igualdad exacta de strings**
+// Los 31 vectores de `contracts/cases.json`. Las comparaciones son **igualdad exacta de strings**
 // con `toBe`, nunca numéricas con tolerancia: que eso pase en las cuatro plataformas *es* la
 // demostración de la POC. Si un caso falla, el sospechoso es el código, no el contrato.
 //
@@ -185,6 +188,27 @@ describe('transferencia', () => {
       expect(() => executeTransfer(cuentas(), req)).toThrow();
       try {
         executeTransfer(cuentas(), req);
+      } catch (e) {
+        expect(contractName(e)).toBe(c.error);
+      }
+    }
+  });
+});
+
+// El camino de vuelta del cifrado, que hasta la v2.4.0 no tenía casos propios. `de-002` —un hex
+// bien formado con el primer byte cambiado, o sea el tag de Poly1305 que no valida— y `de-003`
+// —que ni siquiera es hex— fallan como `Descifrado` y NO como `Cifrado`: separar esos dos es
+// exactamente lo que esta versión del contrato vino a hacer.
+describe('descifrado', () => {
+  it.each(group('descifrado'))('$id: $entrada', (c) => {
+    if (c.valido) {
+      expect(decrypt(c.entrada, KEY, NONCE)).toBe(c.esperado.texto);
+    } else {
+      // Mismo motivo que en `tarjeta`: con el centinela, un `decrypt` que no lanzara haría caer
+      // su propio `Error` en el `catch` y el fallo nombraría la causa equivocada.
+      expect(() => decrypt(c.entrada, KEY, NONCE)).toThrow();
+      try {
+        decrypt(c.entrada, KEY, NONCE);
       } catch (e) {
         expect(contractName(e)).toBe(c.error);
       }
