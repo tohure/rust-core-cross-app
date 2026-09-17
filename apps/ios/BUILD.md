@@ -150,13 +150,13 @@ Generated/core_financieroFFI.modulemap
 
 **Nota sobre la contingencia documentada en el brief.** En Android (Fase 2), leer el
 `.so`/`.a` de release falló con `No UniFFI metadata found` porque el perfil lleva
-`strip = true`, y la salida fue leer el `.dylib` del host en su lugar. Acá, contra lo
+`strip = true`, y la salida fue leer el `.dylib` del host en su lugar. Aquí, contra lo
 esperado, **el `.a` de release del host sí trajo la metadata de uniffi** y bindgen generó
 los tres archivos sin error ni contingencia. No se investigó la causa exacta de la
 diferencia (es plausible que `strip` afecte de forma distinta a un `staticlib` que a un
 `cdylib`/`.so`), pero el hecho verificado es este: **en esta máquina, para este crate, el
 comando del Step 5 del brief funcionó tal cual, sin necesitar leer el `.dylib`.** Se deja
-constancia acá porque el brief marcaba esto como punto de fricción esperado y no lo fue; si
+constancia aquí porque el brief marcaba esto como punto de fricción esperado y no lo fue; si
 una corrida futura sí da `No UniFFI metadata found`, la salida documentada en el brief
 (leer `target/release/libcore_financiero.dylib` en vez del `.a`) sigue siendo válida.
 
@@ -275,7 +275,7 @@ un lugar del mismo proceso puede producir. Lo único que el bundle de test neces
 `import CoreFinancieroKit` compile es el `.swiftmodule` del kit en `BUILT_PRODUCTS_DIR`, y eso
 ya está disponible porque el kit es una dependencia de build de la app y las tres comparten el
 mismo `BUILT_PRODUCTS_DIR` de la corrida. Enlazar es un problema de runtime (resolver
-símbolos); importar para compilar es un problema de build (encontrar el módulo) — acá solo
+símbolos); importar para compilar es un problema de build (encontrar el módulo) — aquí solo
 hace falta el segundo.
 
 **Diagnóstico rápido si el borde FFI se rompe:** compilar el kit solo, sin la app ni las
@@ -286,7 +286,7 @@ xcodebuild build -project ios-rust-test.xcodeproj -target CoreFinancieroKit \
   -sdk iphonesimulator -destination 'platform=iOS Simulator,name=iPhone 17 Pro,OS=26.5'
 ```
 
-Qué se debe ver: `** BUILD SUCCEEDED **`. Si falla acá, el problema está en el binding
+Qué se debe ver: `** BUILD SUCCEEDED **`. Si falla aquí, el problema está en el binding
 generado o en el XCFramework — no hace falta compilar las cinco pantallas para descartar
 capas.
 
@@ -294,7 +294,7 @@ El `,OS=26.5` no es parte del comando original de la Fase 3 (ahí bastaba `name=
 Pro` sin más): en esta máquina, al ejecutar este split, "OS:latest" resolvió a iOS 27.0 y el
 simulador "iPhone 17 Pro" solo existe en el runtime 26.5, no en el 27.0. El síntoma es
 `xcodebuild: error: Unable to find a device matching the provided destination specifier`. Si
-en tu máquina "iPhone 17 Pro" sí existe en el runtime "latest", el `-destination` sin `OS=`
+en otra máquina "iPhone 17 Pro" sí existe en el runtime "latest", el `-destination` sin `OS=`
 funciona igual; si no, corré `xcrun simctl list devices available` y agregá el `OS=` del
 runtime donde ese modelo exista. El mismo ajuste aplica a los comandos de
 [README.md](README.md) y [TESTING.md](TESTING.md).
@@ -341,7 +341,7 @@ strings CoreFinanciero.xcframework/ios-arm64/libcore_financiero.a \
 **La causa:** `strings` no separa por terminador nulo los literales `&'static str` de un
 binario de Rust — quedan empaquetados contiguos, sin ningún byte no imprimible entre uno y
 el siguiente. El string de versión real está pegado, carácter a carácter, al próximo literal
-del binario, que acá resulta ser un mensaje de pánico:
+del binario, que aquí resulta ser un mensaje de pánico:
 
 ```
 1.0.0+959025fcalled `Result::unwrap()` on an `Err` valueFromUtf8Error...
@@ -387,7 +387,7 @@ strings CoreFinanciero.xcframework/ios-arm64/libcore_financiero.a | grep -F "1.0
 ```
 
 El comando de arriba hay que correrlo recién **después** de regenerar el XCFramework desde el
-HEAD que se quiere verificar. Si se corre contra un artefacto viejo, como acá, la ausencia de
+HEAD que se quiere verificar. Si se corre contra un artefacto viejo, como aquí, la ausencia de
 salida es la señal correcta de que hace falta reconstruir — no hay que "arreglarlo" para que
 devuelva algo.
 

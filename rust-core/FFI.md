@@ -1,7 +1,7 @@
 # Qué cruza el FFI y qué no
 
 **Este archivo es de lectura obligatoria antes de escribir una app consumidora.** Los
-CONTEXT de las cuatro apps apuntan acá.
+CONTEXT de las cuatro apps apuntan aquí.
 
 uniffi hace cruzar las nueve funciones, los cinco `Record` y las diez variantes de
 `DomainError`. Hay **dos cosas que no cruzan**, y las dos hay que reimplementarlas en cada
@@ -149,7 +149,7 @@ test de contrato —`the_messages_file_covers_the_ten_error_variants`— y el po
 Cuatro detalles que hacen la diferencia entre que esto funcione y que no:
 
 1. **Los cuatro placeholders se interpolan crudos, tal como los devuelve el core.** Los
-   montos de `InsufficientFunds` **no** pasan por `NumberFormat` / `Intl.NumberFormat` acá:
+   montos de `InsufficientFunds` **no** pasan por `NumberFormat` / `Intl.NumberFormat` aquí:
    los formateadores de moneda de Android, iOS y el navegador no coinciden entre sí (`S/`,
    `S/.`, `PEN`, separador de miles), y una diferencia ahí rompe la comparación carácter por
    carácter que es toda la tesis. El formateo de moneda se queda en las pantallas de montos,

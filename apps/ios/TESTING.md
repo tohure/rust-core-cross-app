@@ -1,6 +1,6 @@
 # Tests
 
-**Una sola suite, y esa es la diferencia con Android.** Allá hay dos —los tests de JVM no
+**Una sola suite, y esa es la diferencia con Android.** Allí hay dos —los tests de JVM no
 pueden cargar la `.so`, los instrumentados sí— y esa separación la fuerza la plataforma. Aquí
 el core está enlazado **estáticamente** en el binario de la app, así que los tres niveles
 corren en el mismo bundle:
@@ -27,7 +27,7 @@ xcodebuild test -project ios-rust-test.xcodeproj -scheme ios-rust-test \
 > instalados. Verificado el 2026-09-17: en esa máquina `OS:latest` resolvía a iOS 27.0, y ese
 > modelo solo existía para el runtime 26.5 — agregar `,OS=26.5` a la `-destination` lo resolvió.
 > Es un desajuste de entorno, no del proyecto; correr `xcrun simctl list devices available`
-> dice qué runtime tiene ese modelo en tu máquina.
+> dice qué runtime tiene ese modelo en cada máquina.
 
 Qué se debe ver — `** TEST SUCCEEDED **` y
 **`Test run with 54 tests in 13 suites passed`**:
@@ -194,7 +194,7 @@ Consecuencia para la demo: **en iOS el cruce no se puede medir llamada por llama
 cifra de iOS cercana a 0,04 µs hay que mirarla con desconfianza, y la pantalla de Benchmark
 —que mide por llamada, como las otras tres apps— está en ese régimen.
 
-### Release contra Debug: acá también cambia, y bastante
+### Release contra Debug: aquí también cambia, y bastante
 
 Android descubrió que su APK de debug castiga el cruce entre 3 y 4 veces. iOS tiene el mismo
 efecto, más chico pero del mismo orden: **6,1× en el piso del cruce y 3,1× en `add`**.
@@ -236,7 +236,7 @@ está midiendo ya es casi todo `rust_decimal` y no el cruce.
 
 El caso que más lo delata es `validateCard("41111")`, que **lanza** un error de longitud: 3,58 µs,
 **ocho veces más caro que un `add` exitoso**. En Android pasa al revés (113 contra 146), porque
-allá lo que domina es la cantidad de argumentos. **En iOS lo caro es el camino de error**, no los
+allí lo que domina es la cantidad de argumentos. **En iOS lo caro es el camino de error**, no los
 datos que cruzan.
 
 ### Cómo se mide, para poder repetirlo

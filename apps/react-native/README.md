@@ -9,7 +9,7 @@ Lo que esta app hace con los datos es pedirlos y mostrarlos.
 Es además el **único subproyecto que produce tres salidas** del mismo crate: el turbo module
 JSI que consume la app, los bindings N-API con que el test de contrato llama al core desde
 Node, y el **`.wasm` del que depende la Fase 5** — `apps/web-angular` no consume `rust-core`
-directamente, consume lo que se construye acá.
+directamente, consume lo que se construye aquí.
 
 **Estado:** funcional. Las cuatro pantallas andando en Android y en iOS, el pie de
 `coreVersion()` visible en las cuatro, y **129 tests en verde**, con el contrato **31/31 por
@@ -82,11 +82,11 @@ flowchart TD
 | `crates/domain` | La lógica: decimales, ITF, Luhn, ChaCha20-Poly1305 | Rust puro, sin uniffi. Un `#[uniffi::export]` ahí **no compila**: la frontera la sostiene el compilador |
 | `crates/ffi` | Las nueve funciones públicas | La única superficie que cruza a TypeScript |
 | `src/bindings.tsx` | Entrypoint que genera `ubrn` | Registra el crate con Hermes. **Se reescribe entero en cada `--and-generate`**: no se edita |
-| `src/index.tsx` | La superficie pública del paquete | Reexporta `bindings` y `contractName`, que ahora vive en `@banco/contract` y no acá |
+| `src/index.tsx` | La superficie pública del paquete | Reexporta `bindings` y `contractName`, que ahora vive en `@banco/contract` y no aquí |
 | `packages/contract` | `CONTRACT_NAMES`/`contractName`/`messageFor`: variante de `DomainError` → nombre del contrato → mensaje de usuario | Ese mapeo **no cruza el FFI**. Vive en un paquete neutral (fuera de `apps/react-native`) porque lo necesitan también el paquete WASM y Angular — dos copias se desincronizan |
-| `src/guard.ts` | La guardia 4: aserta `DomainError['tag'] ≡ ContractTag` | La tabla vive en un paquete que no puede depender de ningún flavour generado; la equivalencia contra el tipo real se aserta acá. No exporta nada en runtime, existe sólo para que `tsc` lo mire — ver [TESTING.md](TESTING.md#guardia-4-ya-no-la-sostiene-un-satisfies-local-la-sostiene-srcguardts) |
+| `src/guard.ts` | La guardia 4: aserta `DomainError['tag'] ≡ ContractTag` | La tabla vive en un paquete que no puede depender de ningún flavour generado; la equivalencia contra el tipo real se aserta aquí. No exporta nada en runtime, existe sólo para que `tsc` lo mire — ver [TESTING.md](TESTING.md#guardia-4-ya-no-la-sostiene-un-satisfies-local-la-sostiene-srcguardts) |
 | `example/src/adapter/core.ts` | Reexporta las nueve funciones | **No traduce nombres ni tipos**: una segunda nomenclatura se desincroniza en la primera regeneración |
-| `example/src/contract/sources.ts` | Lee `cases.json` y reexporta `messageFor` de `@banco/contract` | Las cuentas, la clave y el nonce son **datos del contrato**, no constantes de la app; `messageFor` ya no se reimplementa acá, era una copia exacta |
+| `example/src/contract/sources.ts` | Lee `cases.json` y reexporta `messageFor` de `@banco/contract` | Las cuentas, la clave y el nonce son **datos del contrato**, no constantes de la app; `messageFor` ya no se reimplementa aquí, era una copia exacta |
 | `userMessage`, de `@banco/contract` | `DomainError` → texto de usuario, en el borde de UI | **Ya no vive en esta app.** Era `example/src/adapter/ContractMessages.ts`, una copia casi idéntica de la de Angular; el arreglo de la Fase 6 —que el diagnóstico dejara de llegar a la pantalla— hubo que aplicarlo en los dos lugares. Ahora los hooks lo importan del paquete |
 | `example/src/format/money.ts` | `S/` y separadores, **sobre el string** | Nunca convierte a `number`. Escrito a mano y no con `Intl`: ver [PENDING.md](PENDING.md#intlnumberformat-y-por-qué-el-formateador-está-escrito-a-mano) |
 | `__benchmarks__/baseline.ts` | Aritmética IEEE-754 sobre montos | **La excepción**, y existe para exhibir el fallo. Su test comprueba que diverge del contrato |
@@ -98,7 +98,7 @@ flowchart TD
 **El binario de Rust se genera primero, para las cuatro apps a la vez.** La secuencia
 completa, en orden, vive en
 [rust-core/BUILD.md](../../rust-core/BUILD.md#generar-el-core-que-consumen-las-cuatro-apps);
-acá abajo están solo los pasos puntuales que le tocan a esta app (Android e iOS del turbo
+aquí abajo están solo los pasos puntuales que le tocan a esta app (Android e iOS del turbo
 module, y el `.wasm` del que depende Angular).
 
 Ya instalado y verificado en esta máquina: Node 22.16, pnpm, Java 21 LTS, Xcode, NDK
@@ -128,9 +128,9 @@ O sea que **los 129 tests de esta app necesitan el toolchain nativo**: `ubrn:and
 NDK y `ubrn:ios` pide Xcode. Con uno de los dos alcanza para `src/bindings.tsx`. Es la diferencia
 con Angular, que sólo necesita `wasm:generate` y ningún toolchain móvil.
 
-Verificado sobre un clone limpio el 2026-09-17: con los tres comandos, **129 de 129 en verde**.
+Con los tres comandos, la suite da **129 de 129 en verde** desde un clone limpio.
 
-### Dónde se cablea, y qué **no** tenés que editar
+### Dónde se cablea, y qué **no** hay que editar
 
 Una duda razonable: «¿y dónde le digo a la app cómo se llama lo que generó Rust?». **En ningún
 lado.** No hay que tocar ningún archivo de configuración: el cableado está fijo en el código del
@@ -160,7 +160,7 @@ del que depende Angular.
 Los comandos de abajo son los que **efectivamente se corrieron** para cerrar esta fase.
 
 ```bash
-# Metro, en su propia terminal. Si acabás de reconstruir nativo, --reset-cache no es opcional.
+# Metro, en su propia terminal. Tras reconstruir nativo, --reset-cache no es opcional.
 cd apps/react-native/example
 pnpm exec react-native start --reset-cache
 
@@ -235,7 +235,7 @@ en Android y en iOS— decía **`1.0.0+b5b1388`**, idéntico en las cuatro.
 ## Qué se puede hacer, pantalla por pantalla
 
 Los labels son los de [`docs/ui-spec.md`](../../docs/ui-spec.md), **textuales**: la demo pone
-las cuatro apps lado a lado y las compara carácter por carácter. Cambiar uno acá obliga a
+las cuatro apps lado a lado y las compara carácter por carácter. Cambiar uno aquí obliga a
 cambiarlo en las cuatro.
 
 ### Aritmética — el float rompe el dinero
@@ -314,7 +314,7 @@ permite, no algo que esta POC no hizo.
 ## Qué NO se puede hacer, y por qué
 
 - **Ni una regla de negocio en TypeScript.** Ni un Luhn, ni una tasa, ni una multiplicación
-  sobre un monto. Si estás escribiendo aritmética sobre dinero acá, estás haciendo lo contrario
+  sobre un monto. Escribir aritmética sobre dinero aquí es hacer lo contrario
   de lo que la POC demuestra.
 - **Ningún monto pasa por `number`.** Ni `parseFloat`, ni `Number()`, ni `+`. Son strings desde
   `rust_decimal` hasta el `<Text>`. La única excepción son las dos baselines, y existen para

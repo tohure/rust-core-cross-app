@@ -3,10 +3,10 @@
 Todo lo que hay que hacer **antes** de poder correr la app: el toolchain, la compilación del
 núcleo Rust para Android, los bindings Kotlin y el APK.
 
-Si solo querés correr la app y ya tenés el entorno armado, no necesitás este archivo —
+Para solo correr la app con el entorno ya armado, este archivo no hace falta —
 [README.md](README.md) alcanza.
 
-**Todos los comandos de acá se ejecutaron tal como están escritos**, y la salida que sigue a cada
+**Todos los comandos de aquí se ejecutaron tal como están escritos**, y la salida que sigue a cada
 uno es la que devolvieron. Ninguno está deducido.
 
 ## El pipeline, de un vistazo
@@ -132,7 +132,7 @@ cargo run --bin uniffi-bindgen -- generate \
 # No UniFFI metadata found in target/aarch64-linux-android/release/libcore_financiero.so
 ```
 
-Dos razones, las dos verificadas acá:
+Dos razones, las dos verificadas aquí:
 
 1. El perfil de release del workspace lleva **`strip = true`**, que borra los símbolos de
    metadata que uniffi necesita leer.
@@ -278,6 +278,6 @@ android skills add android-cli testing-setup agp-9-upgrade edge-to-edge --projec
 ```
 
 `android skills list` muestra el catálogo completo. **Ojo:** `jetpack-compose-m3` es de
-**Wear OS**, no de Compose para teléfono —duplica a `wear-compose-m3`— y no sirve acá. No
+**Wear OS**, no de Compose para teléfono —duplica a `wear-compose-m3`— y no sirve aquí. No
 hay skill de Compose Material3 para teléfono en el catálogo.
 

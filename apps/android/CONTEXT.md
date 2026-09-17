@@ -13,7 +13,7 @@ El proyecto base ya existe y compila; los valores de arriba salen de
 
 **Esta app no contiene ni una sola regla de negocio.** No hay validación de CCI, no hay
 algoritmo de Luhn, no hay alícuota de ITF ni fórmulas. Todo eso se pide al core. Si te
-descubres escribiendo aritmética sobre montos en Kotlin, estás haciendo lo contrario de lo
+descubre escribiendo aritmética sobre montos en Kotlin, está haciendo lo contrario de lo
 que la POC quiere demostrar.
 
 Lo único que esta app hace con los montos es **formatearlos para mostrar**.
@@ -25,7 +25,7 @@ no hay TCEA y no hay validación de RUC: se recortaron del alcance antes de impl
 Si algo no está en esta lista, no existe.
 
 Los nombres de abajo se leyeron de los **bindings generados** con
-`uniffi-bindgen --language kotlin` (uniffi 0.32), no se dedujeron: uniffi convierte el
+`uniffi-bindgen --language kotlin` (uniffi 0.31), no se dedujeron: uniffi convierte el
 `snake_case` de Rust a lowerCamelCase y emite funciones de nivel superior en el paquete
 `uniffi.core_financiero`.
 
@@ -80,7 +80,7 @@ la vez** — la paridad es la demo.
 
 **Las pantallas, sus labels y el orden de campos están en
 [`docs/ui-spec.md`](../../docs/ui-spec.md)**, que es normativo para las cuatro apps. No
-inventes labels acá: cambiarlos obliga a cambiarlos en las cuatro.
+inventes labels aquí: cambiarlos obliga a cambiarlos en las cuatro.
 
 ## Estructura
 
@@ -161,7 +161,7 @@ object CoreFinanciero {
 > `libcore_financiero.so` no carga, o JNA falla al resolver un símbolo, eso vuelve como
 > `Result.failure` por el mismo camino que un error de negocio. La capa de UI lo convierte en un
 > texto genérico —`No se pudo completar la operación.`, normativo en `docs/ui-spec.md`—, así que
-> el diagnóstico se perdería del todo si no quedara logueado acá. Hasta la Fase 6 no se logueaba
+> el diagnóstico se perdería del todo si no quedara logueado aquí. Hasta la Fase 6 no se logueaba
 > y además se mostraba crudo: la pantalla de Aritmética llegaba a decir
 > `java.lang.UnsatisfiedLinkError: dlopen failed: …`, verificado con un test.
 
@@ -240,13 +240,13 @@ Nunca redondea: el core ya entregó el valor con la escala correcta.
 
 Destilado de [TanayenAI](https://github.com/tohure/TanayenAI), que resolvió bien esta capa.
 **Ojo con qué se copia:** ahí el ViewModel vive en `shared/commonMain/presentation/viewmodel`
-y es KMP, compartido entre Android e iOS. **Acá eso no aplica y no va a aplicar**: lo
+y es KMP, compartido entre Android e iOS. **Aquí eso no aplica y no va a aplicar**: lo
 compartido es el dominio en Rust, que cruza por uniffi como funciones puras. Cada app escribe
 su propio ViewModel, en su propio lenguaje, y eso es exactamente lo que la POC demuestra.
 Lo transferible son los patrones de UI, no la estrategia de compartir.
 
 Lo mismo con el stack de ese proyecto: **Koin, SQLDelight, Ktor y KMP-NativeCoroutines no
-entran acá.** No hay red, ni persistencia, ni flows cruzando a Swift, y una app de cinco
+entran aquí.** No hay red, ni persistencia, ni flows cruzando a Swift, y una app de cinco
 pantallas con un solo adapter no necesita un contenedor de DI. `viewModel()` de
 `lifecycle-viewmodel-compose` alcanza.
 
@@ -349,7 +349,7 @@ class TransferViewModel(private val core: CoreFinanciero) : ViewModel() {
 6. **Un booleano por operación**, no uno global. `isLoading` (transferencia en curso) y
    `isSaving` son cosas distintas; colapsarlos hace que una operación apague el indicador de
    la otra.
-7. **El error se guarda ya traducido a texto de usuario.** La traducción vive acá, leyendo
+7. **El error se guarda ya traducido a texto de usuario.** La traducción vive aquí, leyendo
    `contracts/messages.es.json`; la vista solo pinta. Ver la regla 3 del adapter.
 8. **El cache crudo va aparte del estado.** El estado guarda lo derivado —lo que la pantalla
    pinta—; el cache guarda la lista completa. Así filtrar no obliga a volver a pedir, y en
@@ -366,7 +366,7 @@ TanayenAI tiene `domain/repository` (interfaces) + `data/repository` (impls con 
 tipos de la base a los de dominio. **Ese diseño resuelve problemas que esta POC no tiene**, y
 copiarlo sería ceremonia:
 
-| Práctica de allá | Acá | Por qué |
+| Práctica de allí | Aquí | Por qué |
 |---|---|---|
 | Interfaz de repositorio + impl | **No.** Un solo `object CoreFinanciero` | No hay implementación alternativa que inyectar, ni base de datos que sustituir en tests. La interfaz existiría para nadie. |
 | `withContext(Dispatchers.Default)` dentro del repo | **No.** Llamadas síncronas | El core responde en microsegundos. El salto de hilo cuesta más que el cálculo. Única excepción: la pantalla de benchmark. |
@@ -376,7 +376,7 @@ copiarlo sería ceremonia:
 | Koin para DI | **No.** `viewModel()` | Cinco pantallas y un adapter sin dependencias. |
 
 **La regla detrás de la tabla:** cada capa de esas existe para desacoplar algo que puede
-cambiar. Acá lo único que hay del otro lado del adapter es una librería estática de Rust que
+cambiar. Aquí lo único que hay del otro lado del adapter es una librería estática de Rust que
 no se reemplaza, no se moquea y no tiene modos. Agregar capas sobre eso no es arquitectura,
 es ceremonia — y en una POC cuyo argumento es *"la lógica vive en un solo lugar"*, cada capa
 intermedia en Kotlin debilita la demostración.
@@ -420,7 +420,7 @@ Benchmark**, y el pie con `coreVersion()` visible en las cuatro.
 
 **Los wireframes, los labels exactos y el orden de campos viven en
 [`docs/ui-spec.md`](../../docs/ui-spec.md)** — normativo para las cuatro apps. No se
-duplican acá: cuatro copias de la misma lista divergen, que es justo lo que la demo no puede
+duplican aquí: cuatro copias de la misma lista divergen, que es justo lo que la demo no puede
 permitirse. Cambiar un label obliga a cambiarlo en las cuatro apps y en ese archivo, en el
 mismo cambio.
 

@@ -1,7 +1,7 @@
 # Pendientes y deuda de `apps/react-native`
 
 > **Qué es este archivo, para no leerlo mal.** Es un registro de **decisiones tomadas y huecos
-> conocidos**, no una lista de tareas. Buena parte de lo que hay acá es la explicación de por qué
+> conocidos**, no una lista de tareas. Buena parte de lo que hay aquí es la explicación de por qué
 > el WASM quedó como quedó, y sigue escrito a propósito: **el valor está en el porqué**, que es lo
 > que evita que alguien reabra la discusión o "arregle" algo deliberado. Que el archivo se llame
 > `PENDING.md` no significa que todo lo de adentro esté pendiente.
@@ -17,7 +17,7 @@
 >
 > Lo demás está cerrado, es explicación, o es una decisión —como la de no tener CI—.
 
-> **Lo transversal no está acá.** El cuadro comparativo de los cuatro benchmarks —medidos en
+> **Lo transversal no está aquí.** El cuadro comparativo de los cuatro benchmarks —medidos en
 > aparatos físicos y cerrado en la Fase 7—, la ausencia
 > de CI en las cinco bases de código, el `catch` genérico que muestra texto de diagnóstico como
 > mensaje de usuario, las divergencias de paridad abiertas y la regla de que un `Record` de uniffi
@@ -92,7 +92,7 @@ Pero es un cambio al crate compartido: **Android e iOS entran en reverificación
 > **Ya se hizo, y esto lo declaraba abierto.** La reverificación se cerró en la Task 14 de la
 > Fase 5, y su evidencia vivía sólo en el ledger de esa fase. La Fase 6 la volvió a confirmar por
 > tercera vez: las dos suites de Android en verde (56 tests) y las 53 de iOS, éstas **sobre un
-> iPhone físico**. Corregido acá para que el documento deje de pedir algo que ya está hecho.
+> iPhone físico**. Corregido aquí para que el documento deje de pedir algo que ya está hecho.
 
 ### `ubrn.wasm.yaml`: por qué hay un segundo archivo de config
 
@@ -182,7 +182,7 @@ Cuando Angular haga `import { calculateItf } from '@banco/core-financiero'` va a
 Ese era el riesgo previsto mientras la Fase 5 no existía: el artefacto construido y probado, pero
 **sin la puerta por la que Angular entra a buscarlo**.
 
-**Resuelto, pero no como se preveía acá.** La Task 4 de la Fase 5 no le agregó una condición
+**Resuelto, pero no como se preveía aquí.** La Task 4 de la Fase 5 no le agregó una condición
 `"web"` al `exports` de `@banco/core-financiero`: el WASM pasó a vivir en un paquete propio,
 `packages/core-financiero-wasm`, con su propia fachada tipada y su propio `exports`. Angular (y el
 test de contrato por WASM) importan ese paquete directamente, nunca `@banco/core-financiero` — así
@@ -209,7 +209,7 @@ Las otras dos apps formatean a mano:
 - `apps/android/.../format/MoneyFormatter.kt` → `"S/ $sign$grouped.$decimals"`
 - `apps/ios/.../Format/MoneyFormatter.swift` → `"S/ \(parsed.sign)\(grouped).\(...)"`
 
-Las dos con **espacio normal**. O sea que usar `Intl` acá produciría `S/\u00A04,899.99` donde
+Las dos con **espacio normal**. O sea que usar `Intl` aquí produciría `S/\u00A04,899.99` donde
 Android y iOS producen `S/ 4,899.99`: **una diferencia de un byte, invisible en pantalla, que
 rompe exactamente la comparación carácter por carácter que la POC existe para demostrar.** El
 peor modo de fallar posible — el que se ve bien en la demo y está mal.
@@ -244,7 +244,7 @@ no existe porque es transitiva de `react-native`. Se declara como devDependency 
 
 **Advertencia para quien agregue otra librería nativa:** después de instalarla hay que **reiniciar
 Metro con `--reset-cache`**. Sin eso el bundle viejo sigue sirviéndose y el síntoma es engañoso —
-acá dio `ReferenceError: Property 'window' doesn't exist`, que no tiene nada que ver con la causa.
+aquí dio `ReferenceError: Property 'window' doesn't exist`, que no tiene nada que ver con la causa.
 
 ---
 
@@ -296,7 +296,7 @@ no deducirlo del changelog.
 fuera del hilo principal». En Android eso es `withContext(worker)` y en iOS `Task.detached`:
 hilos de verdad.
 
-**Acá no se cumple, y no es una omisión.** El JavaScript de React Native corre en un solo hilo y
+**Aquí no se cumple, y no es una omisión.** El JavaScript de React Native corre en un solo hilo y
 esta app no tiene worker. El `setTimeout(0)` del hook sólo **cede el turno** para que el spinner
 alcance a pintarse antes de que el bucle lo bloquee; mientras mide, la UI está congelada. Con
 1000 iteraciones no se nota; con 999999 sí. Lo único que acota eso es el tope de 6 dígitos del
@@ -345,7 +345,7 @@ se lee de una captura de pantalla— están en [BUILD.md](BUILD.md).
 
 ## Tres divergencias entre las apps, encontradas al escribir ésta
 
-Ninguna rompe la comparación de strings, y ninguna se tocó desde acá porque son código de otras
+Ninguna rompe la comparación de strings, y ninguna se tocó desde aquí porque son código de otras
 fases. Quedan anotadas para la revisión:
 
 1. ~~**El campo `Hex cifrado` acepta mayúsculas en Android y no en iOS.**~~ **Cerrada** por la

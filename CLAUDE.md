@@ -16,7 +16,33 @@ producen strings idénticos carácter por carácter sobre el mismo set de casos.
 archivos, carpetas, crates, ramas, funciones, tipos, campos, variables, constantes y
 nombres de test (`validate_cci`, `execute_transfer`, `DomainError`, `Account.balance`).
 Contenido de la documentación, comentarios, docs de función, textos de UI y mensajes de
-commit: **español**. Commits en Conventional Commits.
+commit: **español neutro**. Commits en Conventional Commits.
+
+**Qué significa neutro aquí, en concreto**, porque decir sólo «español» no alcanzó y la
+documentación se corrió al rioplatense sin que ninguna revisión lo cazara:
+
+| No | Sí |
+|---|---|
+| `tiene`, `puede`, `quiere`, `sabe` | `tiene`, `puede`, `quiere`, `sabe` — o impersonal |
+| `andá`, `mirá`, `fijate`, `dale` | `vaya`, `vea`, `revise` — o impersonal |
+| `vos` | `usted`, o reformular sin pronombre |
+| `aquí`, `allí` | `aquí`, `allí` |
+
+**Y la preferencia de fondo: impersonal antes que trato directo.** «Si se saltea el paso, el
+build falla» en vez de «si te salteás el paso, te falla el build». Es lo que hace documentación
+técnica que se lee igual en cualquier país, y evita tener que elegir entre `tú` y `usted`.
+
+**A qué documentos aplica.** A los que lee una persona que llega al proyecto: los `README.md`,
+`CONTEXT.md`, `BUILD.md`, `TESTING.md` y `PENDING.md` de cada subproyecto, los de `docs/` y
+`contracts/`, y este archivo.
+
+**Quedan exentos `docs/superpowers/plans/` y `docs/superpowers/specs/`, y los ledgers de
+`.superpowers/`.** No son documentación de cara al usuario: son el acta de lo que se decidió en
+cada fase, con su fecha. Reescribirlos es falsificar el registro, y además el esfuerzo no
+compra nada porque nadie los lee para aprender a usar el proyecto. **No los normalices.**
+
+La excepción son las citas textuales de mensajes de error y los nombres propios, que se
+transcriben tal cual salen.
 
 Las siglas bancarias peruanas —`cci`, `itf`— **no se traducen**: son nombres propios, no
 palabras. Sí llevan prefijo en inglés (`validate_cci`, `calculate_itf`, `ITF_RATE`).
@@ -89,8 +115,8 @@ Reglas derivadas, válidas en los cinco proyectos:
    pública de Rust, ni `Double`/`Float` en Kotlin/Swift, ni `number`/`parseFloat`/
    `Number()`/aritmética en TypeScript. Tampoco en tests.
 2. **Cero reglas de negocio fuera de `rust-core`.** Ninguna validación de CCI con
-   regex, ninguna fórmula de cuota, ninguna tasa. Si estás escribiendo aritmética
-   sobre montos en Kotlin, Swift o TS, estás haciendo lo contrario de lo que la POC
+   regex, ninguna fórmula de cuota, ninguna tasa. Escribir aritmética
+   sobre montos en Kotlin, Swift o TS es hacer lo contrario de lo que la POC
    demuestra. Únicas excepciones permitidas, y la lista es exhaustiva: los archivos
    `baseline` del benchmark, que existen justamente para exhibir la divergencia de centavos y
    **deben llevar un comentario que lo diga**:
@@ -212,7 +238,7 @@ Android y en iOS, con **129 tests en verde** y el contrato **31/31 por N-API y 3
 Tiene una diferencia real con las otras dos que conviene decir en la demo: **ninguna prueba
 automatizada cruza JSI.** React Native no tiene corredor de tests en dispositivo —Jest mockea los
 nativos y un e2e con Detox está fuera de alcance—, así que el cruce se verifica con un smoke
-manual. Android tiene 20 tests instrumentados y iOS corre XCTest sobre aparato; acá no.
+manual. Android tiene 20 tests instrumentados y iOS corre XCTest sobre aparato; aquí no.
 
 Su benchmark dio **el resultado más interesante de la POC, y no es «iOS gana»**: el orden se da
 vuelta según la plataforma. En el Pixel 6, React Native es **15× más barato** que la app nativa
@@ -232,7 +258,7 @@ verde** con el contrato **31/31**, y las cuatro pantallas andando sobre el WASM 
 Tiene una particularidad que conviene decir en la demo: **el benchmark de esta app no mide como
 las otras tres**: el `performance.now()` del
 navegador está cuantizado a ~100 µs por la mitigación anti-Spectre, o sea un reloj ~100× más
-grueso que lo que se quiere medir, así que acá se cronometran lotes y se divide. La cifra —core
+grueso que lo que se quiere medir, así que aquí se cronometran lotes y se divide. La cifra —core
 ~1,5 µs contra ~0,07 µs de la baseline nativa— ubica el orden de magnitud, y **no** sirve para una
 comparación centavo a centavo con Android e iOS. Ver
 [apps/web-angular/README.md](apps/web-angular/README.md) y
@@ -319,7 +345,7 @@ El orden no es negociable: lo impone el grafo de dependencias de build de arriba
   `strip` del perfil release no se comió nada.
   A diferencia de Android **no hay dos suites**: el core se enlaza estáticamente, así que los
   tres niveles corren en el mismo bundle — y por eso nada obliga a que el seam de
-  `CoreFinanciero` exista, cosa que allá sí fuerza la plataforma.
+  `CoreFinanciero` exista, cosa que allí sí fuerza la plataforma.
   El benchmark quedó medido y el resultado es el más contundente de la POC: **el piso del cruce
   cuesta 0,062 µs contra los 47,1 µs de Android**, los dos en release y los dos sobre un teléfono.
   El mismo núcleo; lo que cambia es el puente. La Fase 7 lo re-midió en un iPhone 12 —el número
@@ -330,7 +356,7 @@ El orden no es negociable: lo impone el grafo de dependencias de build de arriba
   React Native 0.87 con Fabric y Hermes. Entregó **109 tests en verde** —el contrato 28/28 por
   N-API y otros 28/28 por WASM, más los hooks y componentes— y las cuatro pantallas de
   [docs/ui-spec.md](docs/ui-spec.md) andando en Android y en iOS. **Desbloqueó la Fase 5:** el
-  `.wasm` se construye acá, no en `rust-core`.
+  `.wasm` se construye aquí, no en `rust-core`.
   Es la primera fase donde **el aparato encontró lo que los tests no podían**: con todo en verde,
   dos pantallas salían visiblemente rotas porque Fabric aplana los `View` que sólo aportan layout
   y descoloca las filas de abajo al insertarse un bloque. RNTL renderiza un árbol JSON y no tiene
@@ -345,7 +371,7 @@ El orden no es negociable: lo impone el grafo de dependencias de build de arriba
   del servicio, el MIME del `.wasm` y los nombres de las carpetas de `features/`; están corregidas
   en el propio CONTEXT y marcadas como tales.
   Es la única app **sin red de `catch_unwind`**: `wasm32-unknown-unknown` impone `panic = "abort"`,
-  así que un pánico del core acá no vuelve como error del FFI sino como un trap que inutiliza la
+  así que un pánico del core aquí no vuelve como error del FFI sino como un trap que inutiliza la
   instancia del módulo. Lo único que la protege es la regla 5 y los proptests `*_never_panics` del
   core. Ver [apps/web-angular/PENDING.md](apps/web-angular/PENDING.md).
 
@@ -495,7 +521,7 @@ y cada instalación se verifica antes de seguir.
 | 1 | nada — ✅ **hecho** (crates puros, se testean en el host) | `cargo test --workspace` → 67 passed |
 | 2 | `cargo install cargo-ndk` + 3 targets Android — ✅ **hecho** (cargo-ndk 4.1.2, NDK 30.0.16248370) | `cargo ndk --version`; `./gradlew :app:connectedDebugAndroidTest` → 15 passed |
 | 3 | 2 targets iOS (`aarch64-apple-ios`, `-sim`) — ✅ **hecho** (XCFramework con los dos slices) | `rustup target list --installed`; `xcodebuild test …` → **47 passed en simulador y en aparato** |
-| 4 | `uniffi-bindgen-react-native` 0.31.0-5 (trae el CLI `ubrn`, que se compila con cargo al primer uso) + el target `wasm32-unknown-unknown`, que se adelantó acá porque el `.wasm` se construye en este subproyecto — ✅ **hecho** | desde `apps/react-native/`: `pnpm exec ubrn --help` (este build no tiene `--version`); `pnpm test` → 109 passed |
+| 4 | `uniffi-bindgen-react-native` 0.31.0-5 (trae el CLI `ubrn`, que se compila con cargo al primer uso) + el target `wasm32-unknown-unknown`, que se adelantó aquí porque el `.wasm` se construye en este subproyecto — ✅ **hecho** | desde `apps/react-native/`: `pnpm exec ubrn --help` (este build no tiene `--version`); `pnpm test` → 109 passed |
 | 5 | Angular CLI (el target `wasm32-unknown-unknown` ya lo instaló la Fase 4) — ✅ **hecho** | `ng version`; desde `apps/web-angular/`: `pnpm test` → 99 passed |
 
 Los comandos exactos están en el plan de cada fase.

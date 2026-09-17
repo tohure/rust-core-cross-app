@@ -3,7 +3,31 @@
 POC: un núcleo de dominio financiero escrito en **Rust**, consumido sin reescribirse por
 cuatro frontends — Android nativo, iOS nativo, React Native y web Angular.
 
+![Rust](https://img.shields.io/badge/Rust-1.98-000000?logo=rust&logoColor=white)
+![uniffi](https://img.shields.io/badge/uniffi-0.31-6E4AFF)
+![Kotlin](https://img.shields.io/badge/Kotlin-2.4-7F52FF?logo=kotlin&logoColor=white)
+![Swift](https://img.shields.io/badge/Swift-6.3-F05138?logo=swift&logoColor=white)
+![React Native](https://img.shields.io/badge/React_Native-0.87-61DAFB?logo=react&logoColor=black)
+![Angular](https://img.shields.io/badge/Angular-21-DD0031?logo=angular&logoColor=white)
+![WebAssembly](https://img.shields.io/badge/WebAssembly-wasm32-654FF0?logo=webassembly&logoColor=white)
+![Contrato](https://img.shields.io/badge/contrato-31%2F31%20en%205%20bases-2EA043)
+
 ![Arquitectura](assets/architecture-rust-core-multiplatform.png)
+
+## Stack
+
+| | Tecnología | Cómo llega al núcleo |
+|---|---|---|
+| **Núcleo** | Rust 1.98 · `rust_decimal` · ChaCha20-Poly1305 | — |
+| **Frontera** | uniffi 0.31 | Genera los bindings de las cuatro plataformas desde un solo crate |
+| **Android** | Kotlin 2.4 · Jetpack Compose · AGP 9.4 | `.so` por ABI + bindings Kotlin, sobre **JNA** |
+| **iOS** | Swift 6.3 · SwiftUI · Xcode 26.6 | XCFramework **estático** + bindings Swift |
+| **React Native** | RN 0.87 · Fabric · Hermes | Turbo Module **JSI** vía `ubrn` |
+| **Web** | Angular 21 standalone · Signals | **WebAssembly** (`wasm32-unknown-unknown`) |
+| **Monorepo** | pnpm workspaces · Node 22 | — |
+
+Los montos viajan como `String` de punta a punta: ningún tipo de punto flotante toca dinero
+en ninguna de las cinco bases de código.
 
 ## Qué demuestra
 
@@ -49,28 +73,6 @@ rust-core/crates/ffi        (único crate exportado; domain/calculation/validati
          └── build web                        ──> WASM ──> apps/web-angular
 ```
 
-## Estado
-
-**Las seis fases están completadas: la POC está cerrada.**
-
-| Fase | Entregable | Estado |
-|---|---|---|
-| 0 | Toolchain + `contracts/cases.json` | ✅ Completada |
-| 1 | `rust-core` — dominio, cálculo, validación, cifrado, FFI | ✅ Completada |
-| 2 | `apps/android` — Kotlin + Compose | ✅ Completada |
-| 3 | `apps/ios` — Swift + SwiftUI | ✅ Completada |
-| 4 | `apps/react-native` — Turbo Module, y origen del WASM | ✅ Completada |
-| 5 | `apps/web-angular` — WASM | ✅ Completada |
-
-Cada fase terminó con su test de contrato en verde **y** con el `README.md` de su subproyecto:
-comandos ya ejecutados (no deducidos) más un diagrama de arquitectura en Mermaid.
-
-**El cierre de la Fase 5 verificó lo que sólo se podía comprobar con las cuatro apps a la
-vez:** las cuatro mostrando el mismo `coreVersion()` en pantalla. Antes de regenerar los
-artefactos estaban en tres SHA de git distintos, así que nunca habrían coincidido en una demo
-armada sin ese chequeo — el procedimiento está en
-[docs/demo-runbook.md](docs/demo-runbook.md), y no es opcional.
-
 ## Arranque
 
 ### Paso 0, y no es opcional: generar los artefactos del núcleo
@@ -80,7 +82,7 @@ Android, ni el `.xcframework` de iOS, ni el Turbo Module, ni el `.wasm` — est�
 `.gitignore` a propósito, porque son artefactos de build. **Ninguna de las cuatro apps
 compila sin ellos**, y el error que dan no siempre dice que eso es lo que falta.
 
-Antes que nada, averiguá en cuál de los dos casos estás:
+Antes que nada, conviene averiguar en cuál de los dos casos se está:
 
 ```bash
 # desde la raíz del repo — lista los cuatro artefactos, uno por app
@@ -90,7 +92,7 @@ ls apps/android/core-financiero/src/generated/jniLibs/*/libcore_financiero.so \
    packages/core-financiero-wasm/generated/*.wasm 2>&1 | tail -20
 ```
 
-Si alguno dice `No such file or directory`, **empezá por acá**:
+Si alguno dice `No such file or directory`, **empezá por aquí**:
 
 > **Si es un clone limpio, el primer `pnpm install` va con `--ignore-scripts`.** Sin el flag
 > falla: el `prepare: bob build` de `apps/react-native` genera los `.d.ts` a partir de archivos
@@ -138,27 +140,9 @@ pnpm test
 pnpm exec ng serve                                # http://localhost:4200
 ```
 
-### Verificado desde un clone limpio
-
-Todo lo de arriba se probó el **2026-09-17 clonando el repo aparte** y siguiendo estos comandos
-tal como están escritos, no desde la máquina donde se desarrolló. Resultado:
-
-| Subproyecto | Desde cero | Qué hacía falta que el README no decía |
-|---|---|---|
-| `rust-core` | ✅ 71 tests | nada |
-| Angular | ✅ 102 tests | `pnpm install --ignore-scripts` |
-| iOS | ✅ 54 tests | `cargo build --release` del host |
-| Android | ✅ 36 de JVM | `cargo build --release` del host |
-| React Native | ✅ 129 tests | `pnpm napi:generate` |
-
-Los tres huecos ya están corregidos en los README y en `rust-core/CONTEXT.md`. Los tres eran de
-la misma forma: **pasos que en una máquina donde ya se construyó el proyecto sobran, y en un
-clone limpio son obligatorios.** Ninguno se puede descubrir sin clonar, y por eso «verificado
-desde un clone limpio» es ahora el cuarto criterio de cierre de fase — ver [CLAUDE.md](CLAUDE.md).
-
 ### No hay nada que configurar a mano
 
-Una duda razonable al llegar acá: «¿y dónde le digo a cada app cómo se llama lo que generó
+Una duda razonable al llegar aquí: «¿y dónde le digo a cada app cómo se llama lo que generó
 Rust?». **En ningún lado.** El cableado está fijo en el código de cada proyecto y los artefactos
 caen en rutas fijas: si están en su lugar, compila. La tabla de dónde vive cada cosa está en el
 README de cada app, en «Antes de correrla».
@@ -168,9 +152,6 @@ Cada subproyecto tiene su README con los requisitos y el paso a paso completo:
 [apps/ios/README.md](apps/ios/README.md),
 [apps/react-native/README.md](apps/react-native/README.md) y
 [apps/web-angular/README.md](apps/web-angular/README.md).
-
-Cada fase instala solo el toolchain y las skills que necesita: ver
-[docs/superpowers/skills-by-phase.md](docs/superpowers/skills-by-phase.md).
 
 ## Documentación
 
@@ -189,9 +170,3 @@ Es una POC de **dominio**. No hay red, ni base de datos, ni cache, ni runtime as
 Module Federation. Los datos son dummy: tasas, códigos de banco y montos son inventados y
 no corresponden a productos reales. Lo que se demuestra es la **coincidencia entre
 plataformas**, no la exactitud financiera.
-
-## Desarrollo
-
-Spec-Driven Development con el plugin [superpowers](https://github.com/anthropics/claude-plugins-official):
-spec → plan → ejecución con TDD → review → cierre de rama. Una rama por fase.
-Detalle en [CLAUDE.md](CLAUDE.md).

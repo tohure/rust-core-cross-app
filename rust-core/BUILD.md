@@ -3,10 +3,10 @@
 Todo lo que hay que hacer **antes** de que una app pueda consumir el core: el toolchain, la
 compilación, y la generación de los bindings por plataforma.
 
-Si solo querés correr los tests, no necesitás este archivo — [TESTING.md](TESTING.md)
+Para solo correr los tests, este archivo no hace falta — [TESTING.md](TESTING.md)
 alcanza.
 
-**Todos los comandos de acá se ejecutaron tal como están escritos**, desde `rust-core/`.
+**Todos los comandos de aquí se ejecutaron tal como están escritos**, desde `rust-core/`.
 Ninguno está deducido del [CONTEXT.md](CONTEXT.md).
 
 ## Requisitos previos
@@ -64,7 +64,7 @@ Qué se debe ver — **dos** artefactos, porque `crates/ffi` declara
 ```
 
 El **`.dylib`** (cdylib) es el que consume Android como `.so` y el que alimenta el
-`uniffi-bindgen` de acá abajo: ~432 KB con el perfil de release del workspace
+`uniffi-bindgen` de aquí abajo: ~432 KB con el perfil de release del workspace
 (`opt-level = "z"`, `lto = true`, `codegen-units = 1`, `strip = true`, `panic = "unwind"`).
 La primera compilación en limpio tarda alrededor de 1 m 05 s.
 
@@ -79,7 +79,7 @@ armar la app. Genera los mismos bindings que el `.dylib`, byte por byte — veri
 > Fase 2 eso son **tres `.a` de ~66 MB con LTO** —uno por ABI de Android
 > (`arm64-v8a`, `armeabi-v7a`, `x86_64`)— que nadie va a usar; en la Fase 5, uno más para
 > wasm. Se paga en tiempo de build y en espacio de `target/`, no en el tamaño del `.so` que
-> se embarca. Está escrito acá para que, cuando `cargo ndk` se ponga lento, nadie salga a
+> se embarca. Está escrito aquí para que, cuando `cargo ndk` se ponga lento, nadie salga a
 > buscarle la culpa al NDK ni a la máquina. Si molesta lo suficiente, la salida es un
 > `--crate-type` en la línea de comandos o una feature de Cargo — **no** sacar `staticlib`
 > del `Cargo.toml`, que es lo que rompería la Fase 3.
@@ -125,7 +125,7 @@ Fases 2 y 3, si se quiere el código formateado, se saca el flag y se instala el
 
 Los bindings salen a `target/`, que está en `.gitignore` (`/rust-core/target/`): son
 artefactos generados y no se commitean. Corriendo desde `rust-core/`, el path es relativo a
-ese directorio —`git status --porcelain target`, no `rust-core/target`, que desde acá sería
+ese directorio —`git status --porcelain target`, no `rust-core/target`, que desde aquí sería
 `rust-core/rust-core/` y solo devuelve un warning—; después de generar los bindings devuelve
 vacío.
 
@@ -252,7 +252,7 @@ El crate declara lo que ese flavour necesita bajo un bloque **condicionado por t
 Android e iOS no resuelven nada de esto (ver `crates/ffi/Cargo.toml` y el `extern crate ... as _`
 de `crates/ffi/src/lib.rs`, los dos comentados en el lugar).
 
-El build no se corre desde acá sino desde `apps/react-native`; el comando exacto está en
+El build no se corre desde aquí sino desde `apps/react-native`; el comando exacto está en
 [apps/react-native/BUILD.md](../apps/react-native/BUILD.md) y el resultado del spike que lo
 habilitó, en [apps/react-native/PENDING.md](../apps/react-native/PENDING.md).
 
@@ -323,7 +323,7 @@ fallo que este repositorio evita en todas partes, dos copias que se desincroniza
    [§ El mismo smoke en iOS](../apps/react-native/BUILD.md#el-mismo-smoke-en-ios).
 
 4. **Web / Angular**: el `.wasm` que consume `apps/web-angular` **se construye desde
-   `apps/react-native/`, no desde acá** — Angular no consume este crate directamente, consume
+   `apps/react-native/`, no desde aquí** — Angular no consume este crate directamente, consume
    lo que produce este paso. Desde `apps/react-native/`: `pnpm run wasm:generate` — envuelve
    `ubrn build wasm2 --release --and-generate --config ubrn.wasm.yaml` y encadena el build de
    esbuild del paquete. Deja `packages/core-financiero-wasm/generated/` (el `.wasm` +

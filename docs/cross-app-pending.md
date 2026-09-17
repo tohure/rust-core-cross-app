@@ -1,6 +1,6 @@
 # Pendientes transversales
 
-**Lo que no es de ninguna app.** Cada `apps/*/PENDING.md` conserva sólo lo suyo y apunta acá para
+**Lo que no es de ninguna app.** Cada `apps/*/PENDING.md` conserva sólo lo suyo y apunta aquí para
 lo demás: un tema, un dueño. Antes de este archivo, el mismo pendiente estaba escrito con distintas
 palabras en tres lugares, y corregirlo en uno dejaba mintiendo a los otros dos.
 
@@ -121,7 +121,7 @@ una rama que no se pushea es invisible para él. Lo que hacía falta ahí era pu
 El pedazo con buena relación costo/beneficio es **uno solo**: un job de Linux con las cuatro
 suites que **no** necesitan aparato —`rust-core` 71, Android JVM 35, React Native 129, Angular
 102: 337 tests en un par de minutos— sin macOS ni emuladores. Cazaría un cambio que rompe el
-contrato, que es el único tipo de regresión que importa acá.
+contrato, que es el único tipo de regresión que importa aquí.
 
 Lo que ese job tendría que hacer, como mínimo: instalar Rust con los targets, instalar pnpm,
 correr `napi:generate` y `wasm:generate` **antes** de `pnpm test`, y correr `cargo test
@@ -154,7 +154,7 @@ instancia del módulo inutilizable— reintentar no arregla nada.
 
 El diagnóstico no se tira: se loguea donde cada plataforma tiene **un solo dueño** para hacerlo.
 En Android, en `UniffiCoreFinanciero`, porque `runCatching` es el único punto donde se atrapa; en
-iOS, en la sobrecarga de `ContractMessages`, porque allá los métodos del protocolo son `throws` y
+iOS, en la sobrecarga de `ContractMessages`, porque allí los métodos del protocolo son `throws` y
 cada ViewModel tiene su propio `catch`; en React Native y Angular, en `userMessage`, con
 `console.error`.
 

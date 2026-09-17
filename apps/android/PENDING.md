@@ -3,10 +3,10 @@
 Lo que esta app **no** hace, y la razón. Está separado del [README](README.md) a propósito: un
 README que mezcla "cómo se usa" con "qué falta" no sirve para ninguna de las dos cosas.
 
-Nada de acá bloquea la demo. Son decisiones tomadas, no olvidos.
+Nada de aquí bloquea la demo. Son decisiones tomadas, no olvidos.
 
 > **Qué es este archivo, para no leerlo mal.** Es un registro de **decisiones tomadas y huecos
-> conocidos**, no una lista de tareas. Buena parte de lo que hay acá está cerrado o se decidió
+> conocidos**, no una lista de tareas. Buena parte de lo que hay aquí está cerrado o se decidió
 > no hacer, y sigue escrito a propósito: **el valor está en el porqué**, que es lo que evita que
 > alguien reabra la discusión dentro de seis meses o "arregle" algo que es deliberado. Que el
 > archivo se llame `PENDING.md` no significa que todo lo de adentro esté pendiente.
@@ -19,7 +19,7 @@ Nada de acá bloquea la demo. Son decisiones tomadas, no olvidos.
 > Todo lo demás de este archivo es explicación o está cerrado. En particular, **«Camino a
 > producción»** no son pendientes de la POC: es lo que haría falta si esto fuera una app real.
 
-> **Lo transversal no está acá.** El cuadro comparativo de los cuatro benchmarks —medidos en
+> **Lo transversal no está aquí.** El cuadro comparativo de los cuatro benchmarks —medidos en
 > aparatos físicos y cerrado en la Fase 7—, la ausencia
 > de CI en las cinco bases de código, el `catch` genérico que muestra texto de diagnóstico como
 > mensaje de usuario, las divergencias de paridad abiertas y la regla de que un `Record` de uniffi
@@ -62,7 +62,7 @@ aparecer, esto es lo que se midió en un Pixel 6 (el detalle y el método están
 
 | Idea | Veredicto |
 |---|---|
-| **Pasar de JNA a JNI** | **No aplica: ya estás en JNI.** uniffi 0.32 genera *direct mapping* (`Native.register` + `external fun`), o sea métodos nativos enlazados de verdad. No hay despacho reflexivo por llamada que eliminar |
+| **Pasar de JNA a JNI** | **No aplica: ya se usa JNI.** uniffi 0.31 genera *direct mapping* (`Native.register` + `external fun`), o sea métodos nativos enlazados de verdad. No hay despacho reflexivo por llamada que eliminar |
 | **Subir `opt-level` de `"z"` a `3`** | **Descartado por medición.** `coreVersion()` —sin argumentos y sin parseo— cuesta 47 µs y `add` cuesta 146: si cada `String` vale ~49 µs, el cómputo de Rust cae dentro del ruido. Comprimir el binario o no da igual, así que la prioridad de tamaño se sostiene |
 | **`java.lang.foreign` (Panama)** | **No existe en Android.** ART no implementa la FFM API |
 | **Menos cruces por interacción** | **Es el único lever real… y ya está aplicado.** Cada pantalla hace una o dos llamadas. El Benchmark cruza N veces *a propósito*, que es su razón de ser |
@@ -139,7 +139,7 @@ cada build.
 
 ### Detalles menores
 
-Los tres que estaban acá los cerró la Fase 6: el default de `nextEncrypt` ahora es el hex de 64
+Los tres que estaban aquí los cerró la Fase 6: el default de `nextEncrypt` ahora es el hex de 64
 del contrato, `AssetSourcesTest` aserta el saldo de la segunda cuenta, y el benchmark formatea con
 `Locale.ROOT` en vez de con el locale por defecto — que era la divergencia con React Native.
 
@@ -194,11 +194,11 @@ CoreFinancieroKit`. El detalle y lo que ese split sí resuelve —y lo que no—
 
 Esto **no** son pendientes: son cosas que la POC decidió no hacer.
 
-- Persistencia, red, animaciones, tablet/foldable, e i18n más allá del español.
+- Persistencia, red, animaciones, tablet/foldable, e i18n más allí del español.
 - **Keychain, Keystore, biométricos y almacenamiento seguro.** La pantalla de Tarjeta invita a
   pedirlo, así que conviene ser explícito: la POC demuestra que **el algoritmo de cifrado** vive
   en el core y produce el mismo resultado en las cuatro plataformas. Dónde guardarías una clave
-  en una app real es otro problema, y no está acá.
+  en una app real es otro problema, y no está aquí.
 - **Multi-módulo Gradle, Hilt y Koin.** Cinco pantallas y tres dependencias no los justifican;
   el cableado es manual en `AppContainer` y se lee de arriba abajo.
 - **Librería de navegación.** Cuatro pestañas sin back stack ni argumentos: un `sealed interface`

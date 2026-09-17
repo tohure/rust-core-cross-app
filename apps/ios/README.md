@@ -17,7 +17,7 @@ Release: el piso del cruce cuesta **0,062 µs** contra los **47,1 µs** de Andro
 | **Lenguaje / UI** | Swift 6.3.3 · SwiftUI · `@Observable` |
 | **Build** | Xcode 26.6 (17F113) |
 | **Deployment target** | **iOS 17.0** — no se negocia |
-| **Puente al núcleo** | uniffi 0.32 sobre un **XCFramework estático** |
+| **Puente al núcleo** | uniffi 0.31 sobre un **XCFramework estático** |
 | **Núcleo** | Rust, `libcore_financiero.a` en dos slices |
 | **Targets** | `CoreFinancieroKit` (framework estático, el borde FFI) + `ios-rust-test` (la app, presentación) |
 
@@ -105,7 +105,7 @@ Lo que impide que esos cuatro ViewModels diverjan son tres artefactos, no un mó
 **El binario de Rust se genera primero, para las cuatro apps a la vez.** La secuencia
 completa, en orden, vive en
 [rust-core/BUILD.md](../../rust-core/BUILD.md#generar-el-core-que-consumen-las-cuatro-apps);
-acá abajo está solo el paso puntual que le toca a esta app.
+aquí abajo está solo el paso puntual que le toca a esta app.
 
 Hace falta **Xcode 26** y un simulador iOS 17 o superior.
 
@@ -113,7 +113,7 @@ Si el repositorio ya viene con los artefactos construidos, eso alcanza. **Si no*
 compilar el núcleo Rust primero — eso pide `rustup` y los dos targets de iOS, y está todo en
 **[BUILD.md](BUILD.md)**.
 
-Para saber en cuál de los dos casos estás:
+Para saber en cuál de los dos casos se está:
 
 ```bash
 ls CoreFinanciero.xcframework/*/libcore_financiero.a
@@ -122,7 +122,7 @@ ls CoreFinanciero.xcframework/*/libcore_financiero.a
 Si lista **dos** archivos —`ios-arm64` y `ios-arm64-simulator`— se puede correr ya. Si no, ir a
 [BUILD.md](BUILD.md).
 
-### Dónde se cablea, y qué **no** tenés que editar
+### Dónde se cablea, y qué **no** hay que editar
 
 Una duda razonable: «¿y dónde le digo a la app cómo se llama lo que generó Rust?». **En ningún
 lado.** No hay que tocar ningún archivo de configuración: el cableado está fijo en el código del
@@ -149,9 +149,9 @@ xcodebuild build -project ios-rust-test.xcodeproj -scheme ios-rust-test \
   -destination 'platform=iOS Simulator,name=iPhone 17 Pro'
 ```
 
-> **Si tu máquina da `Unable to find a device matching the provided destination specifier`:**
-> el modelo "iPhone 17 Pro" no existe en todos los runtimes instalados. Verificado el
-> 2026-09-17: en esa máquina `OS:latest` resolvía a iOS 27.0, y "iPhone 17 Pro" solo existía
+> **Si aparece `Unable to find a device matching the provided destination specifier`:**
+> el modelo "iPhone 17 Pro" no existe en todos los runtimes de simulador instalados: con
+> `OS:latest` resolviendo a iOS 27.0, ese modelo solo existe
 > para el runtime 26.5, así que el `-destination` de arriba, sin más, fallaba. La salida fue
 > agregar el runtime explícito: `-destination 'platform=iOS Simulator,name=iPhone 17
 > Pro,OS=26.5'`. Corré `xcrun simctl list devices available` para ver qué modelo/runtime
@@ -273,7 +273,7 @@ Native, o sea 11×. Y a esta escala el reloj no alcanza: un tick de `ContinuousC
 ns, así que las cifras finas se toman por lotes y **no** se leen de esta pantalla. La tabla de los
 cuatro puentes está en [docs/cross-app-pending.md](../../docs/cross-app-pending.md).
 
-#### Última medición, 2026-09-17 — después del split en dos targets
+#### Salida completa de la sonda
 
 Salida completa de `FfiCostProbe` en el iPhone 12, en Release, con `warmup=2000 runs=20000`. El
 comando que la produjo está en [TESTING.md](TESTING.md):
@@ -290,10 +290,9 @@ add x1000                media=   0.410 us  (lotes de 1000)
 NativeBaseline.add x1000 media=   0.146 us  (lotes de 1000)
 ```
 
-**Por qué se volvió a medir:** partir la app en `CoreFinancieroKit` + `ios-rust-test` ponía en
-riesgo justamente el piso de 0,062 µs. Si el framework hubiera quedado **dinámico**, cada llamada
-al core pagaría indirección de `dyld`. Se eligió estático por eso, y esta corrida lo confirma: el
-piso es idéntico al dígito.
+**Por qué el framework del kit es estático y no dinámico:** el piso de 0,062 µs depende de que
+el `.a` quede enlazado dentro del binario de la app. Uno dinámico metería indirección de `dyld`
+en cada llamada al core. Esta medición lo confirma — el piso no se movió ni un dígito.
 
 **Lo que la vuelve concluyente es `NativeBaseline`, no el piso.** Esa fila no cruza el FFI —es
 aritmética de `Double` en Swift— así que el split no puede haberla afectado por ningún mecanismo,

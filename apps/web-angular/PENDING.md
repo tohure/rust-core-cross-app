@@ -1,10 +1,10 @@
 # Pendientes y deuda de `apps/web-angular`
 
-Lo que quedó abierto al cerrar la Fase 5, con el porqué de cada cosa. Nada de acá bloquea la
+Lo que quedó abierto al cerrar la Fase 5, con el porqué de cada cosa. Nada de aquí bloquea la
 demo; lo que sí la toca está marcado.
 
 > **Qué es este archivo, para no leerlo mal.** Es un registro de **decisiones tomadas y huecos
-> conocidos**, no una lista de tareas. Buena parte de lo que hay acá está cerrado o se decidió
+> conocidos**, no una lista de tareas. Buena parte de lo que hay aquí está cerrado o se decidió
 > no hacer, y sigue escrito a propósito: **el valor está en el porqué**, que es lo que evita que
 > alguien reabra la discusión dentro de seis meses o "arregle" algo que es deliberado. Que el
 > archivo se llame `PENDING.md` no significa que todo lo de adentro esté pendiente.
@@ -13,13 +13,13 @@ demo; lo que sí la toca está marcado.
 >
 > - **`MAX_CALIBRATION_ROUNDS` ya no acota nada** — código inalcanzable, la única deuda de esta
 >   app que se podría borrar hoy.
-> - **En wasm no hay red de `catch_unwind`** — no se arregla desde acá.
+> - **En wasm no hay red de `catch_unwind`** — no se arregla desde aquí.
 > - **`@ts-nocheck` en el generado** — aceptado, con su razón.
 >
 > Lo demás son hechos que conviene tener escritos —que el benchmark no es comparable con el de
 > las otras tres, que el pie se congela al construir— o decisiones, como la de no tener CI.
 
-> **Lo transversal no está acá.** El cuadro comparativo de los cuatro benchmarks —medidos en
+> **Lo transversal no está aquí.** El cuadro comparativo de los cuatro benchmarks —medidos en
 > aparatos físicos y cerrado en la Fase 7—, la ausencia
 > de CI en las cinco bases de código, el `catch` genérico que muestra texto de diagnóstico como
 > mensaje de usuario, las divergencias de paridad abiertas y la regla de que un `Record` de uniffi
@@ -77,7 +77,7 @@ otro camino— tampoco se movieron.
 ## El benchmark corre en el hilo principal, y no puede no hacerlo
 
 JavaScript en el navegador es de un solo hilo por pestaña. A diferencia de Android
-(`withContext(Dispatchers.Default)`) o iOS (`Task.detached`), acá no hay un adaptador de
+(`withContext(Dispatchers.Default)`) o iOS (`Task.detached`), aquí no hay un adaptador de
 concurrencia liviano: sacar el bucle del hilo principal exige **reinstanciar el módulo WASM en un
 Web Worker**, que es infraestructura nueva y quedó fuera de alcance.
 
@@ -125,11 +125,11 @@ cronometrado— porque dejan de ser inalcanzables apenas alguien suba `TOTAL_OPE
 (con 10⁹ hacen falta 25 rondas). El comentario del código lo dice así, con la aritmética, para
 que nadie lo lea como si corriera.
 
-## En wasm no hay red de `catch_unwind`, y no se arregla desde acá
+## En wasm no hay red de `catch_unwind`, y no se arregla desde aquí
 
 `wasm32-unknown-unknown` **impone** `panic = "abort"`: el `panic = "unwind"` del perfil de
 release se ignora en ese target. uniffi envuelve cada llamada en `catch_unwind` para convertir un
-pánico de Rust en un error del FFI, y acá esa red **no existe**. Un pánico del core no vuelve como
+pánico de Rust en un error del FFI, y aquí esa red **no existe**. Un pánico del core no vuelve como
 `DomainError`: es un trap de WebAssembly que deja la instancia del módulo inutilizable y obliga a
 recargar la página.
 
@@ -174,7 +174,7 @@ cerrar la fase: había un `.prettierrc` que nadie ejecutaba y 13 archivos lo vio
 
 ## El pie de `coreVersion()` se congela al construir
 
-No es deuda de esta app sino del diseño, y se repite acá porque es lo que invalida una demo sin
+No es deuda de esta app sino del diseño, y se repite aquí porque es lo que invalida una demo sin
 avisar: el SHA se inyecta **en tiempo de compilación** (`git rev-parse --short HEAD` en el
 `build.rs` de `crates/ffi`). Cada artefacto congela el HEAD del momento en que se construyó, así
 que **los cuatro hay que regenerarlos desde el mismo HEAD antes de la demo**, y cualquier commit
