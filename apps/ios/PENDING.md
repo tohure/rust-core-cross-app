@@ -126,9 +126,9 @@ cambiar los dos es una decisión de cuatro apps que no le toca a la Fase 3.
 Un label se cambia en [`docs/ui-spec.md`](../../docs/ui-spec.md) y en las cuatro apps, **en el
 mismo cambio**. Estos dos están mal y se corrigen cuando exista la tercera app:
 
-- El subtítulo del bloque de pegado de la pantalla de Tarjeta dice *"Pega aquí el hex que
-  produjo la app de iOS, React Native o Angular…"* — estando parado en la propia app de iOS.
-  `docs/ui-spec.md:195` lo escribió desde la perspectiva de Android.
+- ~~El subtítulo del bloque de pegado se autolistaba.~~ **Cerrado en la Fase 6.** El texto
+  normativo dejó de enumerar plataformas —`Pega aquí el hex que produjo cualquiera de las otras
+  apps.`— porque la lista hay que mantenerla cada vez que se agrega una y el defecto reaparece.
 - Un fallo al **descifrar** muestra *"No se pudo cifrar los datos de la tarjeta."* El core
   tiene un solo mensaje para la variante `Cifrado` y lo usa en las dos direcciones, así que
   el texto viene de `contracts/messages.es.json` y es normativo tal cual. Corregirlo es tocar

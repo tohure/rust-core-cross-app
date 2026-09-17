@@ -79,7 +79,7 @@ struct CardView: View {
             }
 
             SectionDivider(title: "Descifrar un hex de otra plataforma")
-            Text("Pega aquí el hex que produjo la app de iOS, React Native o Angular…")
+            Text("Pega aquí el hex que produjo cualquiera de las otras apps.")
                 .font(.caption)
                 .foregroundStyle(Palette.onSurfaceMuted)
             LabeledField(

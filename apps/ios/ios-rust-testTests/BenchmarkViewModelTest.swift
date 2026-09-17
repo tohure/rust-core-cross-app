@@ -44,6 +44,37 @@ struct BenchmarkViewModelTest {
         #expect(vm.state.coreP50 == "—")
     }
 
+    @Test("cero iteraciones explica por qué no pasó nada")
+    func zeroIterationsExplainsWhyNothingHappened() async {
+        // iOS era la ÚNICA de las cuatro que volvía muda: el botón no hacía nada y la
+        // pantalla parecía rota. El texto es normativo en `docs/ui-spec.md`.
+        let vm = BenchmarkViewModel(core: FakeCoreFinanciero())
+        vm.iterationsChanged("0")
+        await vm.run()
+        #expect(vm.state.error == "Ingresa un número de iteraciones mayor que cero.")
+
+        // Y una corrida válida lo limpia: un error viejo pegado en pantalla junto a números
+        // nuevos es peor que no mostrarlo.
+        vm.iterationsChanged("10")
+        await vm.run()
+        #expect(vm.state.error == nil)
+    }
+
+    @Test("los tiempos usan PUNTO decimal, no el separador del locale")
+    func timesUseADotRegardlessOfLocale() async {
+        // Esto NO es una corrección: `String(format:)` de Foundation, sin `locale:`, ya es
+        // no-localizado y siempre imprime punto. Es una GUARDIA, y existe porque el mismo
+        // código en Kotlin hace lo contrario: `"%.2f".format(...)` usa el locale por defecto
+        // y en un aparato es-PE imprimía `1,23 µs` — la divergencia que la Fase 6 corrigió en
+        // Android. Si alguien acá le agregara un `locale:` "para hacerlo bien", reintroduce
+        // la divergencia y este test lo caza.
+        let vm = BenchmarkViewModel(core: FakeCoreFinanciero())
+        vm.iterationsChanged("10")
+        await vm.run()
+        #expect(vm.state.coreP50.contains("."))
+        #expect(!vm.state.coreP50.contains(","))
+    }
+
     @Test("el campo de iteraciones se corta en 6 dígitos, igual que Android")
     func theIterationsFieldCapsAtSixDigits() {
         let vm = BenchmarkViewModel(core: FakeCoreFinanciero())

@@ -330,11 +330,9 @@ fases. Quedan anotadas para la revisión:
 2. **El texto de ayuda de iOS se lista a sí mismo:** dice «el hex que produjo la app de iOS,
    React Native o Angular» **dentro de la app de iOS**. Android nombra correctamente a las otras
    tres. No está entre los labels normativos, pero es incorrecto.
-3. **Con cero iteraciones, iOS sigue volviendo en silencio** (`guard … else { return }`), así
-   que el botón no hace nada y parece roto. Android tenía el mismo defecto y la Fase 6 lo cerró;
-   React Native y Angular ya explicaban. **iOS es ahora la única de las cuatro que no dice nada**,
-   y el texto —`Ingresa un número de iteraciones mayor que cero.`— pasó a ser normativo en
-   `docs/ui-spec.md`. Ver [docs/cross-app-pending.md](../../docs/cross-app-pending.md).
+3. ~~**Con cero iteraciones, Android e iOS vuelven en silencio.**~~ **Cerrada** por la Fase 6:
+   las dos adoptaron el texto que React Native ya mostraba, y `docs/ui-spec.md` lo volvió
+   normativo. Las cuatro apps lo cumplen.
 
 ## `theme.mono` tuvo que partirse por plataforma
 

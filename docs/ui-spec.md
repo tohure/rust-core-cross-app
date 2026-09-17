@@ -288,9 +288,7 @@ real es otro problema, y no está acá.
 - **Con `Iteraciones` en cero, la pantalla explica por qué no pasó nada**, con este texto exacto:
   `Ingresa un número de iteraciones mayor que cero.` Normativo desde la Fase 6. Un botón que no
   hace nada y no dice nada se lee como una app rota, y en la demo eso se paga caro. React Native
-  y Angular ya lo hacían; Android lo adoptó en la Fase 6. **iOS todavía vuelve en silencio**
-  (`guard … else { return }`) y lo adopta en su propia fase — ver
-  [cross-app-pending.md](cross-app-pending.md).
+  y Angular ya lo hacían; Android e iOS lo adoptaron en la Fase 6. **Las cuatro lo cumplen.**
 - **Los tiempos se formatean con separador decimal PUNTO, independiente del locale del
   dispositivo.** No es cosmético: `"%.2f".format(...)` de Kotlin usa el locale por defecto y en
   un aparato es-PE imprime `1,23 µs`, mientras `toFixed(2)` de JavaScript siempre da `1.23 µs`.

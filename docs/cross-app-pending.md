@@ -55,10 +55,9 @@ cuatro. Estas quedan abiertas después del bloque 1:
 1. **El subtítulo de la pantalla de Tarjeta se autolista.** `docs/ui-spec.md:195` está escrito
    desde la perspectiva de Android, así que en iOS el texto dice «el hex que produjo la app de
    iOS, React Native o Angular» **estando en iOS**.
-2. **Con cero iteraciones, iOS sigue mudo.** `BenchmarkViewModel.swift` hace
-   `guard let n = Int(state.iterations), n > 0 else { return }`. Android tenía el mismo defecto y
-   lo cerró en la Fase 6; React Native y Angular ya explicaban. **iOS es la única de las cuatro
-   que no dice nada**, y el texto normativo es `Ingresa un número de iteraciones mayor que cero.`
+2. ~~**Con cero iteraciones, iOS sigue mudo.**~~ **Cerrada.** Las cuatro apps explican ahora por
+   qué no pasó nada, con el mismo texto —`Ingresa un número de iteraciones mayor que cero.`—, que
+   `docs/ui-spec.md` volvió normativo.
 3. **Un fallo al descifrar muestra «No se pudo cifrar…».** Esto ya **no** vale desde la v2.4.0 del
    contrato, que separó `Descifrado` de `Cifrado` con mensaje propio. Queda listado para que nadie
    lo reabra: está cerrado.
@@ -78,6 +77,14 @@ Las dos salidas obvias están descartadas y no hay que reabrirlas: los tipos son
 editan, y envolverlos en tipos propios duplicaría el contrato en cuatro lenguajes — que es
 exactamente lo que esta POC argumenta que no hay que hacer.
 
-**Android ya tiene la guardia** (`UniffiRecordsAreNotMutatedTest`): deriva los campos del propio
-binding generado y falla nombrando archivo y línea. **Las otras tres no.** Portarla es trabajo de
-sus fases.
+**El riesgo no es igual en las cuatro, y conviene decirlo para no portar una guardia donde no hace
+falta:**
+
+- **Android es donde muerde.** Los `Record` son `data class` con `var`, o sea tipos de
+  *referencia*: mutar uno en el lugar no cambia la identidad del objeto y Compose no se entera.
+  Tiene la guardia desde la Fase 6 —`UniffiRecordsAreNotMutatedTest`, que deriva los campos del
+  propio binding y falla nombrando archivo y línea—.
+- **iOS no.** Verificado en el generado: `public struct Account: Equatable, Hashable` con campos
+  `var`. Son tipos de **valor**, así que mutar una propiedad produce una copia y la asignación al
+  estado sí se observa. La regla igual vale como estilo, pero **no hace falta portar la guardia**.
+- **React Native y Angular** quedan por evaluar con el mismo criterio antes de portar nada.
