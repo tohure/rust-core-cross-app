@@ -304,6 +304,52 @@ falló por un error del simulador ajeno al código (`Application failed prefligh
 resolvió el problema. Si vuelve a aparecer, verificar `xcrun simctl list devices | grep
 booted` y reintentar.
 
+## Sacar el `coreVersion()` del `.a` a mano: un footgun verificado
+
+Cuando hace falta confirmar el SHA de un artefacto **sin** correr la app ni el smoke
+test —por ejemplo, para comparar contra otra plataforma antes de una demo—, la tentación es
+leerlo directo del binario con `strings`. Hay una forma de hacerlo mal que **no falla
+ruidoso**: devuelve un SHA con forma correcta y plausible, que no existe.
+
+```bash
+strings CoreFinanciero.xcframework/ios-arm64/libcore_financiero.a \
+  | grep -oE '[0-9]+\.[0-9]+\.[0-9]+\+[0-9a-f]{7,}' | sort -u
+# → 1.0.0+959025fca   ← FALSO POSITIVO
+```
+
+**La causa:** `strings` no separa por terminador nulo los literales `&'static str` de un
+binario de Rust — quedan empaquetados contiguos, sin ningún byte no imprimible entre uno y
+el siguiente. El string de versión real está pegado, carácter a carácter, al próximo literal
+del binario, que acá resulta ser un mensaje de pánico:
+
+```
+1.0.0+959025fcalled `Result::unwrap()` on an `Err` valueFromUtf8Error...
+```
+
+El patrón `[0-9a-f]{7,}` — sin límite superior — es codicioso: seguía leyendo mientras
+encontrara hex válido, y `c` y `a` de `called` lo son. Se comió dos caracteres del literal
+siguiente y los pegó al SHA. El resultado, `959025fca`, tiene la forma exacta de un SHA
+corto y no dispara ninguna alarma — es del mismo largo que un short SHA de 10 caracteres, así
+que nada en el comando ni en la salida avisa que está mal. Eso es lo que lo hace caro: la
+próxima persona que lo corra va a asumir que el artefacto cambió, cuando no cambió.
+
+**El comando correcto acota el cuantificador al largo exacto de un short SHA de git, 7
+caracteres:**
+
+```bash
+strings CoreFinanciero.xcframework/ios-arm64/libcore_financiero.a \
+  | grep -oE '[0-9]+\.[0-9]+\.[0-9]+\+[0-9a-f]{7}' | sort -u
+# → 1.0.0+959025f   ← correcto
+```
+
+Verificado de forma cruzada durante el split de targets (Task 3 del plan
+`2026-09-17-ios-target-split`): `1.0.0+959025f` es el string que se pinta en pantalla, tanto
+en el simulador de iOS como en el emulador de Android, para el mismo HEAD.
+
+**El artefacto es una pista, no la autoridad.** Si alguna vez este comando y la pantalla
+discrepan, lo que vale es lo que se ve en pantalla — `strings` sobre un binario de Rust puede
+mentir de esta forma silenciosa; una captura o una corrida de la app no.
+
 ## Herramientas de agente
 
 Tras cualquier movimiento estructural de archivos (como el reparto del Step 6 o el armado
