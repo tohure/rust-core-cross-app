@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import type { Core } from '../../adapter/core';
-import { userMessage } from '../../adapter/ContractMessages';
+import { userMessage } from '@banco/contract';
 import { demoKey, demoNonce } from '../../contract/sources';
 import { initialCardState, type CardUiState } from './CardUiState';
 

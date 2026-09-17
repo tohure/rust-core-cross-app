@@ -254,4 +254,4 @@ Y dos reglas que valen si vas a tocar el código:
 | **[PENDING.md](PENDING.md)** | Deuda técnica conocida y qué quedó fuera por diseño |
 | **[CONTEXT.md](CONTEXT.md)** | La spec: arquitectura de UI, convenciones de ViewModel, prohibiciones |
 | [../../docs/ui-spec.md](../../docs/ui-spec.md) | Los labels y el orden de campos que las cuatro apps comparten |
-| [../../contracts/README.md](../../contracts/README.md) | El contrato: los 28 casos y de dónde salen |
+| [../../contracts/README.md](../../contracts/README.md) | El contrato: los 31 casos y de dónde salen |

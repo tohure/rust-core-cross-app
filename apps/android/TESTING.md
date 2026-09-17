@@ -21,7 +21,7 @@ Dos suites, y la distinción importa: una corre en la JVM y la otra **sobre un d
 ./gradlew :app:testDebugUnitTest
 ```
 
-Qué se debe ver — `BUILD SUCCESSFUL` y **28 tests, 0 failures**, en ocho clases:
+Qué se debe ver — `BUILD SUCCESSFUL` y **31 tests, 0 failures**, en ocho clases:
 
 | Clase | Tests |
 |---|---|
@@ -47,7 +47,7 @@ Qué se debe ver — `BUILD SUCCESSFUL` y **15 tests, 0 failures**:
 | `CoreSmokeTest` | 2 | que la `.so` carga y JNA resuelve símbolos |
 | `ContractAssetsTest` | 2 | que los dos JSON del contrato llegaron a los dos APK |
 | `contract.AssetSourcesTest` | 2 | que los seams leen los assets reales |
-| **`ContractTest`** | **9** | **los 28 casos del contrato, más sus guardias** |
+| **`ContractTest`** | **10** | **los 31 casos del contrato, más sus guardias** |
 
 Para acotar una corrida instrumentada a una clase, **`--tests` no sirve** —ese flag es de la
 tarea de unit tests JVM y AGP 9 lo rechaza acá—. El equivalente que funciona:

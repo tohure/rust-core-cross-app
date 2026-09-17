@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import type { Core } from '../../adapter/core';
-import { userMessage } from '../../adapter/ContractMessages';
+import { userMessage } from '@banco/contract';
 import { nativeFloat } from '../../benchmark/NativeBaseline';
 import {
   initialBenchmarkState,

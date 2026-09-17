@@ -1,7 +1,7 @@
 import { Component, OnDestroy, inject, signal, viewChild } from '@angular/core';
 import type { Account } from '@banco/core-financiero-wasm';
 import { CoreFinancieroService } from '../../core/core-financiero.service';
-import { userMessage } from '../../core/user-message';
+import { userMessage } from '@banco/contract';
 import { INITIAL_ACCOUNTS } from '../../contract/sources';
 import { MoneyPipe } from '../../format/money.pipe';
 import { LabeledField } from '../../ui/labeled-field/labeled-field';

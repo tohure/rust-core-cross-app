@@ -49,7 +49,7 @@ flowchart TD
     contrato[("contracts/<br/>cases.json · messages.es.json")]
     contrato -->|"Run Script copia al bundle"| source["Contract/<br/>ContractSource · MessageSource"]
     source --> vm
-    contrato -.->|"verifica 28 casos"| adapter
+    contrato -.->|"verifica 31 casos"| adapter
 ```
 
 ### Qué es cada pieza y por qué existe
@@ -131,7 +131,7 @@ xcodebuild test -project ios-rust-test.xcodeproj -scheme ios-rust-test \
   -destination 'platform=iOS Simulator,name=iPhone 17 Pro'
 ```
 
-Qué se debe ver: `** TEST SUCCEEDED **` y `Test run with 47 tests in 12 suites passed`.
+Qué se debe ver: `** TEST SUCCEEDED **` y `Test run with 52 tests in 12 suites passed`.
 
 Y sobre un aparato conectado, que es lo que ejercita el slice que de verdad se embarca:
 

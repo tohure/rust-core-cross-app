@@ -12,8 +12,8 @@ Node, y el **`.wasm` del que depende la Fase 5** — `apps/web-angular` no consu
 directamente, consume lo que se construye acá.
 
 **Estado:** funcional. Las cuatro pantallas andando en Android y en iOS, el pie de
-`coreVersion()` visible en las cuatro, y **109 tests en verde**, con el contrato **28/28 por
-N-API y 28/28 por WASM**.
+`coreVersion()` visible en las cuatro, y **127 tests en verde**, con el contrato **31/31 por
+N-API y 31/31 por WASM**.
 
 Lo que esta app **no** tiene, y conviene saberlo de entrada: **ninguna prueba automatizada
 cruza JSI.** El cruce se verifica con un smoke manual. El porqué está en
@@ -56,13 +56,14 @@ flowchart TD
 
     wasmgen --> wasmfacade["packages/core-financiero-wasm/src/index.ts<br/>fachada tipada · nueve funciones + initCore"]
 
-    napi --> tnapi["__tests__/contract.napi.test.ts<br/>28/28"]
-    wasmfacade --> twasm["__tests__/contract.wasm.test.ts<br/>28/28"]
+    napi --> tnapi["__tests__/contract.napi.test.ts<br/>31/31"]
+    wasmfacade --> twasm["__tests__/contract.wasm.test.ts<br/>31/31"]
     wasmfacade -.->|"esbuild --bundle · dist/index.js"| angular["apps/web-angular"]
 
-    contratoPkg[("packages/contract<br/>CONTRACT_NAMES · contractName · messageFor")]
+    contratoPkg[("packages/contract<br/>CONTRACT_NAMES · contractName<br/>messageFor · userMessage")]
     contratoPkg -->|"export { contractName }"| index
     contratoPkg -->|"export { messageFor }"| fuentes
+    contratoPkg -->|"export { userMessage }"| hooks
     bindings -.->|"import type DomainError"| guard["src/guard.ts<br/>guardia 4 · sólo tipos, nada en runtime"]
     contratoPkg -.->|"import type ContractTag"| guard
     guard -.->|"DomainError['tag'] ≡ ContractTag"| index
@@ -70,8 +71,8 @@ flowchart TD
     contrato[("contracts/<br/>cases.json · messages.es.json")]
     contrato --> fuentes["example/src/contract/sources.ts"]
     fuentes --> hooks
-    contrato -.->|"verifica 28 casos"| tnapi
-    contrato -.->|"verifica 28 casos"| twasm
+    contrato -.->|"verifica 31 casos"| tnapi
+    contrato -.->|"verifica 31 casos"| twasm
 ```
 
 ### Qué es cada pieza y por qué existe
@@ -86,6 +87,7 @@ flowchart TD
 | `src/guard.ts` | La guardia 4: aserta `DomainError['tag'] ≡ ContractTag` | La tabla vive en un paquete que no puede depender de ningún flavour generado; la equivalencia contra el tipo real se aserta acá. No exporta nada en runtime, existe sólo para que `tsc` lo mire — ver [TESTING.md](TESTING.md#guardia-4-ya-no-la-sostiene-un-satisfies-local-la-sostiene-srcguardts) |
 | `example/src/adapter/core.ts` | Reexporta las nueve funciones | **No traduce nombres ni tipos**: una segunda nomenclatura se desincroniza en la primera regeneración |
 | `example/src/contract/sources.ts` | Lee `cases.json` y reexporta `messageFor` de `@banco/contract` | Las cuentas, la clave y el nonce son **datos del contrato**, no constantes de la app; `messageFor` ya no se reimplementa acá, era una copia exacta |
+| `userMessage`, de `@banco/contract` | `DomainError` → texto de usuario, en el borde de UI | **Ya no vive en esta app.** Era `example/src/adapter/ContractMessages.ts`, una copia casi idéntica de la de Angular; el arreglo de la Fase 6 —que el diagnóstico dejara de llegar a la pantalla— hubo que aplicarlo en los dos lugares. Ahora los hooks lo importan del paquete |
 | `example/src/format/money.ts` | `S/` y separadores, **sobre el string** | Nunca convierte a `number`. Escrito a mano y no con `Intl`: ver [PENDING.md](PENDING.md#intlnumberformat-y-por-qué-el-formateador-está-escrito-a-mano) |
 | `__benchmarks__/baseline.ts` | Aritmética IEEE-754 sobre montos | **La excepción**, y existe para exhibir el fallo. Su test comprueba que diverge del contrato |
 
@@ -150,7 +152,7 @@ adb shell cat /sdcard/ui.xml | tr '>' '>\n' | grep -o 'text="[^"]*"' | grep -v '
 
 ```bash
 cd apps/react-native
-pnpm test              # 109 tests, 12 suites, en dos proyectos de Jest
+pnpm test              # 127 tests, 16 suites, en dos proyectos de Jest
 pnpm exec tsc --noEmit # sin errores
 pnpm lint              # sin errores
 ```
@@ -165,7 +167,7 @@ Son **dos proyectos de Jest y la separación no es cosmética** — el detalle e
 
 ```bash
 pnpm jest __tests__/contract.napi.test.ts     # el contrato por N-API
-pnpm jest __tests__/contract.wasm.test.ts     # los mismos 28 por WASM
+pnpm jest __tests__/contract.wasm.test.ts     # los mismos 31 por WASM
 pnpm jest __benchmarks__                      # la baseline de TS diverge del contrato
 ```
 
@@ -180,10 +182,10 @@ Corrida entera al cerrar, sobre `b5b1388`. Son los números reales, no los que e
 | Base | Comando | Resultado |
 |---|---|---|
 | `rust-core` | `cargo test --workspace` | **67** |
-| `apps/android` | `./gradlew :app:testDebugUnitTest --rerun` | **28** |
+| `apps/android` | `./gradlew :app:testDebugUnitTest --rerun` | **31** |
 | `apps/android` | `./gradlew :app:connectedDebugAndroidTest` | **15** (Pixel 9 Pro API 36) |
 | `apps/ios` | `xcodebuild test -scheme ios-rust-test -destination 'platform=iOS Simulator,name=iPhone 17 Pro'` | **47** |
-| `apps/react-native` | `pnpm test` | **109**, 12 suites |
+| `apps/react-native` | `pnpm test` | **127**, 16 suites |
 
 **El `--rerun` de Android no es decorativo.** Sin él, Gradle contesta `BUILD SUCCESSFUL` en
 405 ms con la tarea `UP-TO-DATE`: **no corrió nada**, reusó un resultado cacheado. Un verde así

@@ -1,11 +1,17 @@
+// No hay `@types/jest`: sin este import explícito, `tsc --noEmit` falla con TS2593.
 import { describe, expect, it } from '@jest/globals';
-import { DomainError_Tags } from '@banco/core-financiero';
-import { FALLBACK, userMessage } from '../src/adapter/ContractMessages';
+import { FALLBACK, userMessage } from '../userMessage';
+
+// Los objetos de prueba son PLANOS, con `tag`/`inner`, y no instancias del `DomainError` de un
+// flavour: `contractName` discrimina por la PRESENCIA de `tag` y no con `instanceOf`, justamente
+// para aceptar errores de orígenes distintos —un objeto de test, el módulo JSI, el módulo WASM—.
+// Ruling P1 de la Fase 4. Por eso este test puede vivir en el paquete, que no conoce ningún
+// flavour, en vez de duplicado en las dos apps que lo consumen.
 
 describe('userMessage', () => {
   it('interpola los placeholders CRUDOS, sin formatear el monto', () => {
     const e = {
-      tag: DomainError_Tags.InsufficientFunds,
+      tag: 'InsufficientFunds',
       inner: { available: '1200.50', required: '10000.01' },
     };
     expect(userMessage(e)).toBe(
@@ -14,7 +20,7 @@ describe('userMessage', () => {
   });
 
   it('devuelve el texto tal cual cuando la variante no tiene campos', () => {
-    const e = { tag: DomainError_Tags.SameAccount, inner: {} };
+    const e = { tag: 'SameAccount', inner: {} };
     expect(userMessage(e)).toBe(
       'La cuenta de origen y la de destino son la misma.'
     );
@@ -22,7 +28,8 @@ describe('userMessage', () => {
 
   it('un error que NO es del dominio no escapa del catch: cae a texto genérico', () => {
     // `userMessage` se llama SIEMPRE dentro de un `catch`. Si lanza, la excepción sale del
-    // handler y llega al onPress de React: caja roja en desarrollo, botón muerto en release.
+    // handler y llega al borde de la UI: en React Native, al `onPress` —caja roja en desarrollo,
+    // botón muerto en release—; en Angular, pantalla rota en vez de un mensaje.
     // Pasa con cualquier cosa que no sea un DomainError — un TypeError de la capa JSI, un trap
     // de WebAssembly, un error del bundler.
     expect(() => userMessage(new TypeError('algo del runtime'))).not.toThrow();

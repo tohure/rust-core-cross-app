@@ -60,11 +60,12 @@ iOS, en la sobrecarga de `ContractMessages`, porque allá los métodos del proto
 cada ViewModel tiene su propio `catch`; en React Native y Angular, en `userMessage`, con
 `console.error`.
 
-> **Queda una duplicación real, sin cerrar:** `userMessage` está escrita **dos veces**, casi
-> idéntica, en `apps/react-native/example/src/adapter/ContractMessages.ts` y en
-> `apps/web-angular/src/app/core/user-message.ts`, cuando las dos apps ya comparten
-> `packages/contract`. Este arreglo tuvo que aplicarse en los dos lugares, que es justo el modo de
-> fallo que una copia duplicada produce. Unificarla es una decisión de diseño que no se tomó acá.
+> **La duplicación que este arreglo dejó a la vista quedó cerrada.** `userMessage` estaba escrita
+> **dos veces**, casi idéntica, en React Native y en Angular, aunque las dos ya compartían
+> `packages/contract`; el arreglo hubo que aplicarlo en los dos lugares, que es exactamente el
+> modo de fallo de una copia duplicada. Ahora vive en `packages/contract/src/userMessage.ts`, con
+> un solo test, y las dos apps la importan del barrel. Android e iOS mantienen su propia versión
+> porque son otro lenguaje — lo que comparten es el **texto**, normativo en `docs/ui-spec.md`.
 
 ## 4. Divergencias de paridad todavía abiertas
 
