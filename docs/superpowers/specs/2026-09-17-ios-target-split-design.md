@@ -153,17 +153,22 @@ lo hace el binario de la app, así que el `.a` tiene que estar en los dos lados.
 
 ## 6. La superficie pública
 
-~30 declaraciones pasan a `public`:
+39 declaraciones pasan a `public`, más un `init` que hay que escribir:
 
 - `protocol CoreFinanciero` y sus 9 métodos.
-- `struct UniffiCoreFinanciero`, sus 9 métodos, y un **`public init()` explícito** — hoy
-  hereda el memberwise implícito, que es `internal`.
+- `struct UniffiCoreFinanciero` y sus 9 métodos, más un **`public init()` escrito a mano**:
+  hoy usa el memberwise implícito, que es `internal`, así que sin esto `AppContainer` no
+  puede construirlo.
 - `struct ContractMessages`: `init(source:)`, las dos sobrecargas de `userMessage`, y
   `static let fallback`.
 - `extension DomainError { var contractName: String }`.
 - `protocol ContractSource` (3 métodos) y `protocol MessageSource` (1 método).
 - `struct BundleContractSource` y `struct BundleMessageSource`, con sus
   `init(bundle:) throws` y sus métodos.
+
+Quedan `internal` a propósito los dos `enum LoadError` anidados: está verificado que nadie
+los nombra desde fuera, y un `struct` público puede lanzar un error interno sin problema
+porque los errores viajan como `any Error`.
 
 El `core_financiero.swift` generado ya sale `public` de uniffi: no se toca, como siempre.
 
@@ -263,5 +268,7 @@ se decidió entonces.
 Conventional Commits en español, scope `ios`. Uno por tarea del plan, no uno por PR:
 
 - `refactor(ios): nace el target CoreFinancieroKit con el borde FFI`
-- `refactor(ios): la app importa el kit en vez de contener el adapter`
 - `docs(ios): corregir la premisa del split y cerrar el ítem del target único`
+
+Son dos y no tres: la mudanza, el target, los `public` y los `import` **no se pueden
+partir en dos commits** sin dejar uno intermedio donde el proyecto no compila.
