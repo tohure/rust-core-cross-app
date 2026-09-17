@@ -281,7 +281,7 @@ bcce3d351c22907582b60ac6ac293a57e26c8e6007abc9a2b0c323bf74184036
 Pegarlo debe devolver `5555555555554444`.
 
 > **Si alguien pregunta por el nonce fijo, contestar de frente.** Sí, es fijo, y en producción
-> eso sería catastrófico: reusar un nonce con ChaCha20-Poly1305 rompe la confidencialidad. Acá
+> eso sería catastrófico: reusar un nonce con ChaCha20-Poly1305 rompe la confidencialidad. Aquí
 > es deliberado y es la única forma de que las cuatro plataformas produzcan el mismo hex
 > comparable. Está documentado en [`contracts/README.md`](../contracts/README.md). **Es mejor
 > decirlo antes de que lo pregunten**: demuestra que la decisión fue tomada, no pasada por alto.
@@ -362,7 +362,7 @@ la baseline nativa, contra 70× en Android.
 **Por si preguntan si es lento:** los 145,9 µs de Android son el **0,9 %** de un frame a 60 Hz,
 con una o dos llamadas por interacción.
 
-> **Decir la salvedad antes de que la encuentren, y acá son dos.**
+> **Decir la salvedad antes de que la encuentren, y aquí son dos.**
 >
 > 1. **En iOS el cruce no se puede medir llamada por llamada.** El tick de `ContinuousClock` es de
 >    ~41,67 ns, así que el piso del cruce medía **dos ticks**: se estaba midiendo el reloj. Las
@@ -403,7 +403,7 @@ Y dos cosas operativas, para que no sorprendan en vivo:
 
 | Pregunta | Respuesta corta |
 |---|---|
-| *¿Por qué no Kotlin Multiplatform?* | KMP comparte también el ViewModel; acá **no hay ViewModel compartido y es deliberado**. Se comparte el dominio y nada más, así cada UI es nativa de su plataforma. La tabla está en [docs/ui-spec.md](ui-spec.md) |
+| *¿Por qué no Kotlin Multiplatform?* | KMP comparte también el ViewModel; aquí **no hay ViewModel compartido y es deliberado**. Se comparte el dominio y nada más, así cada UI es nativa de su plataforma. La tabla está en [docs/ui-spec.md](ui-spec.md) |
 | *¿Y si las apps se copian la lógica y nadie se entera?* | No pueden: `crates/domain` es Rust puro y un `#[uniffi::export]` ahí **no compila**. La frontera la sostiene el compilador, no la disciplina |
 | *¿Cómo saben que los valores coinciden de verdad?* | [`contracts/cases.json`](../contracts/cases.json), 28 casos comparados con **igualdad exacta de strings**, nunca con tolerancia numérica. Corre en las **cuatro** apps más el propio `rust-core` — y en React Native **dos veces**, por N-API y por WASM |
 | *¿En el navegador es el mismo código?* | El mismo crate, compilado a `wasm32-unknown-unknown` en vez de a una librería nativa. El test de contrato de Angular lee el mismo `cases.json` y pasa 28/28. El copiar-pegar del hex del Acto 3 lo muestra sin tablas |
