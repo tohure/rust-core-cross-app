@@ -10,4 +10,6 @@ data class BenchmarkUiState(
     val nativeP50: String = "—",
     val nativeP95: String = "—",
     val isRunning: Boolean = false,
+    /** Por qué no arrancó. Las otras tres apps ya lo explicaban; ésta volvía muda. */
+    val error: String? = null,
 )

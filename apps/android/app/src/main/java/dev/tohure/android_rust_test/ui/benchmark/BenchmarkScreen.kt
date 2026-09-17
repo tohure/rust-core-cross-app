@@ -30,6 +30,9 @@ fun BenchmarkScreen(vm: BenchmarkViewModel, modifier: Modifier = Modifier) {
         LabeledField("Iteraciones", state.iterations, vm::iterationsChanged, keyboardType = KeyboardType.Number)
         Spacer(Modifier.height(12.dp))
         Button(vm::run, Modifier.fillMaxWidth(), enabled = !state.isRunning) { Text("Ejecutar") }
+        // Mismo componente y mismo color que el error de las otras tres pantallas: las cuatro
+        // tienen que verse igual cuando se las pone lado a lado.
+        state.error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
 
         // Los nombres de las dos implementaciones son LOS MISMOS que usa la pantalla de
         // Aritmética. Antes acá decían `Core` y `Nativa`, y allá `Core (Rust · Decimal)` y
