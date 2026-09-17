@@ -40,10 +40,20 @@ final class TransferViewModel {
     /// el usuario no tiene que llegar hasta ahí: es una demo y la pantalla tiene que verse
     /// bien. Esto **no parsea, no redondea y no calcula**: decide si el string que se acaba
     /// de teclear se acepta en el campo.
+    /// **Se escribe el estado SIEMPRE, aunque el valor no cambie**, y eso es load-bearing.
+    ///
+    /// Un `return` mudo convierte el `set` del `Binding` en un no-op: `@Observable` no invalida
+    /// nada, y **SwiftUI no tiene por qué revertir el texto que el `TextField` ya pintó**. La
+    /// tecla rechazada podía quedar a la vista hasta que otro cambio forzara a releer el binding.
+    /// Reasignar dispara la mutación observada y con eso la vista vuelve a leer el valor bueno.
+    ///
+    /// El estado siempre fue correcto —lo que viaja al core es el string filtrado—, así que esto
+    /// es cosmético. **No lo cubre ningún test**: los tests de ViewModel no pasan por un
+    /// `TextField`, así que se verifica con un dedo. Los otros tres filtros hacen lo mismo.
     func amountChanged(_ value: String) {
-        guard value.wholeMatch(of: amountPattern) != nil else { return }
-        state.amount = value
-        clearError()
+        let accepted = value.wholeMatch(of: amountPattern) != nil
+        state.amount = accepted ? value : state.amount
+        if accepted { clearError() }
     }
 
     // MARK: - Acciones

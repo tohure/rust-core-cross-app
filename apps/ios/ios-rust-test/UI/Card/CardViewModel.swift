@@ -26,16 +26,19 @@ final class CardViewModel {
 
     // MARK: - Entrada del usuario
 
+    /// Escribe el estado **siempre**, aunque el valor no cambie: un `set` que no escribe deja la
+    /// tecla rechazada a la vista. La explicación completa está en `TransferViewModel.amountChanged`.
     func numberChanged(_ value: String) {
-        guard value.wholeMatch(of: digitsOnly) != nil else { return }
-        state.number = value
-        state.encryptError = nil
+        let accepted = value.wholeMatch(of: digitsOnly) != nil
+        state.number = accepted ? value : state.number
+        if accepted { state.encryptError = nil }
     }
 
+    /// Ídem `numberChanged`.
     func pastedHexChanged(_ value: String) {
-        guard value.wholeMatch(of: lowercaseHex) != nil else { return }
-        state.pastedHex = value
-        state.decryptError = nil
+        let accepted = value.wholeMatch(of: lowercaseHex) != nil
+        state.pastedHex = accepted ? value : state.pastedHex
+        if accepted { state.decryptError = nil }
     }
 
     // MARK: - Acciones
