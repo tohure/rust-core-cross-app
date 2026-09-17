@@ -1,7 +1,7 @@
 # Construir los bindings JSI y generarlos
 
 Todo lo que hace falta para pasar de `rust-core/crates/ffi` a `src/generated/core_financiero.ts`
-y al Turbo Module de Android. **Todos los comandos de acá se ejecutaron tal como están
+y al Turbo Module de Android. **Todos los comandos de aquí se ejecutaron tal como están
 escritos**, desde `apps/react-native/`, en la primera corrida real de `ubrn` sobre este
 proyecto. Ninguno está deducido del [CONTEXT.md](CONTEXT.md).
 
@@ -102,7 +102,7 @@ pnpm exec ubrn build android --release --and-generate
 ```
 
 Este mismo comando está envuelto en `package.json` como `pnpm run ubrn:android` — ver la
-sección [Scripts](#scripts) más abajo. Los dos hacen exactamente lo mismo; a partir de acá
+sección [Scripts](#scripts) más abajo. Los dos hacen exactamente lo mismo; a partir de aquí
 `BUILD.md` usa el script.
 
 **La primera vez, esto compila `ubrn` mismo con cargo** antes de poder generar nada — el CLI
@@ -155,7 +155,7 @@ x86_64/libcore_financiero.a        81 190 196 bytes  (~77 MB)
 ```
 
 Bastante más chicos que los ~250 MB por ABI del build en `dev` profile (el error que se
-corrigió acá), y del mismo orden que los ~66 MB del `.a` de release con LTO que documenta
+corrigió aquí), y del mismo orden que los ~66 MB del `.a` de release con LTO que documenta
 `rust-core/BUILD.md` para el host. Cargo también deja un `.so` (cdylib) en
 `rust-core/target/<triple>/release/`, mucho más chico —524 KB / 320 KB / 576 KB por ABI,
 comparable al `.dylib` del host—, pero **no es el que `ubrn` usa**: el pipeline de Android
@@ -163,7 +163,7 @@ de `ubrn` enlaza el `.a` (staticlib) dentro de su propio `libbanco-core-financie
 CMake, en vez de cargar el cdylib suelto como hace `apps/android` con JNA.
 
 **Un intento anterior sin `--release` construyó en perfil `dev` (`unoptimized + debuginfo`,
-~250 MB por `.a`) y quedó documentado acá como advertencia**: `ubrn build android` sin el
+~250 MB por `.a`) y quedó documentado aquí como advertencia**: `ubrn build android` sin el
 flag construye en debug por defecto (`pnpm exec ubrn build android --help` lo confirma:
 `-r, --release  Build a release build`, opcional, y `-p, --profile <PROFILE>` para un perfil
 específico). El comando de arriba, con `--release`, es el que hay que usar siempre.
@@ -365,14 +365,14 @@ sincronización de UI) que esta POC no necesita y que está fuera de alcance.
 
 Es una diferencia real con las otras dos apps, y conviene decirla en la demo: Android tiene
 `connectedAndroidTest` y iOS tiene XCTest sobre aparato, los dos cruzando la frontera de verdad.
-Acá el cruce se verifica a ojo, una vez, y lo que queda automatizado son las dos rutas de
+Aquí el cruce se verifica a ojo, una vez, y lo que queda automatizado son las dos rutas de
 contrato por Node —N-API y WASM—, que sí corren en Jest.
 
 ## Lo que hubo que arreglar para que el example compile
 
 El esqueleto que dejó `react-native-builder-bob` asume un monorepo de **yarn/npm con
 `node_modules` aplanado** y una línea base de toolchain más vieja que la de este repo. Nada de
-esto es opcional ni cosmético: sin cada una de estas piezas el build se cae. Están acá porque
+esto es opcional ni cosmético: sin cada una de estas piezas el build se cae. Están aquí porque
 quien regenere el proyecto dentro de seis meses las va a volver a encontrar.
 
 | Qué falla | Por qué | Dónde quedó el arreglo |
@@ -390,7 +390,7 @@ quien regenere el proyecto dentro de seis meses las va a volver a encontrar.
 
 ### Por qué `android.builtInKotlin=false` y no la migración que recomienda Google
 
-La migración oficial a AGP 9 es quitar `kotlin-android` de cada módulo. Acá no se puede: el
+La migración oficial a AGP 9 es quitar `kotlin-android` de cada módulo. Aquí no se puede: el
 módulo librería lo genera `ubrn` (`apps/react-native/android/build.gradle`) y lo aplica en su
 plantilla. Editar ese archivo a mano lo perdería en el siguiente `--and-generate`, y este
 proyecto no edita generados. El opt-out es la salida que la propia guía prevé.
@@ -549,7 +549,7 @@ gratuita, así que valen las dos salvedades de
 En `Release` el bundle de JS va embebido, así que **no hace falta Metro**: la app arranca sola.
 
 **Lo que esto no resuelve es medirla.** No hay forma de manejar la pantalla por script en un
-iPhone: en Android se usa `uiautomator dump` + `input tap`, y el equivalente acá sería XCUITest,
+iPhone: en Android se usa `uiautomator dump` + `input tap`, y el equivalente aquí sería XCUITest,
 que esta app no tiene. El benchmark de React Native sobre iOS se toma **a mano**.
 
 ### Medir el costo del cruce JSI, con `FfiCostProbe`
@@ -604,7 +604,7 @@ plugin nuevo. Se prefirió la constante a la dependencia.
 
 **Por qué la sonda existe, si las otras dos apps miden distinto.** Es la única de las cuatro que no
 tiene cómo medirse sola: Android nativo se maneja con `uiautomator dump` + `input tap`, iOS nativo
-mide desde su bundle de tests sobre el aparato, y acá no hay ninguno de los dos —Jest mockea los
+mide desde su bundle de tests sobre el aparato, y aquí no hay ninguno de los dos —Jest mockea los
 nativos, así que ninguna suite cruza JSI, y en un iPhone físico no hay driver de UI—.
 
 ### `pnpm test` no corría, y la causa era la misma
@@ -813,7 +813,7 @@ falta:
 
 | Proyecto | Entorno | Tests | Por qué |
 |---|---|---|---|
-| `napi` | `node` | `__tests__/**` | Carga un `.dylib` nativo. El entorno de React Native **mockea los nativos**, así que acá cruzaría a un fake y el contrato no probaría nada. |
+| `napi` | `node` | `__tests__/**` | Carga un `.dylib` nativo. El entorno de React Native **mockea los nativos**, así que aquí cruzaría a un fake y el contrato no probaría nada. |
 | `react-native` | preset de RN | `src/__tests__/**` | Lo necesitan las pruebas de hooks (`@testing-library/react-native`, `renderHook`). |
 
 Correrlos es un solo `pnpm test`; la salida los distingue por `displayName`.

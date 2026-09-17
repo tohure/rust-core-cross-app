@@ -57,7 +57,7 @@ type ValidCard = { brand: string; masked: string };
 > existía y los nombres se dedujeron de la regla de uniffi. La Fase 5 los contrastó contra el
 > paquete real y la lista de arriba **coincide**: las nueve funciones y los cinco Records salen
 > tal cual. Lo único que cambió es el **nombre del paquete**, que es
-> `@banco/core-financiero-wasm` y no `@banco/core-financiero` como decía acá — corregido en todo
+> `@banco/core-financiero-wasm` y no `@banco/core-financiero` como decía aquí — corregido en todo
 > este archivo.
 
 **Los identificadores están en inglés; los nombres del contrato, en español.**
@@ -150,11 +150,11 @@ servidor estático— está en [README.md](README.md) y [PENDING.md](PENDING.md)
 regla de no quemar tiempo de demo en el build.
 
 Nota sobre el pánico, que en esta app no es teoría: `wasm32-unknown-unknown` impone
-`panic = "abort"`, así que **acá no existe la red del `catch_unwind` de uniffi** que sí
+`panic = "abort"`, así que **aquí no existe la red del `catch_unwind` de uniffi** que sí
 tienen Android e iOS. Un pánico del core no vuelve como error: es un trap que deja la
 instancia del módulo inutilizable y obliga a recargar la página. Ver
 [rust-core/PENDING.md](../../rust-core/PENDING.md) — "En wasm no hay red de
-`catch_unwind`, y no se puede arreglar desde acá".
+`catch_unwind`, y no se puede arreglar desde aquí".
 
 ## Estructura
 
@@ -176,7 +176,7 @@ src/app/
     └── benchmark/          incluye baseline.ts, la implementación en `number` que diverge
 ```
 
-**`userMessage` ya no vive acá.** Hasta la Fase 6 era `core/user-message.ts`, una copia casi
+**`userMessage` ya no vive aquí.** Hasta la Fase 6 era `core/user-message.ts`, una copia casi
 idéntica de la de React Native; ahora es `@banco/contract`. El arreglo que lo movió —que el texto
 de diagnóstico dejara de llegar a la pantalla— hubo que aplicarlo en los dos lugares, que es
 exactamente el modo de fallo que una copia duplicada produce. Se importa del **barrel**
@@ -250,7 +250,7 @@ Benchmark**, y el pie con `coreVersion()` visible en las cuatro.
 
 **Los wireframes, los labels exactos y el orden de campos viven en
 [`docs/ui-spec.md`](../../docs/ui-spec.md)** — normativo para las cuatro apps. No se
-duplican acá: cuatro copias de la misma lista divergen, que es justo lo que la demo no puede
+duplican aquí: cuatro copias de la misma lista divergen, que es justo lo que la demo no puede
 permitirse. Cambiar un label obliga a cambiarlo en las cuatro apps y en ese archivo, en el
 mismo cambio.
 

@@ -13,7 +13,7 @@ Lo que esta app hace con los datos es pedirlos y mostrarlos.
 | **Lenguaje / UI** | Kotlin 2.4.20 · Jetpack Compose (BOM 2026.09.00) · Material 3 |
 | **Build** | AGP 9.4.0 · Gradle 9 · Java 21 |
 | **SDK** | compileSdk 37 · minSdk 28 |
-| **Puente al núcleo** | uniffi 0.32 sobre **JNA** (no JNI) |
+| **Puente al núcleo** | uniffi 0.31 sobre **JNA** (no JNI) |
 | **Núcleo** | Rust, `libcore_financiero.so` en tres ABIs |
 | **Paquete** | `dev.tohure.android_rust_test` |
 
@@ -97,7 +97,7 @@ volver a correr el paso de Rust, y eso se descubre el día de la demo.
 **El binario de Rust se genera primero, para las cuatro apps a la vez.** La secuencia
 completa, en orden, vive en
 [rust-core/BUILD.md](../../rust-core/BUILD.md#generar-el-core-que-consumen-las-cuatro-apps);
-acá abajo está solo el paso puntual que le toca a esta app.
+aquí abajo está solo el paso puntual que le toca a esta app.
 
 Necesitás **Java 21**, el **SDK de Android** y un emulador o teléfono conectado.
 
@@ -105,15 +105,15 @@ Si el repo ya viene con los artefactos construidos, eso alcanza. **Si no**, hay 
 núcleo Rust primero — eso pide `rustup`, `cargo-ndk` y el NDK r27+, y está todo en
 **[BUILD.md](BUILD.md)**.
 
-Para saber en cuál de los dos casos estás:
+Para saber en cuál de los dos casos se está:
 
 ```bash
 ls core-financiero/src/generated/jniLibs/*/libcore_financiero.so
 ```
 
-Si lista tres archivos, podés correrla ya. Si no, andá a [BUILD.md](BUILD.md).
+Si lista tres archivos, se puede correr ya. Si no, ver [BUILD.md](BUILD.md).
 
-### Dónde se cablea, y qué **no** tenés que editar
+### Dónde se cablea, y qué **no** hay que editar
 
 Una duda razonable: «¿y dónde le digo a la app cómo se llama lo que generó Rust?». **En ningún
 lado.** No hay que tocar ningún archivo de configuración: el cableado está fijo en el código del
@@ -154,7 +154,7 @@ baseline nativa como control; ver [TESTING.md](TESTING.md).
 Cuatro pestañas abajo, y **el pie con la versión del núcleo visible en todas**: algo como
 `1.0.0+a0a40a5`. Ese string lleva el SHA del commit con el que se compiló el núcleo, y es la
 prueba en pantalla de que las cuatro apps de la demo corren **el mismo build**. Si el pie sale
-vacío, la librería nativa no cargó — andá a [BUILD.md](BUILD.md).
+vacío, la librería nativa no cargó — ver [BUILD.md](BUILD.md).
 
 ## Correr los tests
 
@@ -190,7 +190,7 @@ El detalle de qué prueba y qué **no** prueba cada suite está en **[TESTING.md
 
 ---
 
-## Qué podés hacer, pantalla por pantalla
+## Qué se puede hacer, pantalla por pantalla
 
 ### Aritmética — por qué el `Double` no sirve para dinero
 
@@ -206,7 +206,7 @@ también restas, o `0.1 + 0.7`: los seis casos del contrato divergen.
 
 ### Transferencia — el dinero se conserva
 
-Dos cuentas en memoria, con los saldos que dice el contrato. Transferí `100.00` y mirá:
+Dos cuentas en memoria, con los saldos que dice el contrato. Transferir `100.00` y observar:
 
 ```
 Comisión ITF        S/ 0.01
@@ -237,7 +237,7 @@ y descifrar en el mismo gesto es lo que demuestra, mirando, que el núcleo hace 
 reversible.
 
 Abajo hay un bloque para **pegar un hex producido por otra plataforma**. Ahí está la demostración
-en vivo: copiás el hex de la app de iOS, lo pegás acá, y sale el mismo número — porque las cuatro
+en vivo: se copia el hex de la app de iOS, se pega aquí, y sale el mismo número — porque las cuatro
 comparten clave, nonce y algoritmo desde el mismo núcleo.
 
 ### Benchmark — cuánto cuesta cruzar la frontera
@@ -261,7 +261,7 @@ La descomposición de a dónde se va ese tiempo —y por qué **no** se puede op
 
 ---
 
-## Qué NO podés hacer, y por qué
+## Qué NO se puede hacer, y por qué
 
 Nada de esto es un pendiente: son decisiones de la POC.
 
@@ -270,10 +270,10 @@ Nada de esto es un pendiente: son decisiones de la POC.
 | **Guardar nada.** Cerrás la app y los saldos vuelven al inicio | Sin base de datos, sin caché, sin `SharedPreferences`. Es una POC de dominio |
 | **Keychain / Keystore / biométricos** | La POC demuestra que **el algoritmo de cifrado** vive en el núcleo y da el mismo resultado en cuatro plataformas. Dónde guardarías una clave en producción es otro problema |
 | **Red** | Ni un cliente HTTP. La "latencia" de Transferencia es un número que devuelve el núcleo |
-| **Agregar cuentas, tarjetas o bancos** | Los datos son del contrato compartido. Cambiarlos acá los haría divergir de las otras tres apps |
-| **Calcular algo en Kotlin** | Si te encontrás escribiendo aritmética sobre montos, el cálculo está en el lugar equivocado: pedíselo al núcleo |
+| **Agregar cuentas, tarjetas o bancos** | Los datos son del contrato compartido. Cambiarlos aquí los haría divergir de las otras tres apps |
+| **Calcular algo en Kotlin** | Encontrarse escribiendo aritmética sobre montos significa que el cálculo está en el lugar equivocado: pedíselo al núcleo |
 
-Y dos reglas que valen si vas a tocar el código:
+Y dos reglas que valen para quien toque el código:
 
 - **Ningún `Double` ni `Float` toca un monto. Nunca**, ni en tests. Los montos viajan como
   `String` de punta a punta. La única excepción es `ui/benchmark/NativeBaseline.kt`, que existe

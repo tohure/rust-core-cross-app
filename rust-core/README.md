@@ -179,14 +179,14 @@ configurar**: el cableado está fijo en el código de cada proyecto y los artefa
 fijas. Cada README abre con «Antes de correrla», que dice qué herramientas hacen falta, dónde
 tiene que haber caído cada artefacto y cuál es el archivo que lo cablea.
 
-| App | Su README | Qué necesitás además de los artefactos |
+| App | Su README | Qué hace falta además de los artefactos |
 |---|---|---|
 | Android | [apps/android/README.md](../apps/android/README.md) | Java 21, SDK de Android, y un emulador o teléfono |
 | iOS | [apps/ios/README.md](../apps/ios/README.md) | Xcode 26 y un simulador iOS 17+ |
 | React Native | [apps/react-native/README.md](../apps/react-native/README.md) | Node 22, pnpm, y Metro en su propia terminal |
 | Angular | [apps/web-angular/README.md](../apps/web-angular/README.md) | Node 22 y pnpm; **consume el `.wasm` que produce React Native**, no este crate |
 
-Y si lo que querés es poner las cuatro pantallas lado a lado, el guion está en
+Y si lo que quiere es poner las cuatro pantallas lado a lado, el guion está en
 [docs/demo-runbook.md](../docs/demo-runbook.md). Su primer paso es comparar los cuatro pies de
 `coreVersion()`, que es justo lo que verifica el comando de arriba.
 
@@ -217,5 +217,5 @@ raíz. Las dos que más fácil se rompen:
   a ser el mecanismo de seguridad.
 
 Los comandos de exportación por plataforma (cargo-ndk, `xcodebuild -create-xcframework`,
-`ubrn build android|ios|web`) están en [CONTEXT.md](CONTEXT.md); no se duplican acá porque
+`ubrn build android|ios|web`) están en [CONTEXT.md](CONTEXT.md); no se duplican aquí porque
 se desincronizan.

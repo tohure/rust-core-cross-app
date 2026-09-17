@@ -61,7 +61,7 @@ está en ese flavour y no en el core — y eso se quiere leer de un vistazo, no 
 Factorizarlo en una función parametrizada por runtime ahorraría líneas y costaría justo esa lectura.
 
 **Éste importa de `@banco/core-financiero-wasm` (Fase 5, Task 4), el paquete que también
-consumirá Angular** — no de un generado local de esta app. Probarlo acá contra el mismo paquete
+consumirá Angular** — no de un generado local de esta app. Probarlo aquí contra el mismo paquete
 es lo que hace que esa fase arranque sin deuda: 31/31, contra los mismos vectores y con la misma
 igualdad exacta de strings.
 
@@ -131,10 +131,10 @@ son `it`; la quinta la sostiene el compilador.
 | 4 | Que las nueve variantes de `DomainError` tengan nombre de contrato | `tsc`, no un assert |
 | 5 | Que `messages.es.json` cubra las nueve | igualdad de claves |
 
-### Guardia 2: su motivo acá **no** es el mismo que en Rust y en Swift
+### Guardia 2: su motivo aquí **no** es el mismo que en Rust y en Swift
 
 En Rust y en Swift está verificado por mutación que un grupo vaciado a `[]` genera cero casos y
-**el test reporta éxito** — queda en verde sin comparar un solo string. Allá la guardia de conteo
+**el test reporta éxito** — queda en verde sin comparar un solo string. Allí la guardia de conteo
 es la única red.
 
 **En Jest no.** Verificado, no supuesto:
@@ -143,7 +143,7 @@ es la única red.
 Error: `.each` called with an empty Array of table data.
 ```
 
-Así que acá la guardia 2 no protege contra un grupo **vacío** —de eso ya se encarga Jest— sino
+Así que aquí la guardia 2 no protege contra un grupo **vacío** —de eso ya se encarga Jest— sino
 contra uno **incompleto**: cinco casos donde debería haber seis pasarían en verde sin que nada
 avise.
 
@@ -152,7 +152,7 @@ avise.
 La tabla (`CONTRACT_NAMES`) se mudó a `@banco/contract` — la necesitan también el paquete WASM y
 Angular, y dos copias se desincronizan. Un paquete neutral no puede importar el `DomainError`
 generado (dependería de un flavour), así que ya no puede llevar el
-`satisfies Record<DomainError['tag'], string>` que tenía acá. La equivalencia se aserta del otro
+`satisfies Record<DomainError['tag'], string>` que tenía aquí. La equivalencia se aserta del otro
 lado, donde sí se conoce el tipo real: [`src/guard.ts`](src/guard.ts), que no exporta nada en
 runtime — existe sólo para que `tsc` lo mire.
 
@@ -239,7 +239,7 @@ Detox, una pila entera que esta POC no necesita.
 
 Es una diferencia real con las otras dos apps, y conviene decirla en la demo si alguien pregunta:
 Android tiene `connectedAndroidTest` y iOS tiene XCTest sobre aparato, los dos cruzando la
-frontera de verdad. Acá el cruce se verifica a ojo, una vez, y lo que queda automatizado son las
+frontera de verdad. Aquí el cruce se verifica a ojo, una vez, y lo que queda automatizado son las
 rutas del host.
 
 Tampoco se prueban: red, persistencia, concurrencia ni I/O. En el core son funciones puras; en la

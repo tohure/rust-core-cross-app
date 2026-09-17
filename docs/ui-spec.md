@@ -10,7 +10,7 @@ no dice nada de los **labels, el orden ni la disposición**. Si cada app inventa
 la comparación no se puede hacer aunque los strings sean idénticos. Este archivo tapa ese
 hueco, igual que `contracts/messages.es.json` tapa el de los mensajes de error.
 
-**Regla de cambio: tocar un label acá obliga a tocarlo en las cuatro apps, en el mismo
+**Regla de cambio: tocar un label aquí obliga a tocarlo en las cuatro apps, en el mismo
 cambio.** Igual que el contrato.
 
 ---
@@ -60,8 +60,8 @@ Reglas que valen en las cuatro:
 
 1. **Todos los montos del estado son `String`.** El estado es el último lugar donde alguien
    se tienta con un número. Ver la regla del invariante en `CLAUDE.md`.
-2. **El estado no calcula.** Recibe lo que devolvió el core y lo guarda. Si estás escribiendo
-   aritmética en el ViewModel, estás escribiendo lógica de negocio fuera de `rust-core`.
+2. **El estado no calcula.** Recibe lo que devolvió el core y lo guarda. Escribir aritmética en el ViewModel
+   es escribir lógica de negocio fuera de `rust-core`.
 3. **Un error del core es un campo del estado**, no una excepción que sube a la vista. Se
    guarda ya resuelto a texto de usuario, leído de `contracts/messages.es.json`.
    **Y lo que no es un error de dominio tampoco muestra su texto crudo**: el fallback es
@@ -135,7 +135,7 @@ flotante nativo**, y existe justamente para eso.
 
 - Labels exactos: `Operando A`, `Operando B`, `Sumar`, `Restar`, `Calcular`,
   `Punto flotante nativo`, `Core (Rust · Decimal)`.
-- **Sin límite de 2 decimales acá.** El contrato acepta escala libre en la entrada.
+- **Sin límite de 2 decimales aquí.** El contrato acepta escala libre en la entrada.
 - Los seis casos de `aritmetica` divergen bajo IEEE-754; si alguno deja de diverger, deja de
   servir para la demo.
 
@@ -255,7 +255,7 @@ importan: valida por Luhn, cifra, y **descifra**.
 **Fuera de alcance, y conviene decirlo porque la pantalla invita a pedirlo:** nada de Keychain,
 Keystore, biométricos ni almacenamiento seguro. La POC demuestra que **el algoritmo** vive en el
 core y da el mismo resultado en las cuatro plataformas; dónde se guardaría una clave en una app
-real es otro problema, y no está acá.
+real es otro problema, y no está aquí.
 
 ### 4. Benchmark
 
@@ -353,7 +353,7 @@ sirve dentro de una lista y dentro de una tarjeta sin variantes.
 El formateo ocurre **solo en el borde de presentación**, nunca antes:
 
 ```
-core → String → estado → props → widget de texto → [ acá recién: S/, separadores ]
+core → String → estado → props → widget de texto → [ aquí recién: S/, separadores ]
 ```
 
 - **`S/` y separadores de miles: solo al pintar.** El core ya entregó el valor con la escala

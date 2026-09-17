@@ -51,7 +51,7 @@ type ValidCard = { brand: string; masked: string };
 ```
 
 > **Estos nombres se derivaron primero y se contrastaron después, y la predicción acertó.**
-> Los de Kotlin y Swift se leyeron de bindings reales en la Fase 1; los de acá se dedujeron de la
+> Los de Kotlin y Swift se leyeron de bindings reales en la Fase 1; los de aquí se dedujeron de la
 > misma regla de uniffi ya verificada en esas dos plataformas —`snake_case` de Rust a
 > lowerCamelCase, campos de Record camelCase— antes de que existiera `ubrn` en el proyecto.
 > Al primer `ubrn build android --and-generate` se contrastó contra `src/generated/core_financiero.ts`:
@@ -326,7 +326,7 @@ Benchmark**, y el pie con `coreVersion()` visible en las cuatro.
 
 **Los wireframes, los labels exactos y el orden de campos viven en
 [`docs/ui-spec.md`](../../docs/ui-spec.md)** — normativo para las cuatro apps. No se
-duplican acá: cuatro copias de la misma lista divergen, que es justo lo que la demo no puede
+duplican aquí: cuatro copias de la misma lista divergen, que es justo lo que la demo no puede
 permitirse. Cambiar un label obliga a cambiarlo en las cuatro apps y en ese archivo, en el
 mismo cambio.
 
@@ -339,7 +339,7 @@ intencional es material de la presentación.
 
 ## Sobre Re.Pack y Module Federation
 
-**Fuera de alcance para la POC.** No configures Module Federation ni Re.Pack acá, y no
+**Fuera de alcance para la POC.** No configures Module Federation ni Re.Pack aquí, y no
 aparecen en ninguna fase: la tesis que se demuestra es que las cuatro apps comparten el
 core, no cómo se distribuyen sus bundles.
 
@@ -348,5 +348,5 @@ core, no cómo se distribuyen sus bundles.
 - No habilites la arquitectura vieja. Sin Turbo Modules esto no funciona.
 - No uses `Number`, `parseFloat` ni operadores aritméticos sobre montos.
 - No agregues `decimal.js`, `big.js` ni similares. Si los necesitas, es señal
-  de que estás calculando en el lugar equivocado.
+  de que el cálculo está en el lugar equivocado.
 - No edites `src/generated/`.

@@ -3,10 +3,10 @@
 Lo que este crate **no** hace, y la razón. Está separado del [README](README.md) a propósito:
 un README que mezcla "cómo se usa" con "qué falta" no sirve para ninguna de las dos cosas.
 
-Nada de acá bloquea la demo. Son decisiones tomadas, no olvidos.
+Nada de aquí bloquea la demo. Son decisiones tomadas, no olvidos.
 
 > **Qué es este archivo, para no leerlo mal.** Es un registro de **decisiones tomadas y huecos
-> conocidos**, no una lista de tareas. Buena parte de lo que hay acá está cerrado o se decidió
+> conocidos**, no una lista de tareas. Buena parte de lo que hay aquí está cerrado o se decidió
 > no hacer, y sigue escrito a propósito: **el valor está en el porqué**, que es lo que evita que
 > alguien reabra la discusión dentro de seis meses o "arregle" algo que es deliberado. Que el
 > archivo se llame `PENDING.md` no significa que todo lo de adentro esté pendiente.
@@ -15,7 +15,7 @@ Nada de acá bloquea la demo. Son decisiones tomadas, no olvidos.
 >
 > - **Borrar una función `contract_*` entera no lo caza ninguna guardia** — hueco de cobertura
 >   real, verificado por mutación. Se decidió no cerrarlo y la razón está escrita.
-> - **En wasm no hay red de `catch_unwind`** — no se puede arreglar desde acá: el target impone
+> - **En wasm no hay red de `catch_unwind`** — no se puede arreglar desde aquí: el target impone
 >   `panic = "abort"`.
 > - **El core está anclado a uniffi 0.31** — restricción vigente, la impone React Native.
 
@@ -30,14 +30,14 @@ qué funciones existen. Verificado: borrando `contract_cci` la corrida da once t
 verde, sin un warning.
 
 Cerrarlo requeriría extraer los seis cuerpos a funciones normales referenciadas desde una
-tabla `[(&str, fn(&Value)); 6]`. **No se hizo**, y la decisión se toma una sola vez acá y no
+tabla `[(&str, fn(&Value)); 6]`. **No se hizo**, y la decisión se toma una sola vez aquí y no
 cuatro veces cuando Kotlin, Swift y TypeScript espejen este archivo: esa tabla colapsaría los
 seis nombres de test, que es justo lo que se lee cuando algo falla.
 
 El detalle completo y la prueba por mutación están en
 [TESTING.md](TESTING.md#sus-seis-guardias-y-el-hueco-que-queda-abierto).
 
-### En wasm no hay red de `catch_unwind`, y no se puede arreglar desde acá
+### En wasm no hay red de `catch_unwind`, y no se puede arreglar desde aquí
 
 `wasm32-unknown-unknown` **impone** `panic = "abort"`: el wasm base no tiene unwinding, así
 que el `panic = "unwind"` del perfil se ignora en ese target. La consecuencia es para la

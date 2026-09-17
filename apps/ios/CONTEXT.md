@@ -16,7 +16,7 @@ no hay TCEA y no hay validación de RUC: se recortaron del alcance antes de impl
 Si algo no está en esta lista, no existe.
 
 Los nombres y las etiquetas de argumento de abajo se leyeron de los **bindings generados**
-con `uniffi-bindgen --language swift` (uniffi 0.32), no se dedujeron: uniffi convierte el
+con `uniffi-bindgen --language swift` (uniffi 0.31), no se dedujeron: uniffi convierte el
 `snake_case` de Rust a lowerCamelCase y emite funciones **globales**, no dentro de un tipo. El
 módulo que las compila es `CoreFinancieroKit` —el target del framework estático, desde el
 split de targets—, no el de la app. El adapter sí las prefija, y a propósito:
@@ -111,7 +111,7 @@ xcodebuild -create-xcframework \
 ```
 
 > ⚠️ **El modulemap que genera uniffi NO se llama `module.modulemap`.** Verificado en la
-> Fase 1 con uniffi 0.32: `uniffi-bindgen ... --language swift` emite tres archivos —
+> Fase 1 con uniffi 0.31: `uniffi-bindgen ... --language swift` emite tres archivos —
 > `core_financiero.swift`, `core_financieroFFI.h` y **`core_financieroFFI.modulemap`**—,
 > nombrando el tercero según el crate. Pero `xcodebuild -create-xcframework -headers <dir>`
 > exige que el directorio de headers contenga un archivo llamado exactamente
@@ -260,7 +260,7 @@ sobre qué NO copiar:** ese proyecto tiene un `*ViewModelWrapper.swift` por pant
 `KMPNativeCoroutines` y cancela el `Task` en `deinit`—. Ese wrapper existe **solo porque
 ahí el ViewModel es Kotlin y hay que adaptarlo a SwiftUI**.
 
-**Acá no hay nada que envolver.** El core es Rust y cruza por uniffi como funciones
+**Aquí no hay nada que envolver.** El core es Rust y cruza por uniffi como funciones
 síncronas: Swift llama `executeTransfer(...)` y le devuelve un valor, sin flows, sin
 corrutinas, sin `Task` de observación, sin `deinit` que cancelar. Escribir un
 `ViewModelWrapper` en esta POC sería copiar la solución sin el problema.
@@ -340,7 +340,7 @@ final class TransferViewModel {
 3. **Funciones con nombre de dominio** —`transfer()`, `amountChanged(_:)`, `clearError()`—,
    no setters.
 4. **`isLoading = false` en una sola salida.** El bug clásico es el `catch` que se olvida de
-   apagar el spinner y deja la pantalla cargando para siempre. Acá se apaga después del
+   apagar el spinner y deja la pantalla cargando para siempre. Aquí se apaga después del
    `do/catch`, no dentro de cada rama.
 5. **`clearError()` existe.** El error se consume; si no, reaparece al volver a la pantalla.
 6. **Un booleano por operación**, no uno global.

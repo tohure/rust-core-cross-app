@@ -6,7 +6,7 @@ README que mezcla "cómo se usa" con "qué falta" no sirve para ninguna de las d
 Nada de aquí bloquea la demo. Son decisiones tomadas, no olvidos.
 
 > **Qué es este archivo, para no leerlo mal.** Es un registro de **decisiones tomadas y huecos
-> conocidos**, no una lista de tareas. Buena parte de lo que hay acá está cerrado o se decidió
+> conocidos**, no una lista de tareas. Buena parte de lo que hay aquí está cerrado o se decidió
 > no hacer, y sigue escrito a propósito: **el valor está en el porqué**, que es lo que evita que
 > alguien reabra la discusión dentro de seis meses o "arregle" algo que es deliberado. Que el
 > archivo se llame `PENDING.md` no significa que todo lo de adentro esté pendiente.
@@ -20,7 +20,7 @@ Nada de aquí bloquea la demo. Son decisiones tomadas, no olvidos.
 >   que el core nunca emite.
 > - **Detalles menores** — la lista del final.
 
-> **Lo transversal no está acá.** El cuadro comparativo de los cuatro benchmarks, la ausencia
+> **Lo transversal no está aquí.** El cuadro comparativo de los cuatro benchmarks, la ausencia
 > de CI en las cinco bases de código, el `catch` genérico que muestra texto de diagnóstico como
 > mensaje de usuario, las divergencias de paridad abiertas y la regla de que un `Record` de uniffi
 > se reemplaza y no se muta viven en
@@ -164,7 +164,7 @@ test que lo fija es `aBrokenBridgeShowsTheErrorAndNotANumber`, en las dos.
 
 Esto **no** son pendientes: son cosas que la POC decidió no hacer.
 
-- Persistencia, red, runtime async, animaciones e i18n más allá del español.
+- Persistencia, red, runtime async, animaciones e i18n más allí del español.
 - **Keychain, biométricos y almacenamiento seguro.** La pantalla de Tarjeta invita a pedirlo,
   así que conviene ser explícito: la POC demuestra que **el algoritmo de cifrado** vive en el
   core y produce el mismo resultado en las cuatro plataformas. Dónde guardarías una clave en

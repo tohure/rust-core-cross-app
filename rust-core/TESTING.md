@@ -7,7 +7,7 @@ que corren las cuatro apps.
 Todos los comandos de este archivo **se ejecutaron tal como están escritos**, desde
 `rust-core/`, y la salida que sigue a cada uno es la que devolvieron.
 
-Si lo que buscás es compilar o exportar, eso está en [BUILD.md](BUILD.md).
+Para compilar o exportar, eso está en [BUILD.md](BUILD.md).
 
 ## Correr los tests
 
@@ -135,7 +135,7 @@ set de claves saben qué funciones existen. Verificado: borrando `contract_cci` 
 once tests, todo verde, sin un warning. Cerrarlo requeriría extraer los seis cuerpos a
 funciones normales referenciadas desde una tabla `[(&str, fn(&Value)); 6]`, para que borrar
 una rompa la compilación o dispare `dead_code` en clippy; no se hizo porque colapsaría los
-seis nombres de test, que es justo lo que se lee cuando algo falla. Queda escrito acá para
+seis nombres de test, que es justo lo que se lee cuando algo falla. Queda escrito aquí para
 que la decisión se tome **una vez** y no cuatro veces, cuando Kotlin, Swift y TypeScript
 espejen este archivo.
 

@@ -5,7 +5,7 @@ núcleo Rust; la otra corre sobre un dispositivo y sí lo toca.**
 
 | | Dónde corre | Necesita | Cruza el FFI |
 |---|---|---|---|
-| `testDebugUnitTest` | JVM de tu máquina | nada | **no** — usa `FakeCoreFinanciero` |
+| `testDebugUnitTest` | JVM de la máquina local | nada | **no** — usa `FakeCoreFinanciero` |
 | `connectedDebugAndroidTest` | emulador o teléfono | un dispositivo conectado | **sí** — carga `libcore_financiero.so` |
 
 Esa diferencia no es un detalle de infraestructura: los tests de JVM verifican que los
@@ -63,7 +63,7 @@ nativa de verdad. La 20.ª es la sonda, que no aserta y por eso está aparte en 
 `:app` prueba presentación, que es lo único que le quedó a ese módulo.
 
 Para acotar una corrida instrumentada a una clase, **`--tests` no sirve** —ese flag es de la
-tarea de unit tests JVM y AGP 9 lo rechaza acá—. El equivalente que funciona:
+tarea de unit tests JVM y AGP 9 lo rechaza aquí—. El equivalente que funciona:
 
 ```bash
 ./gradlew :app:connectedDebugAndroidTest \
@@ -113,8 +113,8 @@ dentro del ruido: **el costo es marshalling, no cómputo.**
 
 **Y el camino de error cuesta aparte.** `validateCard("41111")` lleva un solo argumento, así que
 debería dar `47 + 49 ≈ 96 µs`; mide 113. Esos ~17 µs de más son la excepción cruzando la
-frontera. Es el mismo efecto que iOS exhibe mucho más marcado —allá el error cuesta **4×** un
-`add` exitoso— y acá queda tapado porque lo que domina es la cantidad de argumentos.
+frontera. Es el mismo efecto que iOS exhibe mucho más marcado —allí el error cuesta **4×** un
+`add` exitoso— y aquí queda tapado porque lo que domina es la cantidad de argumentos.
 
 **No invalida la guía de llamar al core de forma síncrona**: 145,9 µs es el **0,9%** de un frame
 a 60 fps, y cada interacción hace una o dos llamadas.
@@ -138,7 +138,7 @@ y la medición anterior se tomó sin registrarla.
 ### De dónde sale ese piso de 47 µs
 
 **No de reflexión en el despacho**, que es lo que este archivo decía antes y es falso para
-uniffi 0.32. El binding generado usa **direct mapping** de JNA:
+uniffi 0.31. El binding generado usa **direct mapping** de JNA:
 
 ```kotlin
 Native.register(UniffiLib::class.java, findLibraryName(componentName = "core_financiero"))
@@ -263,7 +263,7 @@ pantalla no:
   Lo que queda en pie es **el proceso**: la sonda corre en el APK de test y la pantalla en el de
   la app. El candidato es la presión de GC —JNA asigna un `Memory` nativo por llamada, y esos
   objetos son de los que el recolector sigue— contra heaps de tamaño distinto. No se persiguió
-  más allá: no cambia ninguna conclusión de la POC.
+  más allí: no cambia ninguna conclusión de la POC.
 
   **La consecuencia práctica sí importa: los números de un instrumento no se citan al lado de los
   del otro.** La comparación válida es siempre dentro de la misma columna.

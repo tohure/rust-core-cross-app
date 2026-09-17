@@ -59,7 +59,7 @@ flowchart TD
 ### Qué es cada pieza y por qué existe
 
 - **`apps/web-angular` no depende de `rust-core`, depende de `apps/react-native`.** El `.wasm`
-  lo produce `ubrn build wasm2` allá, no acá. Es la única arista rara del grafo de build de la
+  lo produce `ubrn build wasm2` allí, no aquí. Es la única arista rara del grafo de build de la
   POC y está así a propósito: `ubrn` ya sabía compilar a wasm y montar un segundo pipeline en
   `rust-core` habría sido ceremonia.
 - **`packages/core-financiero-wasm` tiene dos capas y las dos hacen falta.** `generated/` es
@@ -75,7 +75,7 @@ flowchart TD
   cuatro pantallas para nada: el WASM ya está cargado antes de que se pinte la primera.
 - **`packages/contract` lo comparten producción y test, y desde la Fase 6 también las dos apps
   de TypeScript.** `userMessage` —el borde donde un `DomainError` se vuelve texto humano— vive
-  ahí, no acá: estaba escrita dos veces, casi idéntica, en esta app y en React Native, y el
+  ahí, no aquí: estaba escrita dos veces, casi idéntica, en esta app y en React Native, y el
   arreglo de la Fase 6 —que el diagnóstico dejara de llegar a la pantalla— hubo que aplicarlo en
   los dos lugares. Usa el mismo `contractName`/`messageFor` que el test de contrato, en vez de
   una segunda copia que se desincroniza. Se importa del barrel y no de
@@ -86,11 +86,11 @@ flowchart TD
 **El binario de Rust se genera primero, para las cuatro apps a la vez.** La secuencia
 completa, en orden, vive en
 [rust-core/BUILD.md](../../rust-core/BUILD.md#generar-el-core-que-consumen-las-cuatro-apps);
-el paso que le toca a esta app no se corre acá ni en `rust-core/`, sino desde
+el paso que le toca a esta app no se corre aquí ni en `rust-core/`, sino desde
 `apps/react-native/` — ver abajo.
 
 **No hace falta correr ni construir la app de React Native.** Es la duda razonable al ver el
-`cd apps/react-native` de abajo, así que conviene decirlo antes: no necesitás NDK de Android, ni
+`cd apps/react-native` de abajo, así que conviene decirlo antes: no hace falta NDK de Android, ni
 Xcode, ni emulador, ni teléfono, ni Metro. `ubrn` es la herramienta que compila el crate a wasm y
 está instalada como dependencia de esa app; es una **ubicación de herramienta de build, no una
 dependencia de runtime**. Tanto es así que el artefacto se escribe en `packages/`, fuera de ella.
@@ -103,7 +103,7 @@ El `.wasm` **no está en git**. En un clone limpio hay que construirlo, y es lo 
 # desde la raíz del repo
 pnpm install --ignore-scripts
 
-# el .wasm se construye en react-native, no acá
+# el .wasm se construye en react-native, no aquí
 cd apps/react-native && pnpm wasm:generate
 ```
 
@@ -114,20 +114,18 @@ existe. Huevo y gallina. Peor: el `pnpm wasm:generate` de después **ni siquiera
 pnpm detecta la instalación incompleta, reintenta el install solo, y aborta con
 `[ERROR] Command failed with exit code 1: pnpm install`.
 
-Saltear ese `prepare` no pierde nada acá: `bob build` empaqueta la librería de React Native para
+Saltear ese `prepare` no pierde nada aquí: `bob build` empaqueta la librería de React Native para
 publicarla, cosa que la demo web no usa.
 
 Ese segundo comando hace tres cosas: `ubrn build wasm2 --release --and-generate`, le pega el
-`@ts-nocheck` al `index.ts` generado, y compila la fachada con esbuild. Tarda ~40 s la primera
-vez. **Verificado sobre un clone limpio el 2026-09-17**, sin ningún toolchain móvil instalado en
-el PATH de esa corrida.
+`@ts-nocheck` al `index.ts` generado, y compila la fachada con esbuild. Tarda ~40 s la primera vez, y **no necesita ningún toolchain móvil**.
 
-Si te lo saltás, la app arranca y falla en el arranque con un mensaje que dice exactamente qué
+Si se saltea, la app arranca y falla en el arranque con un mensaje que dice exactamente qué
 falta construir. Eso es deliberado: el symlink apunta a un artefacto gitignoreado y el server de
 Angular contesta el `index.html` del SPA con status 200, así que sin el chequeo de `response.ok`
 el error sería un trap opaco de WebAssembly en vez de una instrucción.
 
-### Dónde se cablea, y qué **no** tenés que editar
+### Dónde se cablea, y qué **no** hay que editar
 
 Una duda razonable: «¿y dónde le digo a la app cómo se llama lo que generó Rust?». **En ningún
 lado.** No hay que tocar ningún archivo de configuración: el cableado está fijo en el código del
@@ -148,7 +146,7 @@ opaco de WebAssembly en vez de un mensaje que dice qué falta.
 
 Esta app **no consume `rust-core` directamente**: consume lo que produce
 `apps/react-native`. Es la única de las cuatro con esa dependencia, y es la razón por la que su
-paso de build no se corre ni acá ni en `rust-core/`.
+paso de build no se corre ni aquí ni en `rust-core/`.
 
 ## Correrla
 
@@ -229,7 +227,7 @@ Tres advertencias que no se pueden omitir al presentarlo, y ninguna es menor:
 
 1. **No mide como las otras tres apps.** El `performance.now()` del navegador está cuantizado a
    ~100 µs por la mitigación anti-Spectre, o sea un reloj ~100× más grueso que lo que se quiere
-   medir. Por eso acá se cronometran **lotes** de K llamadas y se divide, mientras Android e iOS
+   medir. Por eso aquí se cronometran **lotes** de K llamadas y se divide, mientras Android e iOS
    miden cruce por cruce con relojes de nanosegundos. **Ubica el orden de magnitud; no sirve para
    una comparación centavo a centavo con las otras tres.**
 2. **El número depende de lo que teclees en `Iteraciones`**, y no es ruido: 3,00 µs con 100,
@@ -260,11 +258,11 @@ puente.
   carácter por carácter. `formatPEN` agrupa manipulando el string. Tampoco `CurrencyPipe`, que
   espera un `number`.
 - **No hay red del `catch_unwind`.** `wasm32-unknown-unknown` impone `panic = "abort"`, así que
-  un pánico del core acá **no vuelve como error del FFI**: es un trap que deja la instancia del
+  un pánico del core aquí **no vuelve como error del FFI**: es un trap que deja la instancia del
   módulo inutilizable y obliga a recargar la página. Lo único que protege esta app es la
   disciplina del core (cero `panic!`/`unwrap()`/`expect()` en producción) y sus proptests
   `*_never_panics`. No hay segunda red.
-- **El MIME `application/wasm` no hace falta acá**, contra lo que advertía el CONTEXT. `loadCore`
+- **El MIME `application/wasm` no hace falta aquí**, contra lo que advertía el CONTEXT. `loadCore`
   pasa **bytes** (`response.arrayBuffer()`) a `initCore`, y con bytes se usa
   `WebAssembly.compile`, que no mira el `Content-Type`; sólo `compileStreaming` lo exige. Se
   pierde la compilación en streaming, irrelevante para 180 KB.
