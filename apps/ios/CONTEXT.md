@@ -17,10 +17,15 @@ Si algo no está en esta lista, no existe.
 
 Los nombres y las etiquetas de argumento de abajo se leyeron de los **bindings generados**
 con `uniffi-bindgen --language swift` (uniffi 0.32), no se dedujeron: uniffi convierte el
-`snake_case` de Rust a lowerCamelCase y emite funciones **globales** en el módulo que
-compile `core_financiero.swift` —el de la app—, no dentro de un tipo. No las prefijes con
-nada: `try encrypt(...)`, no `CoreFinancieroFFI.encrypt(...)`; ese `import
-core_financieroFFI` lo hace el propio archivo generado para hablar con el XCFramework.
+`snake_case` de Rust a lowerCamelCase y emite funciones **globales**, no dentro de un tipo. El
+módulo que las compila es `CoreFinancieroKit` —el target del framework estático, desde el
+split de targets—, no el de la app. El adapter sí las prefija, y a propósito:
+`CoreFinancieroKit/Adapter/UniffiCoreFinanciero.swift` llama a cada una como
+`CoreFinancieroKit.add(...)`, `CoreFinancieroKit.encrypt(...)`, etc., porque el `struct` que
+las envuelve —`UniffiCoreFinanciero`— declara un método homónimo por cada una, y sin el
+prefijo del módulo el compilador resolvería la llamada contra ese método en vez de contra la
+función global de uniffi, que es una recursión infinita silenciosa. El comentario de ese
+archivo lo explica en el propio código.
 
 ```swift
 public func add(a: String, b: String) throws -> String
@@ -387,7 +392,9 @@ resultados que Android, RN y web.
 
 ## Prohibiciones
 
-- No edites `CoreFinancieroKit/Generated/` ni el `.xcframework`.
+- No edites `CoreFinancieroKit/Generated/`, `apps/ios/Generated/include/` (los headers
+  `core_financieroFFI.h` + `module.modulemap`, también generados por uniffi y gitignoreados)
+  ni el `.xcframework`.
 - No agregues ninguna dependencia de cálculo financiero.
 - No uses `Double` para dinero, ni en tests.
 - No agregues red ni Core Data.

@@ -157,11 +157,13 @@ compilar el kit solo aísla el problema sin esperar a que compilen las cinco pan
 
 ```bash
 xcodebuild build -project ios-rust-test.xcodeproj -target CoreFinancieroKit \
-  -sdk iphonesimulator -destination 'platform=iOS Simulator,name=iPhone 17 Pro'
+  -sdk iphonesimulator -destination 'platform=iOS Simulator,name=iPhone 17 Pro,OS=26.5'
 ```
 
-Qué se debe ver: `** BUILD SUCCEEDED **`. Si esta máquina tiene el mismo desajuste de runtime
-que la nota de arriba, agregá `,OS=26.5` (o el runtime que corresponda) a la `-destination`.
+Qué se debe ver: `** BUILD SUCCEEDED **`. El `,OS=26.5` es el mismo ajuste que la nota de
+arriba: en esta máquina "iPhone 17 Pro" solo existe en ese runtime, no en `OS:latest`. Si tu
+máquina no tiene ese desajuste, `-destination 'platform=iOS Simulator,name=iPhone 17 Pro'`
+alcanza.
 
 ## Correr los tests
 

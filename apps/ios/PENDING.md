@@ -38,16 +38,11 @@ La consecuencia es que **nada obliga a que el seam exista**. En Android, un test
 intente tocar el core real falla al cargar la librería; aquí compila y pasa. La disciplina de
 inyectar `CoreFinanciero` la sostiene la revisión, no el compilador.
 
-**Esto sigue valiendo igual después del split de targets** (ver el ítem cerrado más abajo), y
-conviene decirlo sin rodeos porque es fácil asumir lo contrario: partir la app en
-`CoreFinancieroKit` + `ios-rust-test` no le da a iOS un mecanismo equivalente al de Android. En
-Android el seam lo cierra el **runtime** —la JVM del test de unidad no puede cargar la `.so`,
-así que un test que intentara tocar el core real fallaría al arrancar, no al compilar—. iOS no
-tiene ese mecanismo porque el core se enlaza **estáticamente**: el bundle de tests hostea
-dentro de la app, la app enlaza `CoreFinancieroKit`, y por lo tanto el core real está siempre
-disponible para cualquier test, esté en el target que esté. Ningún reparto de archivos entre
-targets cambia eso. La disciplina de inyectar `CoreFinanciero` en vez de llamar al core real
-sigue sostenida por la revisión, no por el compilador ni por el runtime.
+**Esto sigue valiendo igual después del split de targets**, y conviene decirlo sin rodeos
+porque es fácil asumir lo contrario: partir la app en `CoreFinancieroKit` + `ios-rust-test` no
+le da a iOS un mecanismo equivalente al de Android. El argumento completo —por qué el split no
+lo cierra, y la corrección de la premisa con la que se abrió este pendiente— está en el ítem
+cerrado "~~La app es un solo target...~~" más abajo.
 
 ### ~~La app es un solo target, y el argumento para partirla vale igual que en Android~~ — CERRADO
 

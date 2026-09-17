@@ -257,6 +257,27 @@ necesita porque ahí ocurre el enlace final del binario—, y compiló y linkeó
 las tres corridas que lo ejercitaron (kit solo, simulador completo, aparato físico). El
 detalle línea por línea de cómo quedó declarado está en el diff del commit `92b8b3c`.
 
+**Por qué `ios-rust-testTests` no declara `CoreFinancieroKit` en su fase `Frameworks`, y por
+qué eso no es un olvido.** El bundle de test es el único de los tres que **no** enlaza el kit
+directamente — a diferencia de `ios-rust-test` y del propio `CoreFinancieroKit`, que sí lo
+declaran cada uno en la suya. La próxima persona que abra el `pbxproj` y compare las tres fases
+`Frameworks` va a leer esa ausencia como algo roto y va a querer "completarla". No hay que
+hacerlo, y el motivo es la combinación de dos hechos ya establecidos en esta sección: el kit es
+estático, y el bundle de test hostea **dentro de la app** vía `TEST_HOST` / `BUNDLE_LOADER`
+(ver `DD8323A43053A1B00038F99E` en el `pbxproj`, la config `Debug` de `ios-rust-testTests`).
+Como la app ya enlaza `CoreFinancieroKit` estáticamente, el código del kit —sus símbolos, su
+metadata de tipos Swift, sus inicializadores estáticos— ya está adentro del binario de
+`ios-rust-test.app` en el momento en que el test corre alojado ahí. Enlazar el kit **otra vez**
+en el `.xctest` no le daría al test nada que no tenga ya: le agregaría una **segunda copia**
+de esos mismos objetos —metadata de tipos duplicada, inicializadores estáticos corriendo dos
+veces—, que es exactamente la clase de problema que un framework estático enlazado en más de
+un lugar del mismo proceso puede producir. Lo único que el bundle de test necesita para que
+`import CoreFinancieroKit` compile es el `.swiftmodule` del kit en `BUILT_PRODUCTS_DIR`, y eso
+ya está disponible porque el kit es una dependencia de build de la app y las tres comparten el
+mismo `BUILT_PRODUCTS_DIR` de la corrida. Enlazar es un problema de runtime (resolver
+símbolos); importar para compilar es un problema de build (encontrar el módulo) — acá solo
+hace falta el segundo.
+
 **Diagnóstico rápido si el borde FFI se rompe:** compilar el kit solo, sin la app ni las
 pantallas de por medio:
 
@@ -329,22 +350,46 @@ del binario, que acá resulta ser un mensaje de pánico:
 El patrón `[0-9a-f]{7,}` — sin límite superior — es codicioso: seguía leyendo mientras
 encontrara hex válido, y `c` y `a` de `called` lo son. Se comió dos caracteres del literal
 siguiente y los pegó al SHA. El resultado, `959025fca`, tiene la forma exacta de un SHA
-corto y no dispara ninguna alarma — es del mismo largo que un short SHA de 10 caracteres, así
-que nada en el comando ni en la salida avisa que está mal. Eso es lo que lo hace caro: la
-próxima persona que lo corra va a asumir que el artefacto cambió, cuando no cambió.
+corto y no dispara ninguna alarma — tiene 9 caracteres, así que nada en el comando ni en la
+salida avisa que está mal. Eso es lo que lo hace caro: la próxima persona que lo corra va a
+asumir que el artefacto cambió, cuando no cambió.
 
-**El comando correcto acota el cuantificador al largo exacto de un short SHA de git, 7
-caracteres:**
+**Acotar el cuantificador a `{7}` no arregla esto — reintroduce el mismo fallo.** La tentación
+es pensar que 7 es "el largo exacto de un short SHA de git", pero no lo es:
+`rust-core/crates/ffi/build.rs` arma el sufijo con `git rev-parse --short HEAD`, que respeta
+`core.abbrev`. Su default es `auto` — el piso son 7 caracteres, pero **crece con la cantidad de
+objetos del repositorio** en cuanto 7 dejan de alcanzar para ser únicos. El día que este
+repositorio acumule los objetos suficientes para que `git rev-parse --short HEAD` empiece a
+devolver 8 o más caracteres, `{7}` va a truncar en silencio ese SHA más largo y a devolver un
+SHA de forma perfecta que no es el del artefacto — exactamente la clase de fallo que esta
+sección denuncia, solo que provocado por el propio comando que se ofrece como corrección.
+
+**La forma que no miente no extrae, compara.** En vez de recortar el string con una expresión
+regular y confiar en que el largo coincida, hay que buscar el SHA conocido —el que devuelve
+`git rev-parse --short HEAD` ahora mismo— como substring literal. Si no aparece, el comando no
+imprime nada: "sin salida" es una señal inequívoca de que no coincide, porque el comando nunca
+arma un SHA por su cuenta, solo confirma o no la presencia del que ya se le dio.
 
 ```bash
 strings CoreFinanciero.xcframework/ios-arm64/libcore_financiero.a \
-  | grep -oE '[0-9]+\.[0-9]+\.[0-9]+\+[0-9a-f]{7}' | sort -u
-# → 1.0.0+959025f   ← correcto
+  | grep -F "1.0.0+$(git -C ../.. rev-parse --short HEAD)"
 ```
 
-Verificado de forma cruzada durante el split de targets (Task 3 del plan
-`2026-09-17-ios-target-split`): `1.0.0+959025f` es el string que se pinta en pantalla, tanto
-en el simulador de iOS como en el emulador de Android, para el mismo HEAD.
+Corrido contra el estado de este repositorio al escribir esta sección, con HEAD en `bd1962d`:
+no devuelve nada, y eso es lo correcto, no un fallo del comando. El XCFramework que hay en el
+árbol quedó congelado en el commit `959025f` —el mismo que documenta el bloque anterior— y esta
+tanda de arreglos es solo documentación, así que no se regeneró. Corrido contra el SHA que sí
+tiene el artefacto, confirma:
+
+```bash
+strings CoreFinanciero.xcframework/ios-arm64/libcore_financiero.a | grep -F "1.0.0+959025f"
+# → 1.0.0+959025fcalled `Result::unwrap()` on an `Err` value...   ← coincide, hay línea
+```
+
+El comando de arriba hay que correrlo recién **después** de regenerar el XCFramework desde el
+HEAD que se quiere verificar. Si se corre contra un artefacto viejo, como acá, la ausencia de
+salida es la señal correcta de que hace falta reconstruir — no hay que "arreglarlo" para que
+devuelva algo.
 
 **El artefacto es una pista, no la autoridad.** Si alguna vez este comando y la pantalla
 discrepan, lo que vale es lo que se ve en pantalla — `strings` sobre un binario de Rust puede
