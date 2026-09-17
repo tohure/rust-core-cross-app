@@ -92,6 +92,12 @@ ls apps/android/core-financiero/src/generated/jniLibs/*/libcore_financiero.so \
 
 Si alguno dice `No such file or directory`, **empezá por acá**:
 
+> **Si es un clone limpio, el primer `pnpm install` va con `--ignore-scripts`.** Sin el flag
+> falla: el `prepare: bob build` de `apps/react-native` genera los `.d.ts` a partir de archivos
+> que importan de `src/generated/`, que está gitignoreado y todavía no existe. Es huevo y
+> gallina, y arrastra al comando siguiente. Detalle y verificación en
+> [apps/web-angular/README.md](apps/web-angular/README.md).
+
 **→ [rust-core/BUILD.md § Generar el core que consumen las cuatro
 apps](rust-core/BUILD.md#generar-el-core-que-consumen-las-cuatro-apps)**
 
@@ -131,6 +137,24 @@ cd example && pnpm exec react-native start --reset-cache   # Metro, en su propia
 pnpm test
 pnpm exec ng serve                                # http://localhost:4200
 ```
+
+### Verificado desde un clone limpio
+
+Todo lo de arriba se probó el **2026-09-17 clonando el repo aparte** y siguiendo estos comandos
+tal como están escritos, no desde la máquina donde se desarrolló. Resultado:
+
+| Subproyecto | Desde cero | Qué hacía falta que el README no decía |
+|---|---|---|
+| `rust-core` | ✅ 71 tests | nada |
+| Angular | ✅ 102 tests | `pnpm install --ignore-scripts` |
+| iOS | ✅ 54 tests | `cargo build --release` del host |
+| Android | ✅ 36 de JVM | `cargo build --release` del host |
+| React Native | ✅ 129 tests | `pnpm napi:generate` |
+
+Los tres huecos ya están corregidos en los README y en `rust-core/CONTEXT.md`. Los tres eran de
+la misma forma: **pasos que en una máquina donde ya se construyó el proyecto sobran, y en un
+clone limpio son obligatorios.** Ninguno se puede descubrir sin clonar, y por eso «verificado
+desde un clone limpio» es ahora el cuarto criterio de cierre de fase — ver [CLAUDE.md](CLAUDE.md).
 
 ### No hay nada que configurar a mano
 

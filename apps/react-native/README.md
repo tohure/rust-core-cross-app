@@ -114,9 +114,21 @@ Los artefactos nativos **no están en git**. Hay que generarlos al menos una vez
 
 ```bash
 export ANDROID_NDK_HOME="$HOME/Library/Android/sdk/ndk/30.0.16248370"
-pnpm ubrn:android              # ~1:01 — 3 ABIs + bindings
+pnpm ubrn:android              # ~1:01 — 3 ABIs + bindings, y deja src/bindings.tsx
 pnpm ubrn:ios                  # ~12 s con cargo cacheado; incluye pod install
+pnpm napi:generate             # el .dylib del host + los bindings N-API
 ```
+
+**`napi:generate` es obligatorio para `pnpm test`, y es el que más fácil se olvida.** Sin él la
+suite da **90 de 129 con 3 suites rotas**, no un error que diga qué falta:
+`Cannot find module '../src/generated-napi/core_financiero'` en las dos de N-API, y
+`BancoApp.test.tsx` cae por `src/bindings`, que sale de `ubrn:android` o `ubrn:ios`.
+
+O sea que **los 129 tests de esta app necesitan el toolchain nativo**: `ubrn:android` pide el
+NDK y `ubrn:ios` pide Xcode. Con uno de los dos alcanza para `src/bindings.tsx`. Es la diferencia
+con Angular, que sólo necesita `wasm:generate` y ningún toolchain móvil.
+
+Verificado sobre un clone limpio el 2026-09-17: con los tres comandos, **129 de 129 en verde**.
 
 ### Dónde se cablea, y qué **no** tenés que editar
 

@@ -89,18 +89,38 @@ completa, en orden, vive en
 el paso que le toca a esta app no se corre acá ni en `rust-core/`, sino desde
 `apps/react-native/` — ver abajo.
 
+**No hace falta correr ni construir la app de React Native.** Es la duda razonable al ver el
+`cd apps/react-native` de abajo, así que conviene decirlo antes: no necesitás NDK de Android, ni
+Xcode, ni emulador, ni teléfono, ni Metro. `ubrn` es la herramienta que compila el crate a wasm y
+está instalada como dependencia de esa app; es una **ubicación de herramienta de build, no una
+dependencia de runtime**. Tanto es así que el artefacto se escribe en `packages/`, fuera de ella.
+
+Lo que sí hace falta: **Node 22, pnpm, y Rust con el target `wasm32-unknown-unknown`.**
+
 El `.wasm` **no está en git**. En un clone limpio hay que construirlo, y es lo primero:
 
 ```bash
 # desde la raíz del repo
-pnpm install
+pnpm install --ignore-scripts
 
 # el .wasm se construye en react-native, no acá
 cd apps/react-native && pnpm wasm:generate
 ```
 
-Ese comando hace tres cosas: `ubrn build wasm2 --release --and-generate`, le pega el
-`@ts-nocheck` al `index.ts` generado, y compila la fachada con esbuild.
+**El `--ignore-scripts` no es opcional en un clone limpio, y es un bug conocido.** Sin él,
+`pnpm install` falla: el `prepare: bob build` de `apps/react-native` intenta generar los `.d.ts`,
+esos archivos importan de `src/generated/`, y ese directorio está gitignoreado y todavía no
+existe. Huevo y gallina. Peor: el `pnpm wasm:generate` de después **ni siquiera arranca**, porque
+pnpm detecta la instalación incompleta, reintenta el install solo, y aborta con
+`[ERROR] Command failed with exit code 1: pnpm install`.
+
+Saltear ese `prepare` no pierde nada acá: `bob build` empaqueta la librería de React Native para
+publicarla, cosa que la demo web no usa.
+
+Ese segundo comando hace tres cosas: `ubrn build wasm2 --release --and-generate`, le pega el
+`@ts-nocheck` al `index.ts` generado, y compila la fachada con esbuild. Tarda ~40 s la primera
+vez. **Verificado sobre un clone limpio el 2026-09-17**, sin ningún toolchain móvil instalado en
+el PATH de esa corrida.
 
 Si te lo saltás, la app arranca y falla en el arranque con un mensaje que dice exactamente qué
 falta construir. Eso es deliberado: el symlink apunta a un artefacto gitignoreado y el server de
