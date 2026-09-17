@@ -52,7 +52,7 @@ No es una estrella. Angular **no** consume el core directamente:
 ```
 rust-core/crates/ffi  (único crate exportado; crates/domain es Rust puro y no conoce uniffi)
    │
-   ├── cargo ndk + uniffi-bindgen kotlin ──> apps/android  (jniLibs/*.so + core/)
+   ├── cargo ndk + uniffi-bindgen kotlin ──> apps/android  (jniLibs/*.so + java/uniffi/core_financiero/)
    ├── xcodebuild -create-xcframework    ──> apps/ios      (CoreFinanciero.xcframework + Generated/)
    └── ubrn (desde apps/react-native)
          ├── build android|ios --and-generate ──> apps/react-native (cpp/, src/generated/)

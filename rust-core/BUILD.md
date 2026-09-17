@@ -299,8 +299,8 @@ fallo que este repositorio evita en todas partes, dos copias que se desincroniza
 
 1. **Android nativo** (`apps/android`), desde `rust-core/`: `cargo ndk` (los tres ABI) +
    `uniffi-bindgen` en modo `kotlin`. Deja los `.so` por ABI en `jniLibs/` y los bindings
-   Kotlin en `core/`. Comandos completos → sección «Comandos de exportación» de
-   [CONTEXT.md](CONTEXT.md).
+   Kotlin en `app/src/main/java/uniffi/core_financiero/`. Comandos completos → sección
+   «Comandos de exportación» de [CONTEXT.md](CONTEXT.md).
 
 2. **iOS nativo** (`apps/ios`), desde `rust-core/`: los dos targets
    (`aarch64-apple-ios`, `aarch64-apple-ios-sim`) + el arreglo del `module.modulemap`
