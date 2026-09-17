@@ -6,6 +6,7 @@ import dev.tohure.android_rust_test.adapter.contractName
 import org.json.JSONArray
 import org.json.JSONObject
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -46,7 +47,7 @@ class ContractTest {
 
     @Test
     fun theContractIsTheExpectedVersion() {
-        assertEquals("2.3.0", contract.getString("version"))
+        assertEquals("2.4.0", contract.getString("version"))
         assertEquals("PEN", contract.getString("moneda"))
     }
 
@@ -58,6 +59,7 @@ class ContractTest {
         assertEquals(6, group("tarjeta").length())
         assertEquals(7, group("transferencia").length())
         assertEquals(2, group("cuentas_iniciales").length())
+        assertEquals(3, group("descifrado").length())
     }
 
     @Test
@@ -66,6 +68,7 @@ class ContractTest {
             "version", "moneda", "_nota", "_alicuota_itf",
             "_clave_demo_hex", "_nonce_demo_hex",
             "aritmetica", "cuentas_iniciales", "transferencia", "cci", "itf", "tarjeta",
+            "descifrado",
         )
         val actual = contract.keys().asSequence().toSet()
         assertEquals(
@@ -275,6 +278,30 @@ class ContractTest {
             checked++
         }
         assertEquals("se esperaban 7 casos de transferencia", 7, checked)
+    }
+
+    @Test
+    fun theDecryptGroupMatches() {
+        val cases = group("descifrado")
+        var checked = 0
+        for (i in 0 until cases.length()) {
+            val case = cases.getJSONObject(i)
+            val id = case.getString("id")
+            if (case.getBoolean("valido")) {
+                assertEquals(
+                    id,
+                    case.getJSONObject("esperado").getString("texto"),
+                    decrypt(case.getString("entrada"), keyHex(), nonceHex()),
+                )
+            } else {
+                val e = assertThrows(DomainException::class.java) {
+                    decrypt(case.getString("entrada"), keyHex(), nonceHex())
+                }
+                assertEquals(id, case.getString("error"), e.contractName())
+            }
+            checked++
+        }
+        assertEquals("se esperaban 3 casos de descifrado", 3, checked)
     }
 
     // ── Ayudantes ─────────────────────────────────────────────────────────────

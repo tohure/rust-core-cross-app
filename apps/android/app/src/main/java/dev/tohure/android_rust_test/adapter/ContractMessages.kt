@@ -25,6 +25,7 @@ fun DomainException.contractName(): String =
         is DomainException.SameAccount -> "MismaCuenta"
         is DomainException.InsufficientFunds -> "SaldoInsuficiente"
         is DomainException.Encryption -> "Cifrado"
+        is DomainException.Decryption -> "Descifrado"
         is DomainException.OutOfRange -> "FueraDeRango"
     }
 
@@ -65,6 +66,7 @@ class ContractMessages(source: MessageSource) {
                     .replace("{available}", e.available)
                     .replace("{required}", e.required)
             is DomainException.Encryption -> template
+            is DomainException.Decryption -> template
             is DomainException.OutOfRange -> template.replace("{field}", e.`field`)
         }
 }

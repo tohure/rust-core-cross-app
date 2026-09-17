@@ -20,9 +20,9 @@ class ContractAssetsTest {
     @Test
     fun theTestApkCarriesBothContractFiles() {
         val cases = JSONObject(testAssets.open("cases.json").reader().readText())
-        assertEquals("2.3.0", cases.getString("version"))
+        assertEquals("2.4.0", cases.getString("version"))
         val messages = JSONObject(testAssets.open("messages.es.json").reader().readText())
-        assertEquals("1.1.0", messages.getString("version"))
+        assertEquals("1.2.0", messages.getString("version"))
     }
 
     @Test
@@ -30,8 +30,8 @@ class ContractAssetsTest {
         // Producción los necesita: `cuentas_iniciales` para la pantalla de Transferencia
         // y los nueve mensajes para las pantallas de error.
         val cases = JSONObject(appAssets.open("cases.json").reader().readText())
-        assertEquals("2.3.0", cases.getString("version"))
+        assertEquals("2.4.0", cases.getString("version"))
         val messages = JSONObject(appAssets.open("messages.es.json").reader().readText())
-        assertEquals("1.1.0", messages.getString("version"))
+        assertEquals("1.2.0", messages.getString("version"))
     }
 }

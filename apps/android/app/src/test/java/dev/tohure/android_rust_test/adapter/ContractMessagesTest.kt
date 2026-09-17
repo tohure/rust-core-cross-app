@@ -43,6 +43,12 @@ class ContractMessagesTest {
     }
 
     @Test
+    fun decryptionMapsToItsOwnContractName() {
+        assertEquals("Descifrado", DomainException.Decryption("detalle").contractName())
+        assertEquals("Cifrado", DomainException.Encryption("detalle").contractName())
+    }
+
+    @Test
     fun placeholdersAreInterpolatedRaw() {
         // CRUDO: nada de NumberFormat sobre los montos. Los formateadores de Android, iOS
         // y el navegador no coinciden, y una diferencia rompe la comparación carácter por

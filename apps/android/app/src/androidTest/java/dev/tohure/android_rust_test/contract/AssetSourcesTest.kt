@@ -23,9 +23,9 @@ class AssetSourcesTest {
     }
 
     @Test
-    fun theNineUserMessagesComeFromTheContract() {
+    fun theTenUserMessagesComeFromTheContract() {
         val messages = AssetMessageSource(assets).messages()
-        assertEquals(9, messages.size)
+        assertEquals(10, messages.size)
         assertEquals(
             "La cuenta de origen y la de destino son la misma.",
             messages["MismaCuenta"],
