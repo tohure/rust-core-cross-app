@@ -132,4 +132,19 @@ class CardViewModelTest {
         vm.foreignHexChanged("ab")
         assertNull(vm.uiState.value.foreignError)
     }
+
+    @Test
+    fun uppercaseHexIsRejectedLikeTheSpecSays() {
+        val vm = CardViewModel(FakeCoreFinanciero(), FakeContract(), messages())
+        vm.foreignHexChanged("ABCD")
+
+        // `docs/ui-spec.md:233` acepta sólo `[0-9a-f]` en este campo, y iOS ya lo cumple
+        // (`/^[0-9a-f]*$/`). Android aceptaba mayúsculas y las normalizaba con `lowercase()`,
+        // así que la MISMA entrada se comportaba distinto en dos apps que la demo pone lado
+        // a lado. El que diverge de la spec es Android, así que es el que cede.
+        assertEquals("", vm.uiState.value.foreignHex)
+
+        vm.foreignHexChanged("abcd")
+        assertEquals("abcd", vm.uiState.value.foreignHex)
+    }
 }
