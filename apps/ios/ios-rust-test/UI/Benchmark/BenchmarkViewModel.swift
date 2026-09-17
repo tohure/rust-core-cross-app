@@ -12,16 +12,20 @@ final class BenchmarkViewModel {
     private(set) var state = BenchmarkUiState()
 
     private let core: CoreFinanciero
+    private let messages: ContractMessages
 
-    init(core: CoreFinanciero) {
+    init(core: CoreFinanciero, messages: ContractMessages) {
         self.core = core
+        self.messages = messages
     }
 
     // MARK: - Entrada del usuario
 
+    /// Escribe el estado **siempre**, aunque el valor no cambie: un `set` que no escribe deja la
+    /// tecla rechazada a la vista. La explicación completa está en `TransferViewModel.amountChanged`.
     func iterationsChanged(_ value: String) {
-        guard value.wholeMatch(of: iterationsPattern) != nil else { return }
-        state.iterations = value
+        let accepted = value.wholeMatch(of: iterationsPattern) != nil
+        state.iterations = accepted ? value : state.iterations
     }
 
     // MARK: - Acciones
@@ -40,6 +44,25 @@ final class BenchmarkViewModel {
         }
         state.error = nil
         state.isRunning = true
+
+        // Una llamada de prueba **fuera del bucle**, y la única que no usa `try?`.
+        //
+        // `measure` mide `try?`, así que con el puente roto cronometraría el tiempo de lanzar
+        // la excepción: la pantalla mostraría números **más rápidos que los reales** y nadie se
+        // enteraría. Es la pantalla donde menos conviene, porque sus números se citan. React
+        // Native y Angular ya mostraban el error; esto cierra la divergencia.
+        do {
+            _ = try core.add(a: "0.1", b: "0.2")
+        } catch {
+            // Las medidas vuelven a `—`: dejar las de una corrida anterior debajo de un error
+            // haría parecer que el número corresponde a ésta. Mismo criterio que React Native.
+            state = BenchmarkUiState(
+                iterations: state.iterations,
+                error: messages.userMessage(error)
+            )
+            return
+        }
+
         let core = self.core
         let measured = await Task.detached(priority: .userInitiated) {
             (

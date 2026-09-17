@@ -28,7 +28,7 @@ class AppViewModelFactory(private val container: AppContainer) : ViewModelProvid
             CardViewModel::class.java ->
                 CardViewModel(container.core, container.contract, container.messages)
             BenchmarkViewModel::class.java ->
-                BenchmarkViewModel(container.core)
+                BenchmarkViewModel(core = container.core, messages = container.messages)
             else -> error("ViewModel no registrado en AppViewModelFactory: ${modelClass.name}")
         } as T
 }

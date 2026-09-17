@@ -3,6 +3,7 @@ package dev.tohure.android_rust_test.ui.benchmark
 import androidx.compose.runtime.Stable
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import dev.tohure.android_rust_test.adapter.ContractMessages
 import dev.tohure.android_rust_test.adapter.CoreFinanciero
 import java.util.Locale
 import kotlinx.coroutines.CoroutineDispatcher
@@ -35,6 +36,7 @@ class BenchmarkViewModel(
      * lo que dejó pasar el bug de `n = 0` hasta la Fase 3.
      */
     private val worker: CoroutineDispatcher = Dispatchers.Default,
+    private val messages: ContractMessages,
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(BenchmarkUiState())
     val uiState: StateFlow<BenchmarkUiState> = _uiState.asStateFlow()
@@ -63,6 +65,23 @@ class BenchmarkViewModel(
         }
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isRunning = true, error = null)
+
+            // Una llamada de prueba FUERA del bucle, y la única cuyo Result se mira.
+            //
+            // `measure` descarta el `Result`, así que con el puente roto cronometraría el
+            // camino de error: la pantalla mostraría números MÁS RÁPIDOS que los reales y
+            // nadie se enteraría. Es la pantalla donde menos conviene, porque sus números se
+            // citan. React Native y Angular ya mostraban el error; esto cierra la divergencia.
+            val failure = core.add("0.1", "0.2").exceptionOrNull()
+            if (failure != null) {
+                // Las medidas vuelven a `—`: dejar las de una corrida anterior debajo de un
+                // error haría parecer que el número corresponde a ésta. Igual que React Native.
+                _uiState.value = BenchmarkUiState(
+                    iterations = _uiState.value.iterations,
+                    error = messages.userMessage(failure),
+                )
+                return@launch
+            }
             // ESTA es la única pantalla donde las llamadas al core salen del hilo principal.
             // En el resto son síncronas y de microsegundos: envolverlas sería puro ruido.
             val core50to95 = withContext(worker) { measure(n) { core.add("0.1", "0.2") } }

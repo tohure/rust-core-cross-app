@@ -1,6 +1,9 @@
 package dev.tohure.android_rust_test.ui.benchmark
 
+import dev.tohure.android_rust_test.adapter.ContractMessages
+import dev.tohure.android_rust_test.contract.MessageSource
 import dev.tohure.android_rust_test.adapter.FakeCoreFinanciero
+import uniffi.core_financiero.DomainException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.StandardTestDispatcher
@@ -15,6 +18,10 @@ import org.junit.Assert.assertTrue
 import org.junit.Before
 import java.util.Locale
 import org.junit.Test
+
+private class FakeMessages(private val map: Map<String, String>) : MessageSource {
+    override fun messages() = map
+}
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class BenchmarkViewModelTest {
@@ -32,7 +39,7 @@ class BenchmarkViewModelTest {
 
     @Test
     fun zeroIterationsDoesNotLeaveTheSpinnerHanging() = runTest {
-        val vm = BenchmarkViewModel(FakeCoreFinanciero(), testDispatcher)
+        val vm = BenchmarkViewModel(FakeCoreFinanciero(), testDispatcher, messages())
         vm.iterationsChanged("0")
         vm.run()
         advanceUntilIdle()
@@ -47,7 +54,7 @@ class BenchmarkViewModelTest {
 
     @Test
     fun theIterationsFieldCapsAtSixDigits() {
-        val vm = BenchmarkViewModel(FakeCoreFinanciero(), testDispatcher)
+        val vm = BenchmarkViewModel(FakeCoreFinanciero(), testDispatcher, messages())
         vm.iterationsChanged("999999")
         assertEquals("999999", vm.uiState.value.iterations)
         vm.iterationsChanged("9999999")
@@ -58,7 +65,7 @@ class BenchmarkViewModelTest {
 
     @Test
     fun runFillsTheFourPercentilesAndTurnsOffTheSpinner() = runTest {
-        val vm = BenchmarkViewModel(FakeCoreFinanciero(), testDispatcher)
+        val vm = BenchmarkViewModel(FakeCoreFinanciero(), testDispatcher, messages())
         vm.iterationsChanged("50")
         vm.run()
         advanceUntilIdle()
@@ -73,7 +80,7 @@ class BenchmarkViewModelTest {
     fun zeroIterationsExplainsWhyNothingHappened() = runTest {
         // Android volvía MUDO: sin spinner colgado, pero sin decir por qué no pasó nada.
         // React Native y Angular ya explican, con este mismo texto.
-        val vm = BenchmarkViewModel(FakeCoreFinanciero(), testDispatcher)
+        val vm = BenchmarkViewModel(FakeCoreFinanciero(), testDispatcher, messages())
         vm.iterationsChanged("0")
         vm.run()
         advanceUntilIdle()
@@ -93,7 +100,7 @@ class BenchmarkViewModelTest {
         val previous = Locale.getDefault()
         Locale.setDefault(Locale.forLanguageTag("es-PE"))
         try {
-            val vm = BenchmarkViewModel(FakeCoreFinanciero(), testDispatcher)
+            val vm = BenchmarkViewModel(FakeCoreFinanciero(), testDispatcher, messages())
             vm.iterationsChanged("10")
             vm.run()
             advanceUntilIdle()
@@ -106,4 +113,27 @@ class BenchmarkViewModelTest {
             Locale.setDefault(previous)
         }
     }
+
+    @Test
+    fun aBrokenBridgeShowsTheErrorAndNotANumber() = runTest {
+        // `measure` descarta el `Result` del core, así que con el puente roto cronometraría el
+        // camino de error y la pantalla mostraría números **más rápidos que los reales** sin
+        // avisar. Es la pantalla donde menos conviene, porque sus números se citan. React Native
+        // y Angular ya mostraban el error; iOS y ésta se lo tragaban.
+        val core = FakeCoreFinanciero(nextAdd = Result.failure(DomainException.InvalidAmount("roto")))
+        val vm = BenchmarkViewModel(core, testDispatcher, messages())
+
+        vm.run()
+        advanceUntilIdle()
+
+        val state = vm.uiState.value
+        assertEquals("El monto ingresado no es válido.", state.error)
+        assertEquals("—", state.coreP50)
+        assertEquals("—", state.coreP95)
+        assertFalse(state.isRunning)
+    }
+
+    private fun messages() = ContractMessages(
+        FakeMessages(mapOf("MontoInvalido" to "El monto ingresado no es válido.")),
+    )
 }

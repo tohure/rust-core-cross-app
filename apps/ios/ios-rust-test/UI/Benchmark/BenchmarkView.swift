@@ -5,7 +5,7 @@ struct BenchmarkView: View {
     private let version: String
 
     init(container: AppContainer) {
-        _viewModel = State(initialValue: BenchmarkViewModel(core: container.core))
+        _viewModel = State(initialValue: BenchmarkViewModel(core: container.core, messages: container.messages))
         version = container.core.coreVersion()
     }
 
