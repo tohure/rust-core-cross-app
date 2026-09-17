@@ -5,6 +5,21 @@ README que mezcla "cómo se usa" con "qué falta" no sirve para ninguna de las d
 
 Nada de aquí bloquea la demo. Son decisiones tomadas, no olvidos.
 
+> **Qué es este archivo, para no leerlo mal.** Es un registro de **decisiones tomadas y huecos
+> conocidos**, no una lista de tareas. Buena parte de lo que hay acá está cerrado o se decidió
+> no hacer, y sigue escrito a propósito: **el valor está en el porqué**, que es lo que evita que
+> alguien reabra la discusión dentro de seis meses o "arregle" algo que es deliberado. Que el
+> archivo se llame `PENDING.md` no significa que todo lo de adentro esté pendiente.
+>
+> **Lo que sigue genuinamente abierto, al 2026-09-17:**
+>
+> - **El seam de `CoreFinanciero` es más débil que en Android** — y **sigue abierto aunque el
+>   split en dos targets ya esté hecho**. Ningún split lo cierra; en Android lo cierra el
+>   runtime, no el compilador. Es el ítem que más importa de este archivo.
+> - **Dos huecos conocidos de `MoneyFormatter`** — divergencias reales con Kotlin, en entradas
+>   que el core nunca emite.
+> - **Detalles menores** — la lista del final.
+
 > **Lo transversal no está acá.** El cuadro comparativo de los cuatro benchmarks, la ausencia
 > de CI en las cinco bases de código, el `catch` genérico que muestra texto de diagnóstico como
 > mensaje de usuario, las divergencias de paridad abiertas y la regla de que un `Record` de uniffi

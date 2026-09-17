@@ -3,7 +3,24 @@
 Lo que quedó abierto al cerrar la Fase 5, con el porqué de cada cosa. Nada de acá bloquea la
 demo; lo que sí la toca está marcado.
 
-> **Lo transversal no está acá.** El benchmark que falta repetir en aparato físico, la ausencia
+> **Qué es este archivo, para no leerlo mal.** Es un registro de **decisiones tomadas y huecos
+> conocidos**, no una lista de tareas. Buena parte de lo que hay acá está cerrado o se decidió
+> no hacer, y sigue escrito a propósito: **el valor está en el porqué**, que es lo que evita que
+> alguien reabra la discusión dentro de seis meses o "arregle" algo que es deliberado. Que el
+> archivo se llame `PENDING.md` no significa que todo lo de adentro esté pendiente.
+>
+> **Lo que sigue genuinamente abierto, al 2026-09-17:**
+>
+> - **`MAX_CALIBRATION_ROUNDS` ya no acota nada** — código inalcanzable, la única deuda de esta
+>   app que se podría borrar hoy.
+> - **En wasm no hay red de `catch_unwind`** — no se arregla desde acá.
+> - **`@ts-nocheck` en el generado** — aceptado, con su razón.
+>
+> Lo demás son hechos que conviene tener escritos —que el benchmark no es comparable con el de
+> las otras tres, que el pie se congela al construir— o decisiones, como la de no tener CI.
+
+> **Lo transversal no está acá.** El cuadro comparativo de los cuatro benchmarks —medidos en
+> aparatos físicos y cerrado en la Fase 7—, la ausencia
 > de CI en las cinco bases de código, el `catch` genérico que muestra texto de diagnóstico como
 > mensaje de usuario, las divergencias de paridad abiertas y la regla de que un `Record` de uniffi
 > se reemplaza y no se muta viven en

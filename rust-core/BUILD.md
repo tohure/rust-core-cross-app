@@ -308,7 +308,9 @@ fallo que este repositorio evita en todas partes, dos copias que se desincroniza
    (`aarch64-apple-ios`, `aarch64-apple-ios-sim`) + el arreglo del `module.modulemap`
    (ver más arriba, "El modulemap de Swift no se llama `module.modulemap`") +
    `xcodebuild -create-xcframework` + `uniffi-bindgen` en modo `swift`. Deja
-   `CoreFinanciero.xcframework` con los dos slices y los bindings Swift en `Generated/`.
+   `CoreFinanciero.xcframework` con los dos slices, los headers en `apps/ios/Generated/include/`
+   y el binding Swift en **`apps/ios/CoreFinancieroKit/Generated/`** — no en `Generated/`: desde
+   el split, `apps/ios` son **dos targets** y ese archivo lo compila `CoreFinancieroKit`.
    Comandos completos → sección «Comandos de exportación» de [CONTEXT.md](CONTEXT.md).
 
 3. **React Native** (el Turbo Module de `apps/react-native`, Android e iOS), desde
