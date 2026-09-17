@@ -23,6 +23,15 @@ android {
         }
     }
 
+    // `FfiCostProbe` mide el costo del cruce FFI, y ese número **sólo vale sobre un APK que no
+    // sea `debuggable`**: con `debuggable=true` el ART deja de optimizar el camino del binding
+    // y la medición sale ~4x pesimista. No es una hipótesis — está verificado con la baseline
+    // nativa como control, que da 2,12 µs idéntico en los dos builds. Ver TESTING.md.
+    //
+    // Los instrumentados corren contra `debug`, como siempre; `-PprobeRelease` los manda al
+    // release, que va firmado con el keystore de debug para poder instalarse.
+    testBuildType = if (providers.gradleProperty("probeRelease").isPresent) "release" else "debug"
+
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_21
         targetCompatibility = JavaVersion.VERSION_21
