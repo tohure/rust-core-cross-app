@@ -241,11 +241,11 @@ _fuente         de dónde salió el texto
 mensajes        objeto: nombre del contrato -> mensaje de usuario
 ```
 
-`mensajes` trae **exactamente las nueve variantes** de `DomainError`, ni una más ni una
+`mensajes` trae **exactamente las diez variantes** de `DomainError`, ni una más ni una
 menos: `Longitud`, `DigitoControl`, `BancoDesconocido`, `MontoInvalido`,
-`CuentaNoEncontrada`, `MismaCuenta`, `SaldoInsuficiente`, `Cifrado` y `FueraDeRango`. Son
-las mismas claves que devuelve `DomainError::contract_name()` y las mismas que aparecen en
-el campo `error` de `cases.json`.
+`CuentaNoEncontrada`, `MismaCuenta`, `SaldoInsuficiente`, `Cifrado`, `Descifrado` y
+`FueraDeRango`. Son las mismas claves que devuelve `DomainError::contract_name()` y las
+mismas que aparecen en el campo `error` de `cases.json`.
 
 Es texto de **usuario**, no diagnóstico: se lee en una pantalla de banco. El `message` de
 Kotlin y el `errorDescription` de Swift son para el log y el stacktrace, nunca para pintar.
@@ -256,7 +256,7 @@ carácter.
 
 ### La regla de interpolación
 
-Cuatro de los nueve mensajes traen marcadores entre llaves: `{code}`, `{id}`, `{available}`,
+Cuatro de los diez mensajes traen marcadores entre llaves: `{code}`, `{id}`, `{available}`,
 `{required}` y `{field}`. Se interpolan **crudos, tal como los devuelve el core**.
 
 Nada de `NumberFormat` ni de `Intl.NumberFormat` sobre los montos de `SaldoInsuficiente`:
@@ -273,10 +273,10 @@ que traducirlos.
 los espejan:
 
 - `the_messages_file_has_the_expected_shape` — las claves de primer nivel son las conocidas;
-- `the_messages_file_covers_the_nine_error_variants` — las claves de `mensajes` son
-  exactamente los nueve `contract_name()`, ninguna vacía. Los nueve no están tipeados en el
-  test: salen de las nueve variantes reales, y un `match` exhaustivo sin rama por defecto
-  hace que agregar una décima **rompa la compilación** del test de contrato;
+- `the_messages_file_covers_the_ten_error_variants` — las claves de `mensajes` son
+  exactamente los diez `contract_name()`, ninguna vacía. Los diez no están tipeados en el
+  test: salen de las diez variantes reales, y un `match` exhaustivo sin rama por defecto
+  hace que agregar una undécima **rompa la compilación** del test de contrato;
 - `every_error_name_in_the_contract_has_a_user_message` — todo nombre que `cases.json` espera
   tiene su mensaje, reportando el id del caso que se quedaría sin texto.
 
