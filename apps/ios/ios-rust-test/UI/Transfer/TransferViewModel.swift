@@ -71,7 +71,7 @@ final class TransferViewModel {
             state.error = messages.userMessage(e)
         } catch {
             state.result = nil
-            state.error = "\(error)"
+            state.error = messages.userMessage(error)
         }
         // Una sola salida: nunca queda el spinner colgado.
         state.isLoading = false

@@ -82,7 +82,7 @@ class CardViewModel(
                     masked = "",
                     cipherHex = "",
                     roundTrip = "",
-                    error = (e as? DomainException)?.let(messages::userMessage) ?: e.toString(),
+                    error = messages.userMessage(e),
                 )
             }
     }
@@ -102,8 +102,7 @@ class CardViewModel(
             }.onFailure { e ->
                 _uiState.value = _uiState.value.copy(
                     foreignPlain = "",
-                    foreignError = (e as? DomainException)?.let(messages::userMessage)
-                        ?: e.toString(),
+                    foreignError = messages.userMessage(e),
                 )
             }
     }

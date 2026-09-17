@@ -64,6 +64,14 @@ Reglas que valen en las cuatro:
    aritmética en el ViewModel, estás escribiendo lógica de negocio fuera de `rust-core`.
 3. **Un error del core es un campo del estado**, no una excepción que sube a la vista. Se
    guarda ya resuelto a texto de usuario, leído de `contracts/messages.es.json`.
+   **Y lo que no es un error de dominio tampoco muestra su texto crudo**: el fallback es
+   `No se pudo completar la operación.`, normativo e igual en las cuatro apps. El adapter
+   atrapa *todo*, no sólo los errores de negocio —un fallo al cargar la librería nativa, una
+   excepción de JNA—, así que sin esta regla el usuario termina viendo
+   `java.lang.UnsatisfiedLinkError: dlopen failed: …` en la pantalla de Aritmética. Verificado
+   con un test, no supuesto. El diagnóstico **no se tira**: se loguea donde se atrapa, que es
+   el adapter. Y el texto no dice «vuelve a intentarlo» a propósito: si la librería no cargó,
+   reintentar no arregla nada.
 4. **Las listas del estado van inmutables** donde la plataforma lo permita
    (`ImmutableList`/`persistentListOf` en Kotlin), para que el motor de UI pueda saltarse
    recomposiciones.

@@ -55,7 +55,7 @@ final class CardViewModel {
             state.encryptError = messages.userMessage(e)
         } catch {
             clearEncryptResult()
-            state.encryptError = "\(error)"
+            state.encryptError = messages.userMessage(error)
         }
     }
 
@@ -72,7 +72,7 @@ final class CardViewModel {
             state.decryptError = messages.userMessage(e)
         } catch {
             state.recovered = ""
-            state.decryptError = "\(error)"
+            state.decryptError = messages.userMessage(error)
         }
     }
 

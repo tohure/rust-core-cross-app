@@ -41,6 +41,29 @@ fun DomainException.contractName(): String =
 class ContractMessages(source: MessageSource) {
     private val messages: Map<String, String> = source.messages()
 
+    /**
+     * El texto para un `Throwable` cualquiera, que es lo que de verdad sale del adapter.
+     *
+     * **Esta sobrecarga no es defensiva, cubre un caso real.** `UniffiCoreFinanciero` envuelve
+     * cada llamada en `runCatching`, que en Kotlin atrapa **todo `Throwable`** y no sólo
+     * `DomainException`: un fallo al cargar `libcore_financiero.so`, o cualquier excepción de
+     * JNA, vuelve como `Result.failure` por el mismo camino. Antes los cuatro ViewModels
+     * cerraban con `?: e.toString()` y el usuario veía
+     * `java.lang.UnsatisfiedLinkError: dlopen failed: …` en pantalla.
+     *
+     * El diagnóstico **no se pierde**: lo loguea `UniffiCoreFinanciero`, que es donde se
+     * atrapa. Esta clase se queda pura —sin dependencias de Android— para que la puedan usar
+     * los tests de JVM sin mockear nada.
+     *
+     * El texto es normativo y vive en `docs/ui-spec.md`: las cuatro apps muestran el mismo.
+     */
+    fun userMessage(e: Throwable): String =
+        if (e is DomainException) {
+            userMessage(e)
+        } else {
+            FALLBACK
+        }
+
     fun userMessage(e: DomainException): String {
         val name = e.contractName()
         val template = messages[name]
@@ -70,4 +93,14 @@ class ContractMessages(source: MessageSource) {
             is DomainException.Decryption -> template
             is DomainException.OutOfRange -> template.replace("{field}", e.`field`)
         }
+
+    companion object {
+        /**
+         * Lo que ve el usuario cuando falla algo que **no** es un error de dominio. Normativo
+         * en `docs/ui-spec.md`, igual en las cuatro apps. No dice «vuelve a intentarlo» a
+         * propósito: si la librería nativa no cargó, reintentar no arregla nada, y prometer
+         * una salida que no existe es peor que no decir nada.
+         */
+        const val FALLBACK = "No se pudo completar la operación."
+    }
 }
