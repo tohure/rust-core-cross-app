@@ -46,7 +46,7 @@ adb devices                              # debe listar uno como `device`
 ./gradlew :app:connectedDebugAndroidTest :core-financiero:connectedDebugAndroidTest
 ```
 
-Qué se debe ver — `BUILD SUCCESSFUL` y **20 tests, 0 failures**:
+Qué se debe ver — `BUILD SUCCESSFUL` y **21 tests, 0 failures**:
 
 | Módulo | Clase | Tests | Qué prueba |
 |---|---|---|---|
@@ -55,10 +55,12 @@ Qué se debe ver — `BUILD SUCCESSFUL` y **20 tests, 0 failures**:
 | **`:core-financiero`** | `contract.AssetSourcesTest` | 2 | que los seams leen los assets reales |
 | **`:core-financiero`** | `adapter.UniffiCoreFinancieroTest` | 3 | que el `runCatching` del adapter **real** traduce un error del core a `Result.failure` |
 | **`:core-financiero`** | **`ContractTest`** | **10** | **los 31 casos del contrato, más sus guardias** |
+| **`:core-financiero`** | `FfiCostProbe` | 1 | nada: es la sonda del benchmark, y sin `-e probe true` devuelve sin medir |
 | `:app` | `RotationTest` | 1 | que rotar no se lleve puesta la pestaña ni lo tecleado |
 
-**Las 19 del módulo son las que no se pueden falsear**: cargan la librería nativa de verdad. La
-de `:app` prueba presentación, que es lo único que le quedó a ese módulo.
+**Las 19 del módulo que asertan algo son las que no se pueden falsear**: cargan la librería
+nativa de verdad. La 20.ª es la sonda, que no aserta y por eso está aparte en la tabla. La de
+`:app` prueba presentación, que es lo único que le quedó a ese módulo.
 
 Para acotar una corrida instrumentada a una clase, **`--tests` no sirve** —ese flag es de la
 tarea de unit tests JVM y AGP 9 lo rechaza acá—. El equivalente que funciona:
@@ -94,22 +96,46 @@ emulador de esta máquina corre arm64 nativo sobre Apple Silicon, cuyos cores so
 rápidos que los de un teléfono. El número de emulador que este archivo traía antes —~150 µs—
 era **optimista**, no pesimista.
 
-| Llamada | p50 | p95 | Qué agrega sobre la anterior |
-|---|---|---|---|
-| `coreVersion()` | **172 µs** | 204 µs | el **piso del cruce**: cero argumentos, cero parseo, devuelve un `&'static str` |
-| `validateCard("41111")` | **327 µs** | 370 µs | +1 `String` de entrada → **~155 µs por argumento** |
-| `add("0.1", "0.2")` | **444 µs** | 536 µs | +2 `String` de entrada + `Decimal` |
-| `NativeBaseline.add` | **3.7 µs** | 9.4 µs | — |
+**Y sobre un APK de release**, que es la otra mitad de la frase y durante tres fases estuvo mal.
+Las dos columnas de abajo son el mismo aparato, la misma sonda, el mismo artefacto
+`1.0.0+959025f` y el mismo minuto: lo único que cambia es la bandera `debuggable` del APK.
 
-**La aritmética decimal es gratis.** Si cada `String` cuesta ~150 µs, entonces
-`172 + 2×150 ≈ 472` y `add` mide 444: el trabajo de Rust cae dentro del ruido. **El costo es
-marshalling, no cómputo.**
+| Llamada | release p50 | release p95 | debug p50 | Qué agrega sobre la anterior |
+|---|---|---|---|---|
+| `coreVersion()` | **47,1 µs** | 62,7 µs | 181,9 µs | el **piso del cruce**: cero argumentos, cero parseo, devuelve un `&'static str` |
+| `validateCard("41111")` | **113,1 µs** | 147,3 µs | 343,0 µs | +1 `String` de entrada, **y lanza** |
+| `add("0.1", "0.2")` | **145,9 µs** | 202,2 µs | 433,4 µs | +2 `String` de entrada + `Decimal` |
+| `NativeBaseline.add` | **2,1 µs** | 2,4 µs | 2,1 µs | — |
 
-**No invalida la guía de llamar al core de forma síncrona**: 444 µs es el 2,7% de un frame a
-60 fps, y cada interacción hace una o dos llamadas. Pero el número conviene tenerlo escrito, y
-medido en el aparato donde se va a hacer la demo.
+**La aritmética decimal es gratis.** Del piso de 47,1 µs a los 145,9 µs de `add` hay 98,8 µs
+para dos `String`, o sea **~49 µs por argumento**. El trabajo de `rust_decimal` cae entero
+dentro del ruido: **el costo es marshalling, no cómputo.**
 
-### De dónde sale ese piso de 172 µs
+**Y el camino de error cuesta aparte.** `validateCard("41111")` lleva un solo argumento, así que
+debería dar `47 + 49 ≈ 96 µs`; mide 113. Esos ~17 µs de más son la excepción cruzando la
+frontera. Es el mismo efecto que iOS exhibe mucho más marcado —allá el error cuesta **4×** un
+`add` exitoso— y acá queda tapado porque lo que domina es la cantidad de argumentos.
+
+**No invalida la guía de llamar al core de forma síncrona**: 145,9 µs es el **0,9%** de un frame
+a 60 fps, y cada interacción hace una o dos llamadas.
+
+### El APK de debug castiga el cruce ~3,5×, y hasta la Fase 7 no se sabía
+
+Este archivo afirmaba que medir sobre el APK de debug «no debería cambiar mucho en esta ruta,
+porque el camino del binding no lleva instrumentación de debug». **Es falso.** El piso del cruce
+pasa de 47,1 a 181,9 µs, y `add` de 145,9 a 433,4: entre **3,0× y 3,9×**.
+
+Tiene sentido cuando se mira qué es ese camino: casi todo es trabajo del lado de la JVM
+—`RustBuffer` y `UniffiRustCallStatus` son `Structure` de JNA, con reflexión de campos y
+asignación de memoria nativa por llamada—, y un APK `debuggable` le pide al ART que no optimice
+agresivamente para que el depurador pueda parar donde quiera.
+
+**El control que lo prueba es `NativeBaseline.add`: 2,1 µs en los dos builds**, hasta la segunda
+cifra. Mismo bucle, mismo aparato, mismo instante. Lo único que se movió de lugar fue el FFI. Por
+eso la sonda imprime `debuggable=true/false` en su primera línea: la bandera es **la** variable,
+y la medición anterior se tomó sin registrarla.
+
+### De dónde sale ese piso de 47 µs
 
 **No de reflexión en el despacho**, que es lo que este archivo decía antes y es falso para
 uniffi 0.32. El binding generado usa **direct mapping** de JNA:
@@ -133,25 +159,54 @@ Lo que sí cuesta, y explica la magnitud:
 Todo eso vive en código generado, que no se edita. **El veredicto sobre qué se puede optimizar
 y qué no está en [PENDING.md](PENDING.md).**
 
-### Cómo se midió, para poder repetirlo
+### Cómo se mide, para poder repetirlo
 
-Con una sonda instrumentada desechable —no quedó en el repositorio a propósito: es una medición
-no determinista que no tiene sentido correr en cada suite—. Un `@Test` en `androidTest/` que
-cronometra con `System.nanoTime()`, con 2.000 iteraciones de calentamiento y 20.000 medidas por
-caso, corrido **aislado** para que el proceso esté limpio:
+Con `FfiCostProbe`, en `core-financiero/src/androidTest/`. Cronometra con `System.nanoTime()`,
+2.000 iteraciones de calentamiento y 20.000 medidas por caso, y se corre **aislada** para que el
+proceso esté limpio. **Esto es lo que se ejecutó** para llenar la tabla de arriba:
 
 ```bash
+cd apps/android
 adb logcat -c
-./gradlew :app:connectedDebugAndroidTest \
-  -Pandroid.testInstrumentationRunnerArguments.class=dev.tohure.android_rust_test.FfiCostProbe
+./gradlew :core-financiero:connectedReleaseAndroidTest -PprobeRelease \
+  -Pandroid.testInstrumentationRunnerArguments.class=dev.tohure.android_rust_test.FfiCostProbe \
+  -Pandroid.testInstrumentationRunnerArguments.probe=true
 adb logcat -d -s FfiCostProbe:I
 ```
 
-**Salvedad:** el APK medido es el de **debug**; el `.so` sí es release. No debería cambiar mucho
-en esta ruta —el camino del binding no lleva instrumentación de debug— pero **no se verificó**, y
-la Fase 6 tampoco pudo cerrarlo del todo. Ver abajo.
+Qué se debe ver — cinco líneas, y la primera es la que valida a las otras cuatro:
 
-### El APK de release: medido en tamaño, no en velocidad
+```
+=== artefacto 1.0.0+959025f · debuggable=false ===
+coreVersion()            p50=   47.69 us  p95=   63.60 us
+validateCard("41111")    p50=  113.08 us  p95=  147.26 us
+add("0.1", "0.2")        p50=  145.10 us  p95=  200.77 us
+NativeBaseline.add       p50=    2.08 us  p95=    2.36 us
+```
+
+**Si dice `debuggable=true`, el número no sirve** y falta `-PprobeRelease`. Para medir el debug a
+propósito —la columna de comparación— se corre lo mismo sin esa propiedad y con
+`connectedDebugAndroidTest`.
+
+Las dos piezas que lo hacen repetible:
+
+- **`-PprobeRelease`** manda los instrumentados al build type `release`
+  ([core-financiero/build.gradle.kts](core-financiero/build.gradle.kts)). Sin la propiedad corren
+  contra `debug`, como siempre.
+- **El release va firmado con el keystore de debug**
+  ([app/build.gradle.kts](app/build.gradle.kts)). AGP lo emite sin firmar y un APK sin firma no
+  instala; esa firma existe **sólo** para poder medir, no para distribuir.
+
+**La sonda vive en el repositorio, y es un cambio deliberado respecto de la Fase 6**, que la
+borró después de medir. Borrarla salió caro exactamente una vez: repetir la medición obligó a
+reescribirla, y una sonda reescrita no mide lo mismo que la original —hay que volver a discutir
+si el calentamiento alcanza, si el lambda se inlinea, si el percentil se calcula igual—. El
+código de una medición que hay que poder repetir **es parte de la medición**.
+
+Apagada no cuesta nada: sin `-e probe true` loguea que no midió y devuelve. Es el 20.º test
+instrumentado de `:core-financiero` y el único que no aserta.
+
+### El APK de release: medido en tamaño y en velocidad
 
 La Fase 6 construyó los dos y los pesó:
 
@@ -163,7 +218,7 @@ ls -l app/build/outputs/apk/debug/*.apk app/build/outputs/apk/release/*.apk
 | APK | Bytes | |
 |---|---:|---|
 | `app-debug.apk` | 32 695 932 | ~31,2 MiB |
-| `app-release-unsigned.apk` | 25 555 744 | ~24,4 MiB |
+| `app-release.apk` | 25 563 936 | ~24,4 MiB |
 
 De dónde sale el peso, en el de release: **22,9 MB son los dos `classes.dex`**; todo lo nativo
 junto son 1,9 MB, y de eso 1,4 MB son los tres slices de `libcore_financiero.so` —uno por ABI— y
@@ -176,13 +231,42 @@ junto son 1,9 MB, y de eso 1,4 MB son los tres slices de `libcore_financiero.so`
 > minificado complica leer un stack trace en la demo—, pero cualquiera que cite este tamaño como
 > «lo que pesa la app» se va a equivocar por un factor grande.
 
-**Lo que quedó sin medir, y por qué:** los percentiles del benchmark en un APK de release. Dos
-razones concretas, ninguna de fondo: AGP emite el release **sin firmar** (`app-release-unsigned.apk`),
-así que no se puede instalar sin configurarle una firma; y el único aparato disponible al cerrar la
-Fase 6 era un emulador, mientras que el número con el que habría que comparar —los 444 µs de más
-arriba— salió de un Pixel 6 físico. Medir en emulador y ponerlo al lado de ese número daría una
-comparación falsa. **Queda abierto: firmar el release con el keystore de debug y repetir la pantalla
-de Benchmark en el Pixel 6, con las mismas iteraciones.**
+**Los percentiles en release ya están medidos**, y son la columna principal de la tabla de más
+arriba. Lo que faltaba eran dos cosas de infraestructura, las dos resueltas: AGP emitía el release
+sin firmar, y no había teléfono. Con la firma de debug aplicada, el APK instala y la sonda corre
+con `-PprobeRelease`.
+
+Además se midió **la pantalla de Benchmark**, que es la que ve la audiencia y no la sonda. Mismo
+Pixel 6, n = 1000, el default de la pantalla:
+
+| Build | core p50, 1.ª corrida | core p50 estacionario | core p95 estacionario | nativa p50 |
+|---|---|---|---|---|
+| debug | 363–365 µs | 233–246 µs | 278–305 µs | ~2,3 µs |
+| **release** | 100 µs | **58–63 µs** | **75–77 µs** | ~2,3 µs |
+
+Dos lecturas que la sonda no da, porque la sonda calienta 2.000 iteraciones antes de medir y la
+pantalla no:
+
+- **La primera corrida es ~1,6× la estacionaria**, en los dos builds. Con n = 1000 el
+  calentamiento del JIT todavía pesa dentro de la muestra. Quien haga la demo debería tocar
+  **Ejecutar dos veces** y citar la segunda.
+- **La pantalla en release da 58–63 µs y la sonda 145,9 µs para el mismo `add`.** La diferencia
+  es reproducible y **no está explicada**. Lo que sí está descartado, midiéndolo:
+
+  | Sospecha | Cómo se descartó |
+  |---|---|
+  | la cantidad de muestras | la sonda con `warmup=0 runs=1000` —la forma de la pantalla— da 150 µs, no 60 |
+  | la capa del adapter | `UniffiCoreFinanciero.add` en la sonda da 128 µs, **menos** que la llamada cruda |
+  | el hilo | la misma llamada en un `Thread` aparte da 125 µs |
+  | la velocidad del core de CPU | `NativeBaseline.add` da 2,1 µs en la sonda y 2,3 µs en la pantalla: si la pantalla corriera en cores más rápidos, esto también bajaría |
+
+  Lo que queda en pie es **el proceso**: la sonda corre en el APK de test y la pantalla en el de
+  la app. El candidato es la presión de GC —JNA asigna un `Memory` nativo por llamada, y esos
+  objetos son de los que el recolector sigue— contra heaps de tamaño distinto. No se persiguió
+  más allá: no cambia ninguna conclusión de la POC.
+
+  **La consecuencia práctica sí importa: los números de un instrumento no se citan al lado de los
+  del otro.** La comparación válida es siempre dentro de la misma columna.
 
 Lo que el benchmark **sí** exhibe es lo otro: `NativeBaseline` es más rápido y **da mal el
 resultado**. Su test aserta que *diverge* del core; si alguna vez deja de fallar contra `0.30`,
@@ -190,14 +274,19 @@ deja de servir para la demo.
 
 ### La primera llamada al núcleo es lenta, y se paga una sola vez por proceso
 
-Los 444 µs son el **estado estacionario**. La primera llamada del proceso cuesta mucho más, y
-después decae rápido. Medido en el Pixel 6:
+El estado estacionario —47 µs el piso, 146 el `add`— se paga recién después de la primera
+llamada, que cuesta muchísimo más y decae rápido. Medido en el Pixel 6 **con el APK de debug**,
+que es cuando el estacionario daba 444 µs:
 
 ```
 primera llamada (fría) = 33109 µs      ← 33 ms
 llamadas 2..10         = 1691, 1571, 1569, 1414, 1414, 1590, 1558, 1315, 1366 µs
-estado estacionario    = 444 µs
+estado estacionario    = 444 µs        ← en release son 146
 ```
+
+**Los 33 ms de la primera llamada no se re-midieron en release, y no hace falta**: los domina
+`System.loadLibrary` más el `Native.register` de JNA, que es trabajo de carga y enlazado, no la
+ruta de llamada que el `debuggable` penaliza.
 
 Ahí se pagan `System.loadLibrary`, el `Native.register` de JNA que enlaza todos los métodos
 nativos de una, y el arranque interpretado de ART antes de que el JIT compile la ruta. Ninguna
@@ -217,8 +306,14 @@ Dos detalles que descartan las sospechas más comunes:
   actualiza el estado y limpia el error. Si el cambio de operación se siente lento, eso es
   recomposición de Compose.
 
-**Predicción para iOS, verificable en la Fase 3:** si el piso de 172 µs son estructuras de JNA
-más un cruce extra para liberar el buffer, iOS —que enlaza el `.a` estáticamente y no tiene JNA
-en ningún lado— debería estar en **otro orden de magnitud**. Eso deja de ser una nota al pie y
-pasa a ser un punto fuerte de la demo: el mismo núcleo, y el puente elegido cuesta 10× o 20×.
+**La predicción que este archivo hacía se cumplió, y por más margen del que anticipaba.** Decía
+que si el piso del cruce son estructuras de JNA más un cruce extra para liberar el buffer,
+entonces iOS —que enlaza el `.a` estáticamente y no tiene JNA en ningún lado— debería estar en
+otro orden de magnitud, «10× o 20×». Medido: **47,1 µs contra 0,062 µs**.
+
+Y hay una confirmación más fuerte todavía, que no estaba prevista: **React Native, corriendo en
+este mismo Pixel 6, cruza en 4,23 µs** —11× más barato que la app nativa de Kotlin— porque usa
+JSI en vez de JNA. Mismo teléfono, mismo sistema, mismo núcleo: lo único que cambia es el puente.
+Eso descarta que la diferencia contra iOS sea el aparato. Cuadro completo en
+[docs/cross-app-pending.md](../../docs/cross-app-pending.md).
 

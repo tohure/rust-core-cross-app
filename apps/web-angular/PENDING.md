@@ -26,7 +26,7 @@ pnpm exec ng build --configuration development
 cd dist/web-angular/browser && python3 -m http.server 4311
 ```
 
-**Ningún gate depende de `ng serve`**: los 99 tests corren en jsdom y la verificación en
+**Ningún gate depende de `ng serve`**: los 102 tests corren en jsdom y la verificación en
 navegador se hizo por CDP contra ese servidor estático. Pero quien levante la app en vivo lo va a
 pisar, así que el runbook usa el servidor estático y no `ng serve`.
 

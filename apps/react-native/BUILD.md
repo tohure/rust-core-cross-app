@@ -468,6 +468,145 @@ un `lib/x86/` **sin** `libbanco-core-financiero.so` adentro: un slice que instal
 cargar el core. Alinearlas bajó el APK de 125 MB a 95 MB. El criterio es el mismo del
 `abiFilters` de `apps/android`.
 
+### Construir el **release**, y las dos cosas que lo trababan
+
+Hasta la Fase 7 esta app sólo se había construido en **debug**, con Metro. El release hace falta
+para medir: un APK `debuggable` castiga el cruce entre 3 y 4 veces en las apps nativas, así que
+un número de benchmark tomado en debug no sirve. El release ya viene firmado con el keystore de
+debug —es el default del template de React Native— así que instala sin configurar nada.
+
+```bash
+cd apps/react-native/example/android
+ANDROID_SERIAL=<serial del aparato> ./gradlew :app:installRelease -PreactNativeArchitectures=arm64-v8a
+adb shell monkey -p banco.corefinanciero.example -c android.intent.category.LAUNCHER 1
+```
+
+`ANDROID_SERIAL` hace falta si hay más de un dispositivo conectado —un emulador y un teléfono, por
+ejemplo—; `-PreactNativeArchitectures=arm64-v8a` compila una sola ABI en vez de tres, y baja el
+build de minutos a segundos.
+
+Dos fallos lo trababan, y los dos son de **empaquetado, no de código**:
+
+**1. `Couldn't determine Hermesc location` — la octava incompatibilidad de pnpm.** El bundle de JS
+del release se compila con `hermesc`, y el plugin de Gradle lo busca en una ruta **literal**:
+
+```kotlin
+// @react-native/gradle-plugin · PathUtils.kt:240
+private const val HERMES_COMPILER_NPM_DIR = "node_modules/hermes-compiler/hermesc/%OS-BIN%/"
+```
+
+Es un `File(projectRoot, ...)`, o sea que **no sube por el árbol como haría la resolución de
+Node**: el paquete tiene que estar exactamente en `example/node_modules/hermes-compiler`. `pnpm`
+lo tenía en el store, alcanzable por `react-native`, pero no ahí. Se arregla declarándolo como
+dependencia de desarrollo del `example`, con la versión exacta que pide React Native 0.87:
+
+```bash
+pnpm --filter @banco/core-financiero-example add -D hermes-compiler@250829098.0.16
+```
+
+Esa versión no se elige: sale de `dependencies` de `react-native`. Si se actualiza React Native,
+hay que volver a leerla de ahí — una versión distinta de `hermesc` genera un bytecode que el
+runtime puede rechazar.
+
+**2. `Supplied consumer proguard configuration does not exist`.** `android/build.gradle:70` declara
+`consumerProguardFiles 'proguard-rules.pro'`, y el archivo no existía. AGP falla **aunque R8 esté
+apagado**, porque valida la ruta antes de mirar si la va a usar.
+
+**Lo que hace que esto no se arregle editando el `build.gradle`:** ese archivo es **generado por
+`ubrn` y está gitignored** (ver `.gitignore`), así que cualquier cambio ahí se pierde en el
+siguiente `pnpm ubrn:android`. La declaración vuelve siempre. Lo que hay que hacer es que
+`android/proguard-rules.pro` **exista y esté commiteado** —es de los pocos archivos de ese
+directorio que no se generan—, aunque su contenido esté vacío.
+
+Vacío es correcto hoy: el `example` lleva `enableProguardInReleaseBuilds = false`. **Si alguna vez
+se prende R8, deja de poder estar vacío**: el borde de este módulo es un turbo module JSI, cuyos
+métodos nativos se resuelven por nombre desde C++, así que el shrinker no ve quién los usa y se
+los lleva. El propio archivo lo dice en un comentario.
+
+### Instalar el release en un **iPhone físico**
+
+`run-ios` apunta al simulador. Para un aparato hay que pasarle dos cosas que el proyecto no trae
+—el equipo de firma y el permiso para generar el perfil— y **no hace falta editar el `.pbxproj`**:
+van como argumentos.
+
+```bash
+cd apps/react-native/example/ios
+xcodebuild -workspace CoreFinancieroExample.xcworkspace -scheme CoreFinancieroExample \
+  -configuration Release -destination 'id=<identificador del aparato>' \
+  -derivedDataPath /tmp/rn-dd -allowProvisioningUpdates \
+  DEVELOPMENT_TEAM=PSBE6PYY33 CODE_SIGN_STYLE=Automatic build
+
+xcrun devicectl device install app --device <identificador> \
+  /tmp/rn-dd/Build/Products/Release-iphoneos/CoreFinancieroExample.app
+xcrun devicectl device process launch --device <identificador> banco.corefinanciero.example
+```
+
+`DEVELOPMENT_TEAM` es el mismo que usa la app nativa de iOS —sale de su `.pbxproj`— y la cuenta es
+gratuita, así que valen las dos salvedades de
+[apps/ios/PENDING.md](../ios/PENDING.md): el perfil **vence a los 7 días** y el certificado hay que
+**confiarlo a mano en el aparato** la primera vez.
+
+En `Release` el bundle de JS va embebido, así que **no hace falta Metro**: la app arranca sola.
+
+**Lo que esto no resuelve es medirla.** No hay forma de manejar la pantalla por script en un
+iPhone: en Android se usa `uiautomator dump` + `input tap`, y el equivalente acá sería XCUITest,
+que esta app no tiene. El benchmark de React Native sobre iOS se toma **a mano**.
+
+### Medir el costo del cruce JSI, con `FfiCostProbe`
+
+La sonda vive en `example/src/benchmark/FfiCostProbe.tsx`, **apagada**: `PROBE_ON` es `false` y
+`App.tsx` no renderiza nada. Prendida, tapa la app con sus resultados y también los loguea.
+
+```bash
+cd apps/react-native
+sed -i '' 's/PROBE_ON = false/PROBE_ON = true/' example/src/benchmark/FfiCostProbe.tsx
+
+# Android — se lee del logcat
+cd example/android
+ANDROID_SERIAL=<serial> ./gradlew :app:installRelease -PreactNativeArchitectures=arm64-v8a
+adb logcat -c && adb shell monkey -p banco.corefinanciero.example -c android.intent.category.LAUNCHER 1
+sleep 45 && adb logcat -d | grep FfiCostProbe
+
+# iOS — se lee de una captura de pantalla del aparato
+cd ../ios
+xcodebuild -workspace CoreFinancieroExample.xcworkspace -scheme CoreFinancieroExample \
+  -configuration Release -destination 'id=<udid>' -derivedDataPath /tmp/rn-dd \
+  -allowProvisioningUpdates DEVELOPMENT_TEAM=PSBE6PYY33 CODE_SIGN_STYLE=Automatic build
+xcrun devicectl device install app --device <udid> /tmp/rn-dd/Build/Products/Release-iphoneos/CoreFinancieroExample.app
+xcrun devicectl device process launch --device <udid> banco.corefinanciero.example
+sleep 50
+xcrun devicectl device capture screenshot --device <udid> --destination /tmp/probe.png
+
+# y SIEMPRE volver a apagarla, y reinstalar las dos apps limpias
+sed -i '' 's/PROBE_ON = true/PROBE_ON = false/' example/src/benchmark/FfiCostProbe.tsx
+```
+
+**Tres cosas se descubrieron peleando con esto, y las tres son silenciosas** —no fallan, no
+imprimen nada, simplemente no aparece el resultado—:
+
+1. **`console.log` no sobrevive a un build de release.** React Native instala el puente de la
+   consola en `setUpDeveloperTools`, que sólo corre con `__DEV__`. En release un `console.log` no
+   sale por ningún lado: ni por `devicectl --console`, ni por el log del sistema.
+2. **`nativeLoggingHook` sí, pero hay que llamarlo a nivel `error`.** Es la función que ese puente
+   usa por debajo y Hermes la expone siempre. Pero en release el umbral de log queda en error, así
+   que un `info` se descarta igual de callado. La sonda no está reportando un fallo: usa ese nivel
+   porque es el único que pasa.
+3. **En un iPhone el log igual no se puede leer.** `nativeLoggingHook` termina en `NSLog`, que va
+   al log unificado del sistema; `devicectl --console` sólo trae stdout y stderr del proceso, y
+   `log stream` **ya no soporta aparatos iOS** en macOS reciente. Por eso la sonda **pinta** su
+   resultado: `devicectl device capture screenshot` sí funciona. En Android nada de esto aplica,
+   porque `adb logcat` lee todo.
+
+**Por qué se prende editando el archivo y no con un argumento**, como el `-e probe true` de
+Android nativo o el `PROBE=1` de iOS nativo: el preset de Babel de React Native **no inlinea
+`process.env`**, así que una variable de entorno del build no llega al bundle sin agregar un
+plugin nuevo. Se prefirió la constante a la dependencia.
+
+**Por qué la sonda existe, si las otras dos apps miden distinto.** Es la única de las cuatro que no
+tiene cómo medirse sola: Android nativo se maneja con `uiautomator dump` + `input tap`, iOS nativo
+mide desde su bundle de tests sobre el aparato, y acá no hay ninguno de los dos —Jest mockea los
+nativos, así que ninguna suite cruza JSI, y en un iPhone físico no hay driver de UI—.
+
 ### `pnpm test` no corría, y la causa era la misma
 
 ```bash

@@ -152,6 +152,6 @@ grep -rn "f32\|f64" crates/ --include='*.rs' || echo "sin punto flotante ✅"
 find crates/domain/src crates/ffi/src -name '*.rs' -exec awk '/#\[cfg\(test\)\]/{exit} /unwrap\(\)|expect\(/{print FILENAME":"FNR": "$0}' {} + | grep . || echo "sin unwrap/expect en produccion ✅"
 ```
 
-Qué se debe ver — 67 tests en `0 failed`, clippy y fmt sin salida, y los dos últimos
+Qué se debe ver — 71 tests en `0 failed`, clippy y fmt sin salida, y los dos últimos
 comandos imprimiendo su mensaje de "sin ...", que es lo que pasa cuando **no** encuentran
 nada.
