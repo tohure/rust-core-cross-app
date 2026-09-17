@@ -122,6 +122,25 @@ ls CoreFinanciero.xcframework/*/libcore_financiero.a
 Si lista **dos** archivos —`ios-arm64` y `ios-arm64-simulator`— se puede correr ya. Si no, ir a
 [BUILD.md](BUILD.md).
 
+### Dónde se cablea, y qué **no** tenés que editar
+
+Una duda razonable: «¿y dónde le digo a la app cómo se llama lo que generó Rust?». **En ningún
+lado.** No hay que tocar ningún archivo de configuración: el cableado está fijo en el código del
+proyecto y los artefactos caen en rutas fijas. Si están en su lugar, compila.
+
+| | |
+|---|---|
+| **El archivo que lo cablea** | `ios-rust-test.xcodeproj/project.pbxproj` — el grupo sincronizado `CoreFinancieroKit` y la referencia a `CoreFinanciero.xcframework` |
+| **Dónde cae el binding Swift** | `CoreFinancieroKit/Generated/core_financiero.swift` — lo compila el **kit**, no la app |
+| **Dónde caen los headers** | `Generated/include/` (`core_financieroFFI.h` + `module.modulemap`) |
+| **Dónde cae el binario** | `CoreFinanciero.xcframework/`, con sus dos slices |
+| **Qué NO se toca** | **No hay `Info.plist`**: Xcode lo sintetiza con `GENERATE_INFOPLIST_FILE = YES`. Tampoco hay que agregar los archivos generados al proyecto a mano |
+
+**La ruta del binding Swift es la que más fácil se equivoca.** `CoreFinancieroKit/` es una
+carpeta sincronizada de Xcode: sólo ve lo que está bajo su raíz. Si el `core_financiero.swift`
+queda en `Generated/`, el XCFramework se arma sin error y la app falla después con
+`cannot find 'add' in scope`, lejos de la causa.
+
 ## Correrla
 
 ```bash

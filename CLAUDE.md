@@ -405,7 +405,34 @@ Cada fase termina con tres cosas, no una:
    se ve en un diagrama, no está justificada — crates que nadie puede ver de un vistazo son
    ceremonia, no arquitectura.
 
-Una fase sin las tres no está terminada, por más que la UI se vea bien.
+4. **Verificado desde un clone limpio**, no desde la máquina donde se desarrolló. Se clona el
+   repo aparte, se siguen los comandos del README **tal como están escritos**, y se llega a la
+   app corriendo. Lo que falle ahí se arregla en el README antes de cerrar la fase.
+
+Una fase sin las cuatro no está terminada, por más que la UI se vea bien.
+
+**El cuarto criterio se agregó el 2026-09-17, y conviene decir con precisión qué lo hizo
+falta.** No fue que la documentación no se revisara: se revisó siempre, hay 129 commits de
+`docs` en la historia y una spec dedicada sólo a auditar los CONTEXT, con hallazgos numerados.
+Fue que **se revisó siempre leyendo, nunca ejecutando**.
+
+Y una revisión por lectura **no puede** encontrar un paso faltante. Lo que se verifica leyendo
+—coherencia, enlaces, rutas, comandos que existen, afirmaciones que no envejecieron— lo pasan
+los tres huecos que aparecieron ese día. `rust-core/CONTEXT.md` es impecable leído: los comandos
+son reales y hasta explica por qué bindgen lee el artefacto del host. Lo único que está mal es
+**el estado desde el que se arranca**, y eso no está escrito en ninguna parte del texto.
+
+El resultado fue que **nadie arrancó nunca desde cero**: la primera vez fue
+cinco días después de cerrar la última fase, y el `pnpm install` del README de Angular falló
+—el `prepare: bob build` de `apps/react-native` no puede generar los `.d.ts` porque importan de
+`src/generated/`, que está gitignoreado—. La demo web no se podía levantar siguiendo la
+documentación.
+
+**La regla 2 no alcanzaba, y conviene entender por qué.** Exige que el comando se haya
+**ejecutado**, pero no dice **desde qué estado**. `pnpm install` se había ejecutado, y andaba:
+en una máquina que ya tenía `node_modules` y los generados de la corrida anterior. El mismo
+comando, desde el estado en que está quien recién clona, falla. Un README puede cumplir la
+regla 2 al pie de la letra y estar roto para el único lector que importa.
 
 Y la regla vale para todo el proyecto, no solo para el cierre de fase: **cualquier
 decisión que requiera ejecutar o aplicar algo se documenta en el README del subproyecto

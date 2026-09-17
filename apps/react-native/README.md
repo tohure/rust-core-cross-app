@@ -114,9 +114,44 @@ Los artefactos nativos **no están en git**. Hay que generarlos al menos una vez
 
 ```bash
 export ANDROID_NDK_HOME="$HOME/Library/Android/sdk/ndk/30.0.16248370"
-pnpm ubrn:android              # ~1:01 — 3 ABIs + bindings
+pnpm ubrn:android              # ~1:01 — 3 ABIs + bindings, y deja src/bindings.tsx
 pnpm ubrn:ios                  # ~12 s con cargo cacheado; incluye pod install
+pnpm napi:generate             # el .dylib del host + los bindings N-API
 ```
+
+**`napi:generate` es obligatorio para `pnpm test`, y es el que más fácil se olvida.** Sin él la
+suite da **90 de 129 con 3 suites rotas**, no un error que diga qué falta:
+`Cannot find module '../src/generated-napi/core_financiero'` en las dos de N-API, y
+`BancoApp.test.tsx` cae por `src/bindings`, que sale de `ubrn:android` o `ubrn:ios`.
+
+O sea que **los 129 tests de esta app necesitan el toolchain nativo**: `ubrn:android` pide el
+NDK y `ubrn:ios` pide Xcode. Con uno de los dos alcanza para `src/bindings.tsx`. Es la diferencia
+con Angular, que sólo necesita `wasm:generate` y ningún toolchain móvil.
+
+Verificado sobre un clone limpio el 2026-09-17: con los tres comandos, **129 de 129 en verde**.
+
+### Dónde se cablea, y qué **no** tenés que editar
+
+Una duda razonable: «¿y dónde le digo a la app cómo se llama lo que generó Rust?». **En ningún
+lado.** No hay que tocar ningún archivo de configuración: el cableado está fijo en el código del
+proyecto y los artefactos caen en rutas fijas. Si están en su lugar, compila.
+
+| | |
+|---|---|
+| **Los archivos que lo cablean** | `ubrn.config.yaml` para el turbo module, y `ubrn.wasm.yaml` para el `.wasm` |
+| **Dónde caen los bindings TS** | `src/generated/` |
+| **Dónde cae el C++ del turbo module** | `cpp/` y `ios/` — los dos gitignored |
+| **Dónde caen los de N-API** | `src/generated-napi/`, que es lo que usa el test de contrato desde Node |
+| **Qué NO se toca** | Los dos `.yaml` ya están escritos y versionados. No hay que editarlos para construir |
+
+**Ojo con `android/generated` e `ios/generated`: ésos no son de `ubrn`.** Los produce el
+**Codegen de React Native** a partir del `codegenConfig` del `package.json`, y los genera Gradle
+o CocoaPods en tiempo de build. Son dos generadores distintos escribiendo en carpetas de nombre
+parecido; confundirlos hace buscar el error en el lado equivocado.
+
+Esta app es la única que produce **tres** salidas del mismo crate: el turbo module JSI que usa
+la app, los bindings N-API con que el test de contrato llama al core desde Node, y el `.wasm`
+del que depende Angular.
 
 ---
 

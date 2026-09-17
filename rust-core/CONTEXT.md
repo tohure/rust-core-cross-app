@@ -253,6 +253,17 @@ El formato de `cases.json` y la especificación normativa de cada algoritmo est�
 
 ## Comandos de exportación
 
+**Paso 0, común a Android y a iOS: construir el artefacto del HOST.** Los dos pasos de bindgen
+de abajo leen `target/release/libcore_financiero.{dylib,a}`, que es el build del host y **no** lo
+produce ninguno de los comandos con `--target`. En una máquina donde ya se desarrolló, ese
+archivo existe de alguna corrida anterior y el paso parece innecesario; **en un clone limpio no
+existe y los dos bindgen fallan** con `No such file or directory (os error 2)`, sin decir cuál
+archivo falta. Verificado sobre un clone limpio el 2026-09-17.
+
+```bash
+cargo build --release      # deja target/release/libcore_financiero.{a,dylib}
+```
+
 ```bash
 # Android: .so por ABI + Kotlin
 cargo ndk -t arm64-v8a -t armeabi-v7a -t x86_64 \
