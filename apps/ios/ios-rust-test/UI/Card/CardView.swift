@@ -79,7 +79,11 @@ struct CardView: View {
             }
 
             SectionDivider(title: "Descifrar un hex de otra plataforma")
-            Text("Pega aquí el hex que produjo cualquiera de las otras apps.")
+            // No nombra plataformas: el texto es el mismo en las cuatro apps. Ver docs/ui-spec.md.
+            Text(
+                "Pega aquí el hex que produjo cualquiera de las otras apps. "
+                    + "Sale el mismo número, porque las cuatro usan el mismo core."
+            )
                 .font(.caption)
                 .foregroundStyle(Palette.onSurfaceMuted)
             LabeledField(
