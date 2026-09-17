@@ -32,6 +32,15 @@ documentación se corrió al rioplatense sin que ninguna revisión lo cazara:
 build falla» en vez de «si te salteás el paso, te falla el build». Es lo que hace documentación
 técnica que se lee igual en cualquier país, y evita tener que elegir entre `tú` y `usted`.
 
+**A qué documentos aplica.** A los que lee una persona que llega al proyecto: los `README.md`,
+`CONTEXT.md`, `BUILD.md`, `TESTING.md` y `PENDING.md` de cada subproyecto, los de `docs/` y
+`contracts/`, y este archivo.
+
+**Quedan exentos `docs/superpowers/plans/` y `docs/superpowers/specs/`, y los ledgers de
+`.superpowers/`.** No son documentación de cara al usuario: son el acta de lo que se decidió en
+cada fase, con su fecha. Reescribirlos es falsificar el registro, y además el esfuerzo no
+compra nada porque nadie los lee para aprender a usar el proyecto. **No los normalices.**
+
 La excepción son las citas textuales de mensajes de error y los nombres propios, que se
 transcriben tal cual salen.
 
