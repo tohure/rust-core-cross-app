@@ -47,6 +47,58 @@ Si no coinciden, regenerar todos los artefactos desde el mismo HEAD antes de seg
 procedimiento por plataforma está en [`../rust-core/BUILD.md`](../rust-core/BUILD.md) y en el
 `BUILD.md` de cada app.
 
+### Leer los cuatro pies sin mirarlos a ojo
+
+Mirar cuatro strings de trece caracteres y decidir si son iguales es justo el tipo de
+comparación que el ojo hace mal. Estos cuatro comandos leen el **texto renderizado** de cada
+app —no el binario, no el código— y lo imprimen para compararlo con `diff` o de un vistazo.
+Corren con las apps ya instaladas y abiertas (ver la tabla de abajo).
+
+```bash
+# Android nativo y React Native: el nodo de texto del árbol de UI real
+adb shell uiautomator dump /sdcard/ui.xml >/dev/null
+adb shell cat /sdcard/ui.xml | tr '>' '>\n' | grep -oE 'text="[^"]*1\.0\.0[^"]*"'
+
+# iOS: captura del simulador booteado, y se mira el pie
+xcrun simctl io booted screenshot /tmp/ios-footer.png
+
+# Angular: el DOM después de que corre el JS, contra el servidor estático
+"/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" --headless=new --disable-gpu \
+  --virtual-time-budget=8000 --dump-dom http://localhost:4311/ 2>/dev/null \
+  | grep -oE '1\.0\.0\+[0-9a-f]{7}'
+```
+
+Qué se debe ver — el mismo `1.0.0+<sha>` en los tres, y el mismo en la captura de iOS. En la
+corrida de la Fase 6 los cuatro dieron `1.0.0+959025f`.
+
+Para comprobar los **binarios** en vez de las pantallas —más rápido, y sirve aunque las apps no
+estén instaladas— está el bucle sobre los seis artefactos en
+[`../rust-core/README.md`](../rust-core/README.md#comprobar-los-cuatro-artefactos-de-una-vez).
+
+### Tres trampas que hacen ver un SHA viejo
+
+Las tres aparecieron de verdad en la Fase 6 y las tres se leen como «los artefactos están
+desalineados» cuando no lo están:
+
+1. **Correr la suite instrumentada de Android NO deja la app instalada.**
+   `./gradlew :app:connectedDebugAndroidTest` instala las dos APK, corre y **las desinstala al
+   terminar**. Si después de eso se busca la app en el emulador, no está. Para la demo hay que
+   correr `./gradlew :app:installDebug` aparte.
+2. **El snapshot del emulador restaura apps de hace meses.** `emulator -avd <nombre>` carga el
+   snapshot guardado salvo que se le pase `-no-snapshot-load`, y con él vuelven las apps
+   instaladas de sesiones viejas. Dos apps distintas conviven además con nombres parecidos:
+   `dev.tohure.android_rust_test` es la **Android nativa** y `banco.corefinanciero.example` es
+   la de **React Native**. Abrir la que no es y leerle el pie da un SHA de otra fase.
+   `adb shell dumpsys package <paquete> | grep lastUpdateTime` dice cuándo se instaló.
+3. **El simulador de iOS se queda con el último build, no con el último artefacto.** Regenerar
+   el XCFramework no reinstala nada: hay que volver a compilar y correr. Si se regeneró el core
+   después de la última corrida, el simulador sigue mostrando el SHA anterior.
+
+Y una que no es trampa pero confunde: **en iOS, `strings` sobre el ejecutable enlazado de la app
+no encuentra el `1.0.0+<sha>`** aunque la pantalla lo muestre. Hay que mirarlo en el `.a` del
+XCFramework. En Android sí se puede mirar dentro del APK con
+`unzip -p <apk> lib/arm64-v8a/libcore_financiero.so | strings -a | grep -oE '1\.0\.0\+[0-9a-f]{7}'`.
+
 > **Esto es también un punto de la demo, no solo una precaución.** Ese string sale de
 > `core_version()`, una función de Rust, cruzando el FFI hasta un widget de texto nativo en cada
 > plataforma. Que se vea el mismo SHA en pantallas distintas es la prueba más simple de que

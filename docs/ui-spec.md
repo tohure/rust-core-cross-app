@@ -84,7 +84,7 @@ Navegación: cuatro pestañas (Aritmética, Transferencia, Tarjeta, Benchmark) y
 │         contenido                   │
 │                                     │
 ├─────────────────────────────────────┤
-│  core 1.0.0 · a0a40a5               │  pie: coreVersion(), SIEMPRE visible
+│  1.0.0+a0a40a5                      │  pie: coreVersion() PELADO, SIEMPRE visible
 ├─────────────────────────────────────┤
 │  [Aritmética][Transf.][Tarjeta][Bm] │  navegación
 └─────────────────────────────────────┘
@@ -92,6 +92,13 @@ Navegación: cuatro pestañas (Aritmética, Transferencia, Tarjeta, Benchmark) y
 
 El pie es la prueba en pantalla de que las cuatro corren el mismo build. Por eso va en todas
 y no escondido en un "Acerca de".
+
+**Se pinta tal cual lo devuelve `core_version()`: sin prefijo `core `, sin `·`, sin separar la
+versión del SHA.** Hasta la Fase 6 este wireframe dibujaba `core 1.0.0 · a0a40a5`, que ninguna
+de las cuatro apps renderiza y que contradice a la regla de la sección 5 de más abajo. No es
+cosmético: iOS llegó a anteponer `"core "` siguiendo este dibujo, y con builds idénticos los dos
+pies **no eran el mismo string** — que es lo único que este pie existe para probar. Ver el
+comentario de `apps/ios/.../UI/Components/Components.swift`.
 
 ### 1. Aritmética
 
