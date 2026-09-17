@@ -52,8 +52,10 @@ Android": si `Generated/` y el XCFramework vivieran en otro target, un test de p
 intentara llamar al core real **no compilaría**, y la disciplina dejaría de depender de la
 revisión.
 
-No se hace en la Fase 4: es trabajo de iOS, en su propia rama. `apps/react-native` sí nace ya
-con esa separación, y sirve de referencia de a qué se parece.
+**Sigue abierto, y ahora es la única de las cuatro apps que no lo resolvió.** `apps/android` lo
+hizo en la Fase 6 —nació el módulo Gradle `:core-financiero` con todo el borde FFI, y `:app` dejó
+de declarar JNA—, y `apps/react-native` nace con la separación hecha por frontera de paquete.
+Las dos sirven de referencia de a qué se parece el resultado.
 
 ### Dos huecos conocidos de `MoneyFormatter`, verificados contra Kotlin
 
@@ -70,30 +72,16 @@ Se dejan anotados en vez de corregidos porque el core nunca emite notación cien
 solo si alguien teclea eso a mano en un campo. El comentario del código ya está acotado a lo
 que de verdad se verificó y nombra los dos huecos.
 
-### El `catch` genérico guarda texto de diagnóstico como mensaje de usuario
+### ~~Dos textos de UI que se corrigen en las cuatro apps a la vez~~ — CERRADOS
 
-Los cuatro ViewModels terminan su `do/catch` con una rama `catch { state.error = "\(error)" }`,
-que contradice la regla de que el error se guarda **ya traducido**.
+Los dos se cerraron, cada uno por su lado:
 
-Se dejó a propósito, y la razón es de paridad, no de pereza: **Android hace exactamente lo
-mismo** —`apps/android/.../ui/arithmetic/ArithmeticViewModel.kt:74` es
-`(e as? DomainException)?.let(messages::userMessage) ?: e.toString()`— y la rama es
-**inalcanzable**, porque el adapter solo propaga `DomainError` desde el core. Cambiar iOS solo
-introduciría una asimetría con el consumidor ya mergeado sin ningún beneficio alcanzable;
-cambiar los dos es una decisión de cuatro apps que no le toca a la Fase 3.
-
-### Dos textos de UI que se corrigen en las cuatro apps a la vez, no aquí
-
-Un label se cambia en [`docs/ui-spec.md`](../../docs/ui-spec.md) y en las cuatro apps, **en el
-mismo cambio**. Estos dos están mal y se corrigen cuando exista la tercera app:
-
-- ~~El subtítulo del bloque de pegado se autolistaba.~~ **Cerrado en la Fase 6.** El texto
-  normativo dejó de enumerar plataformas —`Pega aquí el hex que produjo cualquiera de las otras
-  apps.`— porque la lista hay que mantenerla cada vez que se agrega una y el defecto reaparece.
-- Un fallo al **descifrar** muestra *"No se pudo cifrar los datos de la tarjeta."* El core
-  tiene un solo mensaje para la variante `Cifrado` y lo usa en las dos direcciones, así que
-  el texto viene de `contracts/messages.es.json` y es normativo tal cual. Corregirlo es tocar
-  el contrato, o sea las cinco bases de código.
+- **El subtítulo del bloque de pegado se autolistaba.** Cerrado en la Fase 6: el texto normativo
+  dejó de enumerar plataformas —`Pega aquí el hex que produjo cualquiera de las otras apps.`—
+  porque la lista hay que mantenerla cada vez que se agrega una y el defecto reaparece.
+- **Un fallo al descifrar mostraba «No se pudo cifrar los datos de la tarjeta».** Dejó de valer
+  con el **contrato v2.4.0**, que separó la variante `Descifrado` de `Cifrado` y le dio mensaje
+  propio. Ya no hay un solo texto usado en las dos direcciones.
 
 ### El texto rechazado por un filtro puede quedar visible en el campo
 

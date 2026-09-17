@@ -135,17 +135,20 @@ producción. Ninguna bloquea la demo. Salieron de una evaluación técnica de la
 `rust-core` ↔ Android, y se anotan aquí porque **una recomendación que vive sólo en una
 conversación no existe**.
 
-| # | Hoy | Recomendación | Prioridad |
-|---|---|---|---|
-| 1 | UniFFI 0.31 + JNA Direct | **Mantener UniFFI.** JNI puro bajaría la latencia de ~150-450 µs a <5 µs, pero obliga a mantener a mano las firmas `Java_dev_...` y los bindings de las cuatro plataformas. El riesgo de desincronización pasa de mínimo a alto | — |
-| 2 | Monolito en `:app` | **Extraer `:core-financiero` como Android Library.** `:app` deja de conocer JNA y de ver las `.so`; los cambios de UI no reevalúan la capa FFI; y si algún día se adopta KMP, `:core-financiero` se vuelve el `androidMain` sin tocar la UI | **Alta** |
-| 3 | Comandos manuales de terminal | **Automatizar `cargo ndk` y `uniffi-bindgen` como tareas Gradle `Exec`** | Media |
-| 4 | Generados en `src/main/` | **Generar en `build/generated/`**, que es donde el sistema de build sabe que son artefactos | Media |
-| 5 | Todos los ABI de JNA | **Configurar `ndk.abiFilters`** con los tres que se usan. En producción, empaquetar como **Android App Bundle (`.aab`)** entrega sólo el slice de la arquitectura del dispositivo destino, y baja la descarga del usuario final a ~3-5 MB | **Alta** |
-| 6 | `@Immutable` a mano sobre los `var` de uniffi | **Regla de lint, o mappers inmutables con `val`** | Media |
-| 7 | `remember` volátil | **`viewModel()` / `rememberSaveable`** para sobrevivir a la rotación | Baja en POC / Alta en producción |
+**Cuatro de las siete ya se aplicaron** —las tres de prioridad alta o equivalente, más la #6—,
+así que la columna «Hoy» dejó de describir el estado real y se reemplazó por el veredicto:
 
-**Cómo quedaría separado el módulo (recomendación #2):**
+| # | Recomendación | Estado |
+|---|---|---|
+| 1 | **Mantener UniFFI.** JNI puro baja la latencia pero obliga a mantener a mano las firmas `Java_dev_...` y los bindings de las cuatro plataformas: el riesgo de desincronización pasa de mínimo a alto | **Vigente, y ahora con número.** La evaluación estimaba «<5 µs» para un puente sin JNA, sin poder medirlo. La Fase 7 lo midió sin escribir una línea de JNI: **React Native cruza en 4,23 µs en este mismo Pixel 6**, porque JSI llama a C++ directo. La estimación era buena; la recomendación se sostiene igual, porque lo que se paga no es latencia sino mantenimiento |
+| 2 | **Extraer `:core-financiero` como Android Library**, para que `:app` deje de conocer JNA y de ver las `.so` | ✅ **Hecho en la Fase 6.** El módulo existe y se lleva el borde FFI entero; `:app` ya no declara JNA |
+| 3 | Automatizar `cargo ndk` y `uniffi-bindgen` como tareas Gradle `Exec` | Abierto. Prioridad media |
+| 4 | Generar en `build/generated/` en vez de `src/main/` | **Abierto a propósito, y no se va a hacer.** Un `clean` dejaría la app sin compilar hasta volver a correr el paso de Rust, y eso se descubre el día de la demo. Están en `src/generated/`, gitignorados, que es el punto medio |
+| 5 | Configurar `ndk.abiFilters` con los tres ABI que se usan | ✅ **Hecho.** Está en los dos módulos. Lo del **Android App Bundle** sigue vigente para producción: entregaría sólo el slice del dispositivo destino, ~3-5 MB de descarga |
+| 6 | Regla de lint, o mappers inmutables con `val`, en vez de `@Immutable` a mano | ✅ **Resuelto por otro camino en la Fase 6**: `UniffiRecordsAreNotMutatedTest` deriva los campos del propio binding y falla nombrando archivo y línea. Es una guardia de test en vez de una regla de lint, y cubre lo mismo |
+| 7 | `viewModel()` / `rememberSaveable` para sobrevivir a la rotación | ✅ **Hecho en la Fase 6**, con `RotationTest` que lo verifica en aparato |
+
+**Cómo quedó separado el módulo (recomendación #2, ya aplicada):**
 
 ```
 apps/android/
@@ -161,12 +164,14 @@ apps/android/
             └── dev/tohure/...  # CoreFinanciero, UniffiCoreFinanciero, ContractMessages
 ```
 
-La #2 es la que más lejos llega, y **`apps/react-native` ya nace con ella**: su librería es la
+La #2 es la que más lejos llega, y **`apps/react-native` ya nacía con ella**: su librería es la
 frontera nativa y su `example/` es la app, que nunca importa uniffi. Es el mismo desacople,
 conseguido por frontera de paquete en vez de módulo Gradle. Ver
 [apps/react-native/README.md](../react-native/README.md).
 
-La #7 ya está anotada arriba, en "El estado no sobrevive a la rotación".
+**La única de las cuatro apps que todavía no la aplicó es iOS**, donde `ios-rust-test` sigue
+siendo un target único que contiene el `Generated/`, el XCFramework, el adapter y las cuatro
+pantallas. Está anotado en [apps/ios/PENDING.md](../ios/PENDING.md).
 
 ## Fuera de alcance por diseño
 
