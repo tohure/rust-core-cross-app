@@ -37,6 +37,8 @@ pub enum DomainError {
     InsufficientFunds { available: String, required: String },
     #[error("error de cifrado: {detail}")]
     Encryption { detail: String },
+    #[error("error de descifrado: {detail}")]
+    Decryption { detail: String },
     #[error("parámetro fuera de rango: {field}")]
     OutOfRange { field: String },
 }
@@ -53,6 +55,7 @@ impl DomainError {
             Self::SameAccount => "MismaCuenta",
             Self::InsufficientFunds { .. } => "SaldoInsuficiente",
             Self::Encryption { .. } => "Cifrado",
+            Self::Decryption { .. } => "Descifrado",
             Self::OutOfRange { .. } => "FueraDeRango",
         }
     }
@@ -84,6 +87,7 @@ impl From<domain::DomainError> for DomainError {
                 required,
             },
             N::Encryption { detail } => Self::Encryption { detail },
+            N::Decryption { detail } => Self::Decryption { detail },
             N::OutOfRange { field } => Self::OutOfRange { field },
         }
     }
@@ -291,14 +295,17 @@ mod tests {
             domain::DomainError::Encryption {
                 detail: "nonce inválido".into(),
             },
+            domain::DomainError::Decryption {
+                detail: "no se pudo descifrar".into(),
+            },
             domain::DomainError::OutOfRange {
                 field: "monto".into(),
             },
         ];
         assert_eq!(
             variants.len(),
-            9,
-            "el dominio tiene nueve variantes: si acá hay menos, alguna quedó sin guardia"
+            10,
+            "el dominio tiene diez variantes: si acá hay menos, alguna quedó sin guardia"
         );
 
         for original in variants {
