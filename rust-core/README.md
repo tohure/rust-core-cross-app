@@ -144,7 +144,7 @@ y **antes** de levantar las apps:
 ```bash
 SHA=$(git rev-parse --short HEAD)
 for p in \
-  apps/android/app/src/main/jniLibs/arm64-v8a/libcore_financiero.so \
+  apps/android/core-financiero/src/generated/jniLibs/arm64-v8a/libcore_financiero.so \
   apps/ios/CoreFinanciero.xcframework/ios-arm64/libcore_financiero.a \
   apps/ios/CoreFinanciero.xcframework/ios-arm64-simulator/libcore_financiero.a \
   apps/react-native/android/src/main/jniLibs/arm64-v8a/libcore_financiero.a \

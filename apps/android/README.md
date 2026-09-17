@@ -77,7 +77,7 @@ núcleo Rust primero — eso pide `rustup`, `cargo-ndk` y el NDK r27+, y está t
 Para saber en cuál de los dos casos estás:
 
 ```bash
-ls app/src/main/jniLibs/*/libcore_financiero.so
+ls core-financiero/src/generated/jniLibs/*/libcore_financiero.so
 ```
 
 Si lista tres archivos, podés correrla ya. Si no, andá a [BUILD.md](BUILD.md).

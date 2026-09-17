@@ -1,0 +1,49 @@
+# SDD ledger — plan: docs/superpowers/plans/2026-09-16-phase-6-block-1-android.md
+
+Spec: docs/superpowers/specs/2026-09-16-phase-6-hardening-design.md
+Rama: feat/phase-6-hardening (la misma del bloque 0, que quedó cerrado en 391a186)
+
+Ruling (de entrada): la ejecución es **inline, sin subagentes**, a diferencia de las tareas 1-8
+del bloque 0. Motivo: las tareas 9-12 del bloque 0 se hicieron así y salieron con la misma
+disciplina de ledger; partir el contexto en briefs cuesta más de lo que aporta en un bloque que
+toca un solo subproyecto. Costo si me equivoco: un solo par de ojos por tarea, sin el revisor
+independiente que tuvieron las tareas 1-8.
+
+## Escaneo previo de conflictos
+
+| # | Par / tarea | Produce → consume | Hallazgo |
+|---|---|---|---|
+| 1 | T1 → T2, T3 | el módulo `:core-financiero` | OK. Las dos mueven código adentro y declaran el consumo. |
+| 2 | **T1 (consigo misma)** | «los generados siguen versionados» | **PREMISA FALSA**. Ver ruling abajo. |
+| 3 | T1 → toda regeneración futura | la ruta de salida de `cargo ndk` y de `uniffi-bindgen` | **RIPPLE NO DECLARADO**. Ver ruling abajo. |
+| 4 | T2 → T4 | el adapter dentro del módulo | OK. |
+| 5 | T3 → T9 | el reparto de suites | OK. |
+| 6 | T8 → docs/ui-spec.md | el hex de la pantalla de Tarjeta | Pendiente de leer: el ui-spec es normativo para las CUATRO apps, así que alinear Android puede obligar a mirar las otras tres. Se evalúa al llegar.|
+
+## Progreso
+
+Task 1: Ruling: el plan afirma que los generados «siguen versionados» y ordena moverlos con
+`git mv` (Step 4), marcarlos con `.gitattributes linguist-generated=true` (Step 5) y verificar el
+movimiento con `git log` / `git diff` sobre la ruta nueva (Step 7). Las tres cosas son imposibles:
+`apps/android/app/src/main/java/uniffi/` y `apps/android/app/src/main/jniLibs/` están IGNORADOS
+por `.gitignore:14-15` y git no los trackea — verificado con `git ls-files` (vacío) y
+`git check-ignore -v` (ambos ignorados). Decisión: se mueven con `mv` pelado, se actualizan las
+dos rutas del `.gitignore`, NO se crea el `.gitattributes` (linguist sólo mira archivos
+trackeados) y el Step 7 se reemplaza por la verificación que sí verifica: el SHA embebido en el
+`.so` antes y después del movimiento. Costo si me equivoco: el `.gitattributes` no existe y a
+alguien le aparecen los generados en un diff de GitHub — no pueden, están ignorados.
+
+Task 1: Ruling: mover los generados cambia la ruta de salida de los comandos de regeneración, que
+viven en `rust-core/CONTEXT.md` § «Comandos de exportación» —la fuente única, referenciada por
+`rust-core/BUILD.md`— y escriben literalmente a `../apps/android/app/src/main/jniLibs` y
+`../apps/android/app/src/main/java`. El plan declara que este bloque «no toca el core», pero sin
+tocar ese bloque de comandos el próximo que regenere deja los artefactos en la ruta vieja y la
+app compila contra lo que quedó, en silencio. Decisión: se amplía el alcance de la Task 1 a esas
+dos rutas de `rust-core/*.md`, y sólo a esas. Aprobado por el usuario antes de ejecutar. Costo si
+me equivoco: un bloque que se declaraba autocontenido toca dos archivos del core.
+
+Task 1: Hallazgo (tercer error del plan, y el más caro de diagnosticar): el Step 2 declara el source set de generados con `java.srcDir("src/generated/java")`. Con el Kotlin integrado de AGP 9 eso deja el directorio **fuera del compilador de Kotlin**. El modo de fallo es traicionero: `:core-financiero:assembleDebug` dice BUILD SUCCESSFUL, el AAR sale con las tres `.so` adentro, y el jar de clases del módulo trae **una sola clase** —el `R`—. El error aparece recién al compilar `:app`, como `Unresolved reference 'DomainException'` en los tres ViewModels, a un módulo de distancia de su causa. Corregido a `kotlin.srcDir`: el jar pasó de 1 clase a 98. Verificado con `./gradlew clean` de por medio, no con caché.
+Task 1: Hallazgo (cuarto): el plan no menciona que el plugin `com.android.library` hay que declararlo en el `build.gradle.kts` RAÍZ con `apply false`, junto a los otros dos. Sin eso, `alias(libs.plugins.android.library)` en el módulo falla con «the plugin is already on the classpath with an unknown version, so compatibility cannot be checked».
+Task 1: Ruling: el módulo declara JNA con `api` y no con `implementation`, que es lo que el plan ponía por defecto dejando el cambio a `api` como contingencia del Step 6. Motivo: los bindings generados exponen tipos de JNA en firmas públicas, así que `:app` los necesita en su classpath de compilación. Costo si me equivoco: `:app` ve JNA transitivamente aunque no la declare — que es exactamente lo que se quiere, porque el objetivo es que no la declare.
+Task 1: Ruling (alcance, ampliado sobre la marcha): además de `rust-core/CONTEXT.md` y `rust-core/BUILD.md` que ya estaban aprobados, la mudanza obligó a corregir la ruta en `rust-core/README.md` —el bucle de los seis artefactos, que es ejecutable y habría impreso una línea vacía— y en `apps/android/BUILD.md` y `apps/android/README.md`, que tienen ocho comandos ejecutables con la ruta vieja. Un comando equivocado deja los artefactos donde no van y la app compila en silencio contra lo que quedó. La Task 11 sigue siendo dueña del resto de la documentación de Android (diagrama, estructura, prosa).
+Task 1: complete — `:app:assembleDebug` en verde tras `clean`, el APK lleva las tres `.so`, el SHA embebido es el mismo antes y después de mover (`1.0.0+959025f`), `:app` ya no declara JNA, JVM 29/29 e instrumentada 16/16 sobre el AVD Pixel_9_Pro —incluida `theLibraryLoadsAndJnaResolvesSymbols`, que es la que prueba que el `.so` ahora carga desde el AAR del módulo—.

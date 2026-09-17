@@ -14,8 +14,8 @@ uno es la que devolvieron. Ninguno está deducido.
 ```
 rust-core/crates/ffi
    │
-   ├── cargo ndk ──────────> app/src/main/jniLibs/{arm64-v8a,armeabi-v7a,x86_64}/*.so
-   └── uniffi-bindgen ─────> app/src/main/java/uniffi/core_financiero/*.kt
+   ├── cargo ndk ──────────> core-financiero/src/generated/jniLibs/{arm64-v8a,armeabi-v7a,x86_64}/*.so
+   └── uniffi-bindgen ─────> core-financiero/src/generated/java/uniffi/core_financiero/*.kt
               ↑ lee el .dylib del HOST, no el .so de Android
                                           │
                         JNA (@aar) ───────┘
@@ -72,20 +72,20 @@ que exportarlo o cargo-ndk no encuentra el toolchain.
 ```bash
 export ANDROID_NDK_HOME="$HOME/Library/Android/sdk/ndk/30.0.16248370"
 cargo ndk -t arm64-v8a -t armeabi-v7a -t x86_64 \
-  -o ../apps/android/app/src/main/jniLibs build --release -p core_financiero
+  -o ../apps/android/core-financiero/src/generated/jniLibs build --release -p core_financiero
 ```
 
 Qué se debe ver, al cierre:
 
 ```
     Finished `release` profile [optimized] target(s) in 56.17s
-     Copying libraries to /…/apps/android/app/src/main/jniLibs
+     Copying libraries to /…/apps/android/core-financiero/src/generated/jniLibs
 ```
 
 Y los tres artefactos:
 
 ```bash
-find apps/android/app/src/main/jniLibs -name '*.so' -exec ls -l {} \;
+find apps/android/core-financiero/src/generated/jniLibs -name '*.so' -exec ls -l {} \;
 ```
 
 | ABI | Bytes |
@@ -101,7 +101,7 @@ Es el chequeo que evita el crash silencioso en dispositivos modernos. **No se sa
 ```bash
 NDK="$HOME/Library/Android/sdk/ndk/30.0.16248370"
 READELF="$NDK/toolchains/llvm/prebuilt/darwin-x86_64/bin/llvm-readelf"
-for so in $(find apps/android/app/src/main/jniLibs -name '*.so'); do
+for so in $(find apps/android/core-financiero/src/generated/jniLibs -name '*.so'); do
   a=$("$READELF" -l "$so" | awk '/LOAD/{print $NF}' | sort -u | head -1)
   printf "%-40s align=%s\n" "$so" "$a"
 done
@@ -159,14 +159,14 @@ Code generation complete, formatting with ktlint (use --no-format to disable)
 `uniffi.core_financiero`. No hay que mover nada.
 
 ```bash
-ls -l apps/android/app/src/main/java/uniffi/core_financiero/core_financiero.kt
+ls -l apps/android/core-financiero/src/generated/java/uniffi/core_financiero/core_financiero.kt
 # 63126 bytes
 ```
 
 ### Verificar que las nueve funciones cruzaron
 
 ```bash
-KT=apps/android/app/src/main/java/uniffi/core_financiero/core_financiero.kt
+KT=apps/android/core-financiero/src/generated/java/uniffi/core_financiero/core_financiero.kt
 for f in add subtract calculateItf validateCci validateCard \
          encrypt decrypt executeTransfer coreVersion; do
   printf "%-18s %s\n" "$f" "$(grep -c "fun \`$f\`(" $KT)"

@@ -44,14 +44,15 @@ android {
 }
 
 dependencies {
+    // Todo el borde FFI —JNA, los bindings generados, las `.so` y el adapter— vive acá adentro.
+    // `:app` no declara JNA ni importa `uniffi.*`: si vuelve a hacerlo, el borde se desarmó.
+    implementation(project(":core-financiero"))
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.activity.compose)
     implementation(libs.androidx.compose.material3)
     implementation(libs.androidx.compose.ui)
     implementation(libs.androidx.compose.ui.graphics)
     implementation(libs.androidx.compose.ui.tooling.preview)
-    // El `@aar` no es opcional: es el artefacto que trae las .so nativas de JNA.
-    implementation(variantOf(libs.jna) { artifactType("aar") })
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.lifecycle.runtime.compose)

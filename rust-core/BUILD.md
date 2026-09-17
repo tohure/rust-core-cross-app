@@ -298,8 +298,10 @@ plataforma. Esta sección solo fija **el orden** en que hay que correrlos desde 
 fallo que este repositorio evita en todas partes, dos copias que se desincronizan.
 
 1. **Android nativo** (`apps/android`), desde `rust-core/`: `cargo ndk` (los tres ABI) +
-   `uniffi-bindgen` en modo `kotlin`. Deja los `.so` por ABI en `jniLibs/` y los bindings
-   Kotlin en `app/src/main/java/uniffi/core_financiero/`. Comandos completos → sección
+   `uniffi-bindgen` en modo `kotlin`. Los dos artefactos van al módulo `:core-financiero`,
+   en su source set de generados: los `.so` por ABI en
+   `core-financiero/src/generated/jniLibs/` y los bindings Kotlin en
+   `core-financiero/src/generated/java/uniffi/core_financiero/`. Comandos completos → sección
    «Comandos de exportación» de [CONTEXT.md](CONTEXT.md).
 
 2. **iOS nativo** (`apps/ios`), desde `rust-core/`: los dos targets
