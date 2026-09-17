@@ -282,3 +282,24 @@ Tres cosas de ese comando que cuestan una tarde si no están escritas:
 
 `PROBE_RUNS` y `PROBE_WARMUP` ajustan la forma de la medición, para poder reproducir la de otra
 plataforma. La cantidad de muestras **cambia el resultado**.
+
+### El split en dos targets no movió el número, y hay con qué probarlo
+
+Partir la app en `CoreFinancieroKit` + `ios-rust-test` ponía en riesgo justamente esta cifra: si
+el framework hubiera quedado **dinámico**, cada llamada al core pagaría indirección de `dyld` y
+el piso de 0,062 µs dejaría de valer. Se eligió estático por eso, y después se volvió a medir en
+el mismo iPhone 12, en Release, con la misma sonda:
+
+| | Antes del split | Después |
+|---|---|---|
+| `coreVersion()` x1000 — **el piso del cruce** | 0,062 µs | **0,062 µs** |
+| `add` x1000 | 0,416 µs | 0,410 µs |
+| `NativeBaseline.add` x1000 | 0,148 µs | 0,146 µs |
+
+**Lo que hace concluyente a esta tabla es la tercera fila, no la primera.** `NativeBaseline.add`
+no cruza el FFI —es aritmética de `Double` en Swift— así que el split no puede haberla afectado
+por ningún mecanismo. Se movió **−1,4 %, exactamente lo mismo que `add`**. Esa coincidencia
+identifica la variación como ruido entre corridas y no como señal: si el framework hubiera
+agregado indirección, `add` se habría movido y la baseline no.
+
+Sin esa fila de control, un −1,4 % en `add` no se distingue de una regresión chica.
