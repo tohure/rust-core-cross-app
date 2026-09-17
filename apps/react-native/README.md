@@ -118,6 +118,29 @@ pnpm ubrn:android              # ~1:01 — 3 ABIs + bindings
 pnpm ubrn:ios                  # ~12 s con cargo cacheado; incluye pod install
 ```
 
+### Dónde se cablea, y qué **no** tenés que editar
+
+Una duda razonable: «¿y dónde le digo a la app cómo se llama lo que generó Rust?». **En ningún
+lado.** No hay que tocar ningún archivo de configuración: el cableado está fijo en el código del
+proyecto y los artefactos caen en rutas fijas. Si están en su lugar, compila.
+
+| | |
+|---|---|
+| **Los archivos que lo cablean** | `ubrn.config.yaml` para el turbo module, y `ubrn.wasm.yaml` para el `.wasm` |
+| **Dónde caen los bindings TS** | `src/generated/` |
+| **Dónde cae el C++ del turbo module** | `cpp/` y `ios/` — los dos gitignored |
+| **Dónde caen los de N-API** | `src/generated-napi/`, que es lo que usa el test de contrato desde Node |
+| **Qué NO se toca** | Los dos `.yaml` ya están escritos y versionados. No hay que editarlos para construir |
+
+**Ojo con `android/generated` e `ios/generated`: ésos no son de `ubrn`.** Los produce el
+**Codegen de React Native** a partir del `codegenConfig` del `package.json`, y los genera Gradle
+o CocoaPods en tiempo de build. Son dos generadores distintos escribiendo en carpetas de nombre
+parecido; confundirlos hace buscar el error en el lado equivocado.
+
+Esta app es la única que produce **tres** salidas del mismo crate: el turbo module JSI que usa
+la app, los bindings N-API con que el test de contrato llama al core desde Node, y el `.wasm`
+del que depende Angular.
+
 ---
 
 ## Correrla

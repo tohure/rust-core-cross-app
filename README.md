@@ -73,6 +73,40 @@ armada sin ese chequeo — el procedimiento está en
 
 ## Arranque
 
+### Paso 0, y no es opcional: generar los artefactos del núcleo
+
+**Los binarios que produce Rust no están en git.** Un clone limpio no tiene el `.so` de
+Android, ni el `.xcframework` de iOS, ni el Turbo Module, ni el `.wasm` — están en
+`.gitignore` a propósito, porque son artefactos de build. **Ninguna de las cuatro apps
+compila sin ellos**, y el error que dan no siempre dice que eso es lo que falta.
+
+Antes que nada, averiguá en cuál de los dos casos estás:
+
+```bash
+# desde la raíz del repo — lista los cuatro artefactos, uno por app
+ls apps/android/core-financiero/src/generated/jniLibs/*/libcore_financiero.so \
+   apps/ios/CoreFinanciero.xcframework/*/libcore_financiero.a \
+   apps/react-native/src/generated/*.ts \
+   packages/core-financiero-wasm/generated/*.wasm 2>&1 | tail -20
+```
+
+Si alguno dice `No such file or directory`, **empezá por acá**:
+
+**→ [rust-core/BUILD.md § Generar el core que consumen las cuatro
+apps](rust-core/BUILD.md#generar-el-core-que-consumen-las-cuatro-apps)**
+
+Esa sección fija el orden de los cuatro pasos y qué artefacto deja cada uno. Dos cosas que
+conviene saber antes de abrirla:
+
+- **Es un paso manual a propósito**, fuera de cualquier build automático. Si Gradle regenerara
+  el core en cada compilación, el `coreVersion()` de Android dejaría de coincidir con el de las
+  otras tres.
+- **Los cuatro se generan desde el mismo `HEAD`**, o los cuatro pies de `coreVersion()` dejan de
+  coincidir y la comparación lado a lado de la demo deja de valer aunque las pantallas se vean
+  bien.
+
+### Paso 1: correr lo que quieras
+
 ```bash
 # El núcleo, desde rust-core/
 cargo test --workspace          # 71 tests
@@ -97,6 +131,13 @@ cd example && pnpm exec react-native start --reset-cache   # Metro, en su propia
 pnpm test
 pnpm exec ng serve                                # http://localhost:4200
 ```
+
+### No hay nada que configurar a mano
+
+Una duda razonable al llegar acá: «¿y dónde le digo a cada app cómo se llama lo que generó
+Rust?». **En ningún lado.** El cableado está fijo en el código de cada proyecto y los artefactos
+caen en rutas fijas: si están en su lugar, compila. La tabla de dónde vive cada cosa está en el
+README de cada app, en «Antes de correrla».
 
 Cada subproyecto tiene su README con los requisitos y el paso a paso completo:
 [rust-core/README.md](rust-core/README.md), [apps/android/README.md](apps/android/README.md),

@@ -113,6 +113,23 @@ ls core-financiero/src/generated/jniLibs/*/libcore_financiero.so
 
 Si lista tres archivos, podés correrla ya. Si no, andá a [BUILD.md](BUILD.md).
 
+### Dónde se cablea, y qué **no** tenés que editar
+
+Una duda razonable: «¿y dónde le digo a la app cómo se llama lo que generó Rust?». **En ningún
+lado.** No hay que tocar ningún archivo de configuración: el cableado está fijo en el código del
+proyecto y los artefactos caen en rutas fijas. Si están en su lugar, compila.
+
+| | |
+|---|---|
+| **El archivo que lo cablea** | `core-financiero/build.gradle.kts` — las dos líneas `kotlin.srcDir("src/generated/java")` y `jniLibs.srcDir("src/generated/jniLibs")` |
+| **Dónde caen los bindings** | `core-financiero/src/generated/java/uniffi/core_financiero/` |
+| **Dónde caen las `.so`** | `core-financiero/src/generated/jniLibs/<abi>/libcore_financiero.so`, una por ABI |
+| **Qué NO se toca** | `gradle.properties` no declara nada del core. Tampoco hay que registrar los archivos generados en ningún lado: el source set los toma por ruta |
+
+Los generados viven en un source set aparte del código escrito a mano, para que se vea de un
+vistazo qué se edita y qué no. **No van en `build/`**: un `clean` dejaría el módulo sin compilar
+hasta volver a correr el paso de Rust.
+
 ## Correrla
 
 ```bash

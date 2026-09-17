@@ -107,6 +107,29 @@ falta construir. Eso es deliberado: el symlink apunta a un artefacto gitignoread
 Angular contesta el `index.html` del SPA con status 200, así que sin el chequeo de `response.ok`
 el error sería un trap opaco de WebAssembly en vez de una instrucción.
 
+### Dónde se cablea, y qué **no** tenés que editar
+
+Una duda razonable: «¿y dónde le digo a la app cómo se llama lo que generó Rust?». **En ningún
+lado.** No hay que tocar ningún archivo de configuración: el cableado está fijo en el código del
+proyecto y los artefactos caen en rutas fijas. Si están en su lugar, compila.
+
+| | |
+|---|---|
+| **Lo que cablea la API de TypeScript** | `package.json` — la dependencia `"@banco/core-financiero-wasm": "workspace:*"` |
+| **Lo que cablea el binario** | `public/core_financiero.wasm`, que es un **symlink versionado** a `packages/core-financiero-wasm/generated/core_financiero.wasm`. `angular.json` sirve todo `public/` como assets |
+| **Dónde cae el `.wasm`** | `packages/core-financiero-wasm/generated/` — el destino del symlink, **gitignored** |
+| **Dónde cae lo que Angular importa** | `packages/core-financiero-wasm/dist/`, el bundle de esbuild |
+| **Qué NO se toca** | **No hay carpeta `src/assets/`, y no hay que crearla.** El `.wasm` no se copia a mano en ningún lado: el symlink ya está en git y apunta al artefacto |
+
+**El symlink está versionado pero su destino no**, y por eso el servicio chequea
+`response.ok` antes de leer los bytes: en un clone sin construir, el dev-server de Angular
+contesta el `index.html` del SPA con status 200, así que sin ese chequeo el error sería un trap
+opaco de WebAssembly en vez de un mensaje que dice qué falta.
+
+Esta app **no consume `rust-core` directamente**: consume lo que produce
+`apps/react-native`. Es la única de las cuatro con esa dependencia, y es la razón por la que su
+paso de build no se corre ni acá ni en `rust-core/`.
+
 ## Correrla
 
 ```bash
