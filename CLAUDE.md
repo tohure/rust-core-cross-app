@@ -168,14 +168,14 @@ verificó que las nueve funciones cruzan la frontera.
 `apps/android/` es el primer consumidor real y **ya ejercita el borde FFI de verdad**. Desde la
 Fase 6 son **dos módulos Gradle**: `:core-financiero` se lleva todo el borde FFI —JNA, los
 bindings generados, las `.so` y el adapter— y `:app` queda con Compose y presentación, sin
-declarar JNA. **56 tests en verde** en cuatro suites: 31 de JVM y 1 instrumentado en `:app`; 4 de
+declarar JNA. **57 tests en verde** en cuatro suites: 32 de JVM y 1 instrumentado en `:app`; 4 de
 JVM y **20 instrumentados** en `:core-financiero`, que son los que cruzan el FFI de verdad —10 del
 test de contrato, 2 del smoke, 3 del adapter real y 4 de las fuentes de assets—, más `FfiCostProbe`,
 la sonda del benchmark, que no aserta y viene apagada. Las cuatro
 pantallas funcionando y el pie con `coreVersion()` visible en todas. Ver
 [apps/android/README.md](apps/android/README.md).
 
-`apps/ios/` es el segundo consumidor: las cuatro pantallas andando y **53 tests en verde**,
+`apps/ios/` es el segundo consumidor: las cuatro pantallas andando y **54 tests en verde**,
 incluido el test de contrato 31/31, **verificados también sobre hardware real** —o sea sobre el
 slice `aarch64-apple-ios`, que es el que se embarca y es un binario distinto del de simulador—.
 El benchmark está medido en un **iPhone 12 con iOS 18** y en **Release**, y confirma la hipótesis
@@ -212,10 +212,8 @@ afirmar que el 760× entre las dos puntas no lo explica el aparato. Ver
 pantallas existen a la vez y la comparación lado a lado se puede hacer de verdad. **102 tests en
 verde** con el contrato **31/31**, y las cuatro pantallas andando sobre el WASM real.
 
-Tiene dos particularidades que conviene decir en la demo. **`ng serve` no funciona** —el
-optimizador de dependencias de Vite se rompe con `@banco/contract`—, así que la app se levanta con
-`ng build` más un servidor estático; ningún gate depende de eso, pero quien la corra en vivo lo
-pisa. Y **el benchmark de esta app no mide como las otras tres**: el `performance.now()` del
+Tiene una particularidad que conviene decir en la demo: **el benchmark de esta app no mide como
+las otras tres**: el `performance.now()` del
 navegador está cuantizado a ~100 µs por la mitigación anti-Spectre, o sea un reloj ~100× más
 grueso que lo que se quiere medir, así que acá se cronometran lotes y se divide. La cifra —core
 ~1,5 µs contra ~0,07 µs de la baseline nativa— ubica el orden de magnitud, y **no** sirve para una
@@ -496,7 +494,10 @@ manifestó. `loadCore` pasa **bytes** (`response.arrayBuffer()`) a `initCore`, y
 `WebAssembly.compile`, que no mira el `Content-Type`; sólo `compileStreaming` lo exige. Se pierde
 la compilación en streaming, irrelevante para 180 KB.
 
-Lo que sí peleó fue **`ng serve`**, que se rompe con el optimizador de dependencias de Vite sobre
-`@banco/contract`. Ahí sí se aplicó la regla de no quemar tiempo de demo en el build: se levanta
-con `ng build --configuration development` más un servidor estático, y queda documentado. Ningún
-gate depende de `ng serve`. Ver [apps/web-angular/PENDING.md](apps/web-angular/PENDING.md).
+Lo que sí peleó fue **`ng serve`**, y quedó arreglado: eran **dos fallos encadenados**, no uno. El primero, el que estaba diagnosticado —`@banco/contract` se consume como fuente TypeScript
+y el pre-bundler de Vite no resuelve sus imports sin extensión—, se cierra excluyéndolo del
+pre-bundling en `angular.json`. El segundo estaba tapado detrás: `@banco/core-financiero-wasm`
+marcaba `@ubjs/*` como externos, así que su `dist` salía con imports desnudos que `ng build`
+resuelve y el dev-server no. Se cierra haciendo ese paquete autocontenido, que además es lo
+correcto: no se publica y es un artefacto de navegador. Ver
+[apps/web-angular/PENDING.md](apps/web-angular/PENDING.md).

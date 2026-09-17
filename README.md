@@ -79,11 +79,11 @@ cargo test --workspace          # 71 tests
 cargo test -p core_financiero --test contract   # solo los 31 vectores del contrato
 
 # Android, desde apps/android/ — son DOS módulos Gradle desde la Fase 6
-./gradlew :app:testDebugUnitTest :core-financiero:testDebugUnitTest        # 35, en la JVM
+./gradlew :app:testDebugUnitTest :core-financiero:testDebugUnitTest        # 36, en la JVM
 ./gradlew :app:connectedDebugAndroidTest :core-financiero:connectedDebugAndroidTest  # 21, sobre aparato
 ./gradlew :app:installRelease                     # release para la demo: el debug es 3-4x más lento
 
-# iOS, desde apps/ios/ — 53 tests, en simulador o aparato real
+# iOS, desde apps/ios/ — 54 tests, en simulador o aparato real
 xcodebuild test -project ios-rust-test.xcodeproj -scheme ios-rust-test \
   -destination 'platform=iOS Simulator,name=iPhone 17 Pro'
 open ios-rust-test.xcodeproj   # y a correrla con ⌘R
@@ -95,8 +95,7 @@ cd example && pnpm exec react-native start --reset-cache   # Metro, en su propia
 
 # Angular, desde apps/web-angular/ — 102 tests
 pnpm test
-pnpm exec ng build --configuration development   # ng serve no funciona, ver su PENDING.md
-cd dist/web-angular/browser && python3 -m http.server 4311
+pnpm exec ng serve                                # http://localhost:4200
 ```
 
 Cada subproyecto tiene su README con los requisitos y el paso a paso completo:

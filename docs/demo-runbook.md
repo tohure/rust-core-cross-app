@@ -118,16 +118,18 @@ XCFramework. En Android sí se puede mirar dentro del APK con
 | Android | `./gradlew :app:installDebug` desde `apps/android/` | [apps/android/README.md](../apps/android/README.md) |
 | iOS | `open ios-rust-test.xcodeproj` desde `apps/ios/` y ⌘R | [apps/ios/README.md](../apps/ios/README.md) |
 | React Native | `pnpm exec react-native start --reset-cache` y después `run-android` / `run-ios`, desde `apps/react-native/example/` | [apps/react-native/README.md](../apps/react-native/README.md) |
-| Angular | **`ng serve` NO funciona.** `pnpm exec ng build --configuration development` desde `apps/web-angular/`, después `python3 -m http.server 4311` dentro de `dist/web-angular/browser/` | [apps/web-angular/README.md](../apps/web-angular/README.md) |
+| Angular | `pnpm exec ng serve` desde `apps/web-angular/` — `http://localhost:4200` | [apps/web-angular/README.md](../apps/web-angular/README.md) |
 
 **Angular necesita el `.wasm` construido, y no está en git.** Si nunca se corrió
 `pnpm wasm:generate` desde `apps/react-native/` en este clone, la app arranca y falla en el
 arranque diciendo exactamente qué falta. Construirlo **antes** de la demo: es un build de release
 de Rust, no tarda dos segundos.
 
-Y `ng serve` está roto de verdad —el optimizador de dependencias de Vite se rompe con
-`@banco/contract`—, así que no se intenta en vivo: se levanta con el servidor estático de arriba,
-que es como se verificó toda la fase.
+**`ng serve` ya funciona** y es lo que conviene usar en vivo: levanta en `http://localhost:4200`
+con recarga automática. Estuvo roto hasta que se destraparon dos fallos encadenados de resolución
+de módulos; si alguna vez vuelve a fallar, `ng build --configuration development` más un servidor
+estático sigue siendo el plan B, y el detalle está en
+[apps/web-angular/PENDING.md](../apps/web-angular/PENDING.md).
 
 **React Native necesita Metro corriendo**, en su propia terminal, y **Metro muere con la
 terminal que lo lanzó**. Si la app arranca en pantalla roja diciendo `loadJSBundleFromAssets`,
@@ -421,7 +423,7 @@ Y dos cosas operativas, para que no sorprendan en vivo:
 | Una tecla rechazada queda visible en el campo | Filtro de texto que no invalida la vista | Cosmético, el estado es correcto. Anotado en [apps/ios/PENDING.md](../apps/ios/PENDING.md) |
 | El benchmark tarda muchísimo | Se tipearon demasiadas iteraciones | Las cuatro apps topan en 6 dígitos. Con 999999 la espera es real: usar `1000` |
 | Angular falla al arrancar diciendo que falta `@banco/core-financiero-wasm` | El `.wasm` no está construido en este clone (no va en git) | `pnpm wasm:generate` desde `apps/react-native/`. No es un fallo de la app: es el chequeo que existe para decirlo claro |
-| `ng serve` no levanta | Bug conocido del optimizador de Vite con `@banco/contract` | No insistir: `ng build --configuration development` + `python3 -m http.server` |
+| `ng serve` no levanta | Estuvo roto hasta que se arreglaron los dos fallos encadenados de resolución. Si vuelve a fallar, mirar `prebundle.exclude` en `angular.json` y que `@banco/core-financiero-wasm` siga siendo autocontenido | `ng build --configuration development` + `python3 -m http.server 4311` sigue funcionando como plan B |
 | La pestaña de Angular se congela en el Benchmark | Corre en el hilo principal, sin Web Worker | Es esperado. Con `1000` son ~133 ms; con 999999, ~3,4 s. Esperar |
 
 ---

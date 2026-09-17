@@ -6,7 +6,7 @@ otras tres apps de la POC (iOS, React Native, Angular) consumen **sin reescribir
 
 Lo que esta app hace con los datos es pedirlos y mostrarlos.
 
-**Estado:** funcional. 56 tests en verde, las cuatro pantallas andando.
+**Estado:** funcional. 57 tests en verde, las cuatro pantallas andando.
 
 | | |
 |---|---|
@@ -154,10 +154,10 @@ los que se corrieron al cerrar la Fase 6, y los totales, los que dieron:
 
 | Módulo | JVM | Instrumentada | Qué prueba cada una |
 |---|---:|---:|---|
-| `:app` | **31** | **1** | JVM: ViewModels con `FakeCoreFinanciero`, formateo, la baseline nativa y la guardia de mutación de `Record`. Instrumentada: que la rotación no se lleve puesto el estado |
+| `:app` | **32** | **1** | JVM: ViewModels con `FakeCoreFinanciero`, formateo, la baseline nativa y la guardia de mutación de `Record`. Instrumentada: que la rotación no se lleve puesto el estado |
 | `:core-financiero` | **4** | **20** | JVM: el mapeo de error a nombre de contrato. Instrumentada: **el test de contrato (10), el smoke del FFI (2), el adapter real (3) y las fuentes de assets (2+2)** — las que cruzan la frontera de verdad — más `FfiCostProbe`, que no aserta |
 
-**56 tests, 0 fallos.** Las 19 instrumentadas de `:core-financiero` que asertan algo son las que no se pueden
+**57 tests, 0 fallos.** Las 19 instrumentadas de `:core-financiero` que asertan algo son las que no se pueden
 falsear: cargan `libcore_financiero.so`, resuelven símbolos por JNA y comparan los 31 casos de
 `cases.json` con igualdad exacta de strings.
 

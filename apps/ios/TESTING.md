@@ -23,7 +23,7 @@ xcodebuild test -project ios-rust-test.xcodeproj -scheme ios-rust-test \
 ```
 
 Qué se debe ver — `** TEST SUCCEEDED **` y
-**`Test run with 53 tests in 13 suites passed`**:
+**`Test run with 54 tests in 13 suites passed`**:
 
 | Archivo | Tests | Qué prueba |
 |---|---|---|
@@ -36,7 +36,7 @@ Qué se debe ver — `** TEST SUCCEEDED **` y
 | `ArithmeticViewModelTest` | 5 | |
 | `TransferViewModelTest` | 5 | |
 | `CardViewModelTest` | 6 | |
-| `BenchmarkViewModelTest` | 8 | |
+| `BenchmarkViewModelTest` | 9 | |
 | `ios_rust_testTests` | 1 | |
 
 Los 24 de ViewModel usan `FakeCoreFinanciero` y **no** cruzan el FFI: prueban el ViewModel, no
@@ -133,7 +133,7 @@ xcodebuild test -project ios-rust-test.xcodeproj -scheme ios-rust-test \
   -destination 'id=<identificador del aparato>' -allowProvisioningUpdates
 ```
 
-Resultado: **`Test run with 53 tests in 13 suites passed` · `** TEST SUCCEEDED **`** — el mismo
+Resultado: **`Test run with 54 tests in 13 suites passed` · `** TEST SUCCEEDED **`** — el mismo
 conteo y el mismo verde que el simulador. Corrió sobre dos aparatos distintos: un **iPad Air
 (5.ª gen, `iPad13,16`) con iPadOS 26.6.1** al cerrar la Fase 3, y un **iPhone 12 (`iPhone13,2`)
 con iOS 18** al medir el benchmark de verdad. Con eso queda probado lo que ninguna corrida de simulador podía probar: que el

@@ -109,19 +109,27 @@ el error sería un trap opaco de WebAssembly en vez de una instrucción.
 
 ## Correrla
 
-**`ng serve` no funciona en este repo, y no es de esta fase.** El optimizador de dependencias de
-Vite se rompe con `@banco/contract`, que es un paquete del workspace. El workaround, que es lo
-que se usó en todas las verificaciones de la fase:
-
 ```bash
 cd apps/web-angular
-pnpm exec ng build --configuration development
-cd dist/web-angular/browser && python3 -m http.server 4311
-# abrir http://localhost:4311/
+pnpm exec ng serve
+# abrir http://localhost:4200/
 ```
 
-Ningún gate depende de `ng serve`: los tests corren en jsdom y la verificación visual se hizo
-sobre este servidor estático. Ver [PENDING.md](PENDING.md).
+Qué se debe ver: cuatro pantallas y, al pie de todas, `1.0.0+<sha>` — el mismo string que muestran
+las otras tres apps. Si el pie sale vacío, el WASM no cargó.
+
+**`ng serve` estuvo roto en este repo hasta que se destraparon dos fallos encadenados de
+resolución de módulos** —uno en `@banco/contract`, que se consume como fuente TypeScript, y otro
+en `@banco/core-financiero-wasm`, que no era autocontenido—. El detalle de los dos está en
+[PENDING.md](PENDING.md); vale leerlo antes de tocar `angular.json` o el `build` del paquete WASM,
+porque los dos arreglos son los que lo sostienen.
+
+Si alguna vez vuelve a fallar, el plan B sigue en pie y no depende de Vite:
+
+```bash
+pnpm exec ng build --configuration development
+cd dist/web-angular/browser && python3 -m http.server 4311
+```
 
 El `.wasm` **no necesita** servirse con MIME `application/wasm` — ver «Qué NO se puede hacer».
 
