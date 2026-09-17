@@ -137,7 +137,41 @@ adb logcat -d -s FfiCostProbe:I
 ```
 
 **Salvedad:** el APK medido es el de **debug**; el `.so` sí es release. No debería cambiar mucho
-en esta ruta —el camino del binding no lleva instrumentación de debug— pero no se verificó.
+en esta ruta —el camino del binding no lleva instrumentación de debug— pero **no se verificó**, y
+la Fase 6 tampoco pudo cerrarlo del todo. Ver abajo.
+
+### El APK de release: medido en tamaño, no en velocidad
+
+La Fase 6 construyó los dos y los pesó:
+
+```bash
+cd apps/android && ./gradlew :app:assembleDebug :app:assembleRelease
+ls -l app/build/outputs/apk/debug/*.apk app/build/outputs/apk/release/*.apk
+```
+
+| APK | Bytes | |
+|---|---:|---|
+| `app-debug.apk` | 32 695 932 | ~31,2 MiB |
+| `app-release-unsigned.apk` | 25 555 744 | ~24,4 MiB |
+
+De dónde sale el peso, en el de release: **22,9 MB son los dos `classes.dex`**; todo lo nativo
+junto son 1,9 MB, y de eso 1,4 MB son los tres slices de `libcore_financiero.so` —uno por ABI— y
+458 KB las `.so` de JNA.
+
+> **El de release NO está minificado, así que ese número no es el de un build embarcable.** El
+> `buildTypes.release` de este proyecto lleva `optimization { enable = false }`, o sea que R8 no
+> corre: no hay shrinking ni ofuscación, y por eso la diferencia con debug es sólo del 22 %. Con
+> R8 la mayor parte de esos 22,9 MB de dex se iría. Está así a propósito —es una POC y un APK
+> minificado complica leer un stack trace en la demo—, pero cualquiera que cite este tamaño como
+> «lo que pesa la app» se va a equivocar por un factor grande.
+
+**Lo que quedó sin medir, y por qué:** los percentiles del benchmark en un APK de release. Dos
+razones concretas, ninguna de fondo: AGP emite el release **sin firmar** (`app-release-unsigned.apk`),
+así que no se puede instalar sin configurarle una firma; y el único aparato disponible al cerrar la
+Fase 6 era un emulador, mientras que el número con el que habría que comparar —los 444 µs de más
+arriba— salió de un Pixel 6 físico. Medir en emulador y ponerlo al lado de ese número daría una
+comparación falsa. **Queda abierto: firmar el release con el keystore de debug y repetir la pantalla
+de Benchmark en el Pixel 6, con las mismas iteraciones.**
 
 Lo que el benchmark **sí** exhibe es lo otro: `NativeBaseline` es más rápido y **da mal el
 resultado**. Su test aserta que *diverge* del core; si alguna vez deja de fallar contra `0.30`,
