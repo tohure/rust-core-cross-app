@@ -733,6 +733,16 @@ Lo que **no** se comitea, por el mismo criterio que el resto del *glue*:
 - `BancoCoreFinancieroFramework.xcframework/` — lo produce `ubrn:ios`, igual que los `.a` de Android.
 - `example/ios/CoreFinancieroExample.xcworkspace` — lo crea `pod install` y referencia `Pods/`, que ya estaba ignorado.
 
+### Dónde están las fuentes nativas al abrir el IDE
+
+Lo único que se rescató del `CONTRIBUTING.md` del andamio antes de borrarlo, porque es de las
+cosas que cuestan diez minutos de búsqueda a ciegas:
+
+- **Xcode:** abrir `example/ios/CoreFinancieroExample.xcworkspace` y buscar los fuentes en
+  *Pods → Development Pods → @banco/core-financiero*.
+- **Android Studio:** abrir `example/android` y buscar los fuentes en `banco-core-financiero`,
+  bajo *Android*.
+
 `Podfile.lock` y `Gemfile.lock` **sí** se comitean: este repo comitea sus lockfiles
 —`pnpm-lock.yaml`, `Cargo.lock`— para que el build sea el mismo en otra máquina, y no hay razón
 para tratar a CocoaPods distinto.
