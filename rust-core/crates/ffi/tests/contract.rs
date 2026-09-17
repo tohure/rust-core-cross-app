@@ -11,7 +11,7 @@
 //!   grupo vaciado hace fallar al test que lo lee y no solo a una tabla lejana;
 //! - `the_contract_has_the_expected_number_of_cases` fija el tamaño de cada grupo;
 //! - `the_contract_has_no_unknown_top_level_keys` fija qué grupos existen;
-//! - los tres tests `*_messages_*` atan `contracts/messages.es.json` a las nueve variantes
+//! - los tres tests `*_messages_*` atan `contracts/messages.es.json` a las diez variantes
 //!   del core y a los nombres de error que usa `cases.json`.
 //!
 //! Todas responden al mismo fallo: un `for` sobre cero elementos no aserta nada, y un
@@ -49,9 +49,9 @@ fn message_keys(m: &Value) -> BTreeSet<String> {
 
 /// No calcula nada: existe para que el **compilador** cuente las variantes.
 ///
-/// El `match` es exhaustivo y **sin rama por defecto**, así que agregar una décima variante
-/// al core rompe la compilación de este archivo. Ese es justamente el punto: sin él, la
-/// lista de `contract_error_names` quedaría corta en silencio, las nueve entradas de
+/// El `match` es exhaustivo y **sin rama por defecto**, así que agregar una undécima
+/// variante al core rompe la compilación de este archivo. Ese es justamente el punto: sin
+/// él, la lista de `contract_error_names` quedaría corta en silencio, las diez entradas de
 /// `messages.es.json` seguirían cuadrando, y la variante nueva llegaría a las cuatro apps
 /// sin mensaje de usuario — que es el agujero que este archivo existe para tapar. Es la
 /// misma técnica que `rust-core/README.md` le exige al mapeo de las cuatro apps.
@@ -65,11 +65,12 @@ fn every_variant_is_listed(e: &DomainError) {
         | DomainError::SameAccount
         | DomainError::InsufficientFunds { .. }
         | DomainError::Encryption { .. }
+        | DomainError::Decryption { .. }
         | DomainError::OutOfRange { .. } => {}
     }
 }
 
-/// Los nueve nombres del contrato, **derivados de `contract_name()`** sobre las nueve
+/// Los diez nombres del contrato, **derivados de `contract_name()`** sobre las diez
 /// variantes reales y no tipeados a mano: renombrar `"Cifrado"` en el core mueve esta
 /// lista sola, y la guardia de abajo lo reporta como "falta Cifrado" en vez de pasar en
 /// verde. Es la misma técnica que `the_domain_error_translates_preserving_its_name`.
@@ -94,6 +95,9 @@ fn contract_error_names() -> BTreeSet<String> {
         DomainError::Encryption {
             detail: "nonce inválido".into(),
         },
+        DomainError::Decryption {
+            detail: "tag inválido".into(),
+        },
         DomainError::OutOfRange {
             field: "monto".into(),
         },
@@ -105,8 +109,8 @@ fn contract_error_names() -> BTreeSet<String> {
         .collect();
     assert_eq!(
         names.len(),
-        9,
-        "el core tiene nueve variantes de error: si acá salen {}, alguna quedó sin \
+        10,
+        "el core tiene diez variantes de error: si acá salen {}, alguna quedó sin \
          construir o dos comparten `contract_name()`",
         names.len()
     );
@@ -145,7 +149,7 @@ fn assert_exact_fields(v: &Value, expected: &[&str], what: &str) {
 
 #[test]
 fn the_contract_is_the_expected_version() {
-    assert_eq!(field(&contract(), "version"), "2.3.0");
+    assert_eq!(field(&contract(), "version"), "2.4.0");
 }
 
 /// Guardia contra el test de contrato que reporta éxito sin haber ejercitado nada.
@@ -162,15 +166,16 @@ fn the_contract_is_the_expected_version() {
 ///    poner este archivo dentro del paquete `ffi` y no en la raíz del workspace.
 #[test]
 fn the_contract_has_the_expected_number_of_cases() {
-    // Los conteos reales del contrato v2.3.0. Cambiarlos es cambiar el alcance de la POC.
-    const EXPECTED: [(&str, usize); 5] = [
+    // Los conteos reales del contrato v2.4.0. Cambiarlos es cambiar el alcance de la POC.
+    const EXPECTED: [(&str, usize); 6] = [
         ("aritmetica", 6),
         ("cci", 4),
+        ("descifrado", 3),
         ("itf", 5),
         ("tarjeta", 6),
         ("transferencia", 7),
     ];
-    const EXPECTED_TOTAL: usize = 28;
+    const EXPECTED_TOTAL: usize = 31;
 
     let d = contract();
     let mut total = 0;
@@ -185,8 +190,8 @@ fn the_contract_has_the_expected_number_of_cases() {
         );
         total += actual;
     }
-    // Esto NO es una segunda guardia: si los cinco asserts de arriba pasaron, el total es
-    // necesariamente 28, y si alguno falla el test aborta antes de llegar acá. Está para
+    // Esto NO es una segunda guardia: si los seis asserts de arriba pasaron, el total es
+    // necesariamente 31, y si alguno falla el test aborta antes de llegar acá. Está para
     // documentar el tamaño del contrato y para que crecerlo obligue a tocar dos números.
     assert_eq!(
         total, EXPECTED_TOTAL,
@@ -207,9 +212,9 @@ fn the_contract_has_the_expected_number_of_cases() {
 /// y que una se quede atrás sin que nada falle es justo lo que la POC no puede permitirse.
 #[test]
 fn the_contract_has_no_unknown_top_level_keys() {
-    // Las doce claves del contrato v2.3.0: seis de metadatos, cinco grupos de casos, y
+    // Las trece claves del contrato v2.4.0: seis de metadatos, seis grupos de casos, y
     // `cuentas_iniciales`, que `contract_transfer` usa como fixture y no como casos.
-    const KNOWN: [&str; 12] = [
+    const KNOWN: [&str; 13] = [
         "version",
         "moneda",
         "_nota",
@@ -220,6 +225,7 @@ fn the_contract_has_no_unknown_top_level_keys() {
         "cuentas_iniciales",
         "transferencia",
         "cci",
+        "descifrado",
         "itf",
         "tarjeta",
     ];
@@ -257,7 +263,7 @@ fn the_messages_file_has_the_expected_shape() {
     const KNOWN: [&str; 5] = ["version", "idioma", "_nota", "_placeholders", "_fuente"];
 
     let m = messages();
-    assert_eq!(field(&m, "version"), "1.1.0");
+    assert_eq!(field(&m, "version"), "1.2.0");
     assert_eq!(field(&m, "idioma"), "es");
 
     let actual: BTreeSet<&str> = m
@@ -277,11 +283,11 @@ fn the_messages_file_has_the_expected_shape() {
 }
 
 /// La guardia que hace que `contracts/messages.es.json` valga más que una convención
-/// escrita: sus claves son **exactamente** los nueve nombres del contrato, ni una más ni
+/// escrita: sus claves son **exactamente** los diez nombres del contrato, ni una más ni
 /// una menos.
 ///
-/// Los nueve no están tipeados acá: salen de `contract_name()` sobre las nueve variantes
-/// reales (ver `contract_error_names`). Así, agregar una décima variante al core deja el
+/// Los diez no están tipeados acá: salen de `contract_name()` sobre las diez variantes
+/// reales (ver `contract_error_names`). Así, agregar una undécima variante al core deja el
 /// archivo corto y este test lo dice nombrándola, en vez de que se descubra el día de la
 /// demo con un cuadro de error en blanco — que es justo lo que pasa hoy si una app muestra
 /// `e.message`: uniffi devuelve el string vacío para las variantes sin campos.
@@ -289,7 +295,7 @@ fn the_messages_file_has_the_expected_shape() {
 /// El chequeo de "no vacío" no es decorativo por lo mismo: una entrada presente pero con
 /// `""` pasaría la igualdad de conjuntos y volvería a producir la pantalla en blanco.
 #[test]
-fn the_messages_file_covers_the_nine_error_variants() {
+fn the_messages_file_covers_the_ten_error_variants() {
     let m = messages();
     let present = message_keys(&m);
     let expected = contract_error_names();
@@ -298,7 +304,7 @@ fn the_messages_file_covers_the_nine_error_variants() {
     let missing: Vec<&String> = expected.difference(&present).collect();
     assert!(
         extra.is_empty() && missing.is_empty(),
-        "contracts/messages.es.json no cubre las nueve variantes del core — sobran: \
+        "contracts/messages.es.json no cubre las diez variantes del core — sobran: \
          {extra:?}, faltan: {missing:?}. Agregar una variante de error al core obliga a \
          agregarle su mensaje de usuario acá, en el mismo cambio"
     );
@@ -320,19 +326,19 @@ fn the_messages_file_covers_the_nine_error_variants() {
 /// `messages.es.json`.
 ///
 /// La igualdad de conjuntos de arriba ya lo implica hoy, porque los nombres de `cases.json`
-/// son un subconjunto de los nueve. Este test existe igual porque **no compara contra los
-/// nueve sino contra lo que el contrato usa de verdad**, y ese es el recorrido que Kotlin,
+/// son un subconjunto de los diez. Este test existe igual porque **no compara contra los
+/// diez sino contra lo que el contrato usa de verdad**, y ese es el recorrido que Kotlin,
 /// Swift y TypeScript pueden espejar sin tener acceso a `contract_name()`. Lleva contador,
 /// como los `contract_*`: sin él, un `cases.json` sin casos de error pasaría en verde.
 #[test]
 fn every_error_name_in_the_contract_has_a_user_message() {
-    // Los diez casos con `error` del contrato v2.3.0, sobre seis nombres distintos:
-    // 3 DigitoControl, 2 Longitud, 2 MontoInvalido, y uno de CuentaNoEncontrada,
-    // MismaCuenta y SaldoInsuficiente. Los otros tres nombres —BancoDesconocido, Cifrado
-    // y FueraDeRango— no tienen caso en el contrato, y para ellos la guardia es la de
-    // arriba.
-    const EXPECTED_ERROR_CASES: usize = 10;
-    const EXPECTED_DISTINCT_NAMES: usize = 6;
+    // Los doce casos con `error` del contrato v2.4.0, sobre siete nombres distintos:
+    // 3 DigitoControl, 2 Longitud, 2 MontoInvalido, 2 Descifrado, y uno de
+    // CuentaNoEncontrada, MismaCuenta y SaldoInsuficiente. Los tres nombres restantes
+    // —BancoDesconocido, Cifrado y FueraDeRango— no tienen caso en el contrato, y para
+    // ellos la guardia es la de arriba.
+    const EXPECTED_ERROR_CASES: usize = 12;
+    const EXPECTED_DISTINCT_NAMES: usize = 7;
 
     let available = message_keys(&messages());
     let d = contract();
@@ -641,5 +647,50 @@ fn contract_transfer() {
     assert_eq!(
         exercised, EXPECTED_CASES,
         "contract_transfer ejercitó {exercised} casos y el grupo `transferencia` declara {EXPECTED_CASES}"
+    );
+}
+
+/// El grupo `descifrado` del contrato: el camino de vuelta del cifrado.
+///
+/// Existe porque hasta v2.3.0 ninguna plataforma verificaba `decrypt` contra el
+/// contrato — solo el roundtrip interno de Rust—, y porque el bloque de "pegá el hex de
+/// otra app" de la pantalla de Tarjeta es exactamente lo que la demo ejercita en vivo.
+#[test]
+fn contract_decrypt() {
+    let d = contract();
+    let key = field(&d, "_clave_demo_hex");
+    let nonce = field(&d, "_nonce_demo_hex");
+    let mut checked = 0;
+
+    for case in d["descifrado"]
+        .as_array()
+        .expect("falta el grupo `descifrado`")
+    {
+        let id = field(case, "id");
+        let input = field(case, "entrada");
+        let result = decrypt(input.clone(), key.clone(), nonce.clone());
+
+        if case["valido"]
+            .as_bool()
+            .expect("`valido` debe ser booleano")
+        {
+            let expected = field(&case["esperado"], "texto");
+            assert_eq!(
+                result.expect("el caso válido no debería fallar"),
+                expected,
+                "caso {id}"
+            );
+        } else {
+            let error = result.expect_err("el caso inválido no debería descifrar");
+            assert_eq!(error.contract_name(), field(case, "error"), "caso {id}");
+        }
+        checked += 1;
+    }
+
+    // Contador, como en los otros `contract_*`: un grupo vaciado pasaría en verde sin
+    // comparar un solo string.
+    assert_eq!(
+        checked, 3,
+        "se esperaban 3 casos de descifrado y se vieron {checked}"
     );
 }
