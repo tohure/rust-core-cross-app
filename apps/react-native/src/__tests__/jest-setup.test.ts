@@ -93,8 +93,15 @@ describe('los paquetes del workspace que Metro transpila declaran su runtime de 
   // Bajo el `node_modules` estricto de pnpm, un paquete tiene el symlink
   // `<paquete>/node_modules/@babel/runtime` **si y sólo si lo declara**. Eso es exactamente la
   // condición que Metro necesita, y mirarlo en el disco no depende de ningún resolver.
-  it.each(porFuente)('%s declara @babel/runtime y pnpm se lo enlazó', (nombre) => {
-    const dir = require.resolve(`${nombre}/package.json`).replace(/[\\/]package\.json$/, '');
-    expect(existsSync(join(dir, 'node_modules', '@babel', 'runtime'))).toBe(true);
-  });
+  it.each(porFuente)(
+    '%s declara @babel/runtime y pnpm se lo enlazó',
+    (nombre) => {
+      const dir = require
+        .resolve(`${nombre}/package.json`)
+        .replace(/[\\/]package\.json$/, '');
+      expect(existsSync(join(dir, 'node_modules', '@babel', 'runtime'))).toBe(
+        true
+      );
+    }
+  );
 });
