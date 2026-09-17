@@ -63,6 +63,11 @@ flowchart TD
 
 ## Antes de correrla
 
+**El binario de Rust se genera primero, para las cuatro apps a la vez.** La secuencia
+completa, en orden, vive en
+[rust-core/BUILD.md](../../rust-core/BUILD.md#generar-el-core-que-consumen-las-cuatro-apps);
+acá abajo está solo el paso puntual que le toca a esta app.
+
 Necesitás **Java 21**, el **SDK de Android** y un emulador o teléfono conectado.
 
 Si el repo ya viene con los artefactos construidos, eso alcanza. **Si no**, hay que compilar el

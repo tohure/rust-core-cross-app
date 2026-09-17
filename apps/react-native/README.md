@@ -93,6 +93,12 @@ flowchart TD
 
 ## Antes de correrla
 
+**El binario de Rust se genera primero, para las cuatro apps a la vez.** La secuencia
+completa, en orden, vive en
+[rust-core/BUILD.md](../../rust-core/BUILD.md#generar-el-core-que-consumen-las-cuatro-apps);
+acá abajo están solo los pasos puntuales que le tocan a esta app (Android e iOS del turbo
+module, y el `.wasm` del que depende Angular).
+
 Ya instalado y verificado en esta máquina: Node 22.16, pnpm, Java 21 LTS, Xcode, NDK
 30.0.16248370, Rust 1.98.1 con los targets de Android e iOS.
 

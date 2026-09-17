@@ -80,6 +80,12 @@ flowchart TD
 
 ## Antes de correrla
 
+**El binario de Rust se genera primero, para las cuatro apps a la vez.** La secuencia
+completa, en orden, vive en
+[rust-core/BUILD.md](../../rust-core/BUILD.md#generar-el-core-que-consumen-las-cuatro-apps);
+el paso que le toca a esta app no se corre acá ni en `rust-core/`, sino desde
+`apps/react-native/` — ver abajo.
+
 El `.wasm` **no está en git**. En un clone limpio hay que construirlo, y es lo primero:
 
 ```bash

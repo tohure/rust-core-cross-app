@@ -100,7 +100,7 @@ un README que contesta cinco preguntas a la vez no contesta bien ninguna.
 
 | Archivo | La pregunta que contesta |
 |---|---|
-| **[BUILD.md](BUILD.md)** | ¿Qué herramientas necesito, cómo lo compilo y cómo genero los bindings? |
+| **[BUILD.md](BUILD.md)** | ¿Qué herramientas necesito, cómo lo compilo y cómo genero los bindings? Incluye [el paso único para generar los artefactos de las cuatro apps](BUILD.md#generar-el-core-que-consumen-las-cuatro-apps). |
 | **[TESTING.md](TESTING.md)** | ¿Qué suites hay, qué prueba el test de contrato y qué **no** prueba? |
 | **[FFI.md](FFI.md)** | ¿Qué cruza el FFI y qué no? **Léelo antes de escribir una app consumidora.** |
 | **[PENDING.md](PENDING.md)** | ¿Qué no hace y qué queda abierto? |

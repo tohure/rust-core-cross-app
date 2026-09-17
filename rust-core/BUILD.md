@@ -284,3 +284,53 @@ del módulo inutilizable**. Lo único que la protege es la disciplina de la regl
 red: no la debilites.**
 
 La regla sigue valiendo tal cual para Android e iOS, que es donde hay algo que elegir.
+
+## Generar el core que consumen las cuatro apps
+
+Paso manual y deliberadamente fuera de cualquier build automático. No es una tarea de Gradle
+ni de ningún otro sistema de build de las apps: automatizarlo ahí —por ejemplo, que Android
+regenerara el core en cada compilación— dejaría su `coreVersion()` sin coincidir con el de
+las otras tres, que quedan con artefactos congelados de otro momento.
+
+Los comandos ya están escritos y verificados, cada uno en el archivo de su propia
+plataforma. Esta sección solo fija **el orden** en que hay que correrlos desde el mismo
+`HEAD` y qué artefacto deja cada uno — no los repite: repetirlos es exactamente el modo de
+fallo que este repositorio evita en todas partes, dos copias que se desincronizan.
+
+1. **Android nativo** (`apps/android`), desde `rust-core/`: `cargo ndk` (los tres ABI) +
+   `uniffi-bindgen` en modo `kotlin`. Deja los `.so` por ABI en `jniLibs/` y los bindings
+   Kotlin en `core/`. Comandos completos → sección «Comandos de exportación» de
+   [CONTEXT.md](CONTEXT.md).
+
+2. **iOS nativo** (`apps/ios`), desde `rust-core/`: los dos targets
+   (`aarch64-apple-ios`, `aarch64-apple-ios-sim`) + el arreglo del `module.modulemap`
+   (ver más arriba, "El modulemap de Swift no se llama `module.modulemap`") +
+   `xcodebuild -create-xcframework` + `uniffi-bindgen` en modo `swift`. Deja
+   `CoreFinanciero.xcframework` con los dos slices y los bindings Swift en `Generated/`.
+   Comandos completos → sección «Comandos de exportación» de [CONTEXT.md](CONTEXT.md).
+
+3. **React Native** (el Turbo Module de `apps/react-native`, Android e iOS), desde
+   `apps/react-native/`: `pnpm run ubrn:android` y `pnpm run ubrn:ios` — envuelven
+   `ubrn build android --release --and-generate` y
+   `ubrn build ios --release --and-generate` respectivamente. Dejan el Turbo Module JSI
+   (`src/generated/`, `cpp/`, `android/`, `ios/`). Comandos completos, con su salida real →
+   [apps/react-native/BUILD.md § Construir y generar para
+   Android](../apps/react-native/BUILD.md#construir-y-generar-para-android) y
+   [§ El mismo smoke en iOS](../apps/react-native/BUILD.md#el-mismo-smoke-en-ios).
+
+4. **Web / Angular**: el `.wasm` que consume `apps/web-angular` **se construye desde
+   `apps/react-native/`, no desde acá** — Angular no consume este crate directamente, consume
+   lo que produce este paso. Desde `apps/react-native/`: `pnpm run wasm:generate` — envuelve
+   `ubrn build wasm2 --release --and-generate --config ubrn.wasm.yaml` y encadena el build de
+   esbuild del paquete. Deja `packages/core-financiero-wasm/generated/` (el `.wasm` +
+   bindings) y `packages/core-financiero-wasm/dist/` (el bundle que Angular importa como
+   `@banco/core-financiero`). Comando completo, con su salida real →
+   [apps/react-native/BUILD.md § Construir el WASM](../apps/react-native/BUILD.md#construir-el-wasm).
+
+**Los cuatro artefactos se generan desde el mismo `HEAD`, o los cuatro pies de
+`coreVersion()` dejan de coincidir.** `core_version()` congela el SHA corto de git en tiempo
+de compilación (`crates/ffi/build.rs`): si el `.so` de Android, el `.xcframework` de iOS, el
+Turbo Module y el `.wasm` salen de commits distintos, las cuatro pantallas van a mostrar
+cuatro strings distintos y la comparación lado a lado de la demo deja de valer aunque las
+pantallas se vean bien. Es el primer paso del [runbook de
+demo](../docs/demo-runbook.md).

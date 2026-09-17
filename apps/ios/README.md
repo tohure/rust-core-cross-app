@@ -85,6 +85,11 @@ Lo que impide que esos cuatro ViewModels diverjan son tres artefactos, no un mó
 
 ## Antes de correrla
 
+**El binario de Rust se genera primero, para las cuatro apps a la vez.** La secuencia
+completa, en orden, vive en
+[rust-core/BUILD.md](../../rust-core/BUILD.md#generar-el-core-que-consumen-las-cuatro-apps);
+acá abajo está solo el paso puntual que le toca a esta app.
+
 Hace falta **Xcode 26** y un simulador iOS 17 o superior.
 
 Si el repositorio ya viene con los artefactos construidos, eso alcanza. **Si no**, hay que
