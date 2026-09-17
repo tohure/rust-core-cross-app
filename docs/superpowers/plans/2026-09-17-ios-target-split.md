@@ -75,10 +75,14 @@ Se saca del artefacto, no del README: el README nombra un ejemplo que envejece c
 ```bash
 cd /Users/tohure/Documents/Projects/rust-core-cross-app/apps/ios
 strings CoreFinanciero.xcframework/ios-arm64/libcore_financiero.a \
-  | grep -oE '^[0-9]+\.[0-9]+\.[0-9]+\+[0-9a-f]{7,}' | sort -u
+  | grep -oE '[0-9]+\.[0-9]+\.[0-9]+\+[0-9a-f]{7}' | sort -u
 ```
 
-Esperado: **exactamente un** string, con forma `1.0.0+<sha corto>` — al 2026-09-17, `1.0.0+959025fca`. Anotarlo: es el valor que la Task 3 tiene que ver en pantalla y que la Task 4 compara contra Android.
+Esperado: **exactamente un** string, con forma `1.0.0+<sha de 7>` — al 2026-09-17, `1.0.0+959025f`.
+
+**El cuantificador va `{7}` exacto, nunca `{7,}`.** `strings` no separa literales contiguos de un binario de Rust: el SHA queda pegado al literal siguiente, que acá es ``called `Result::unwrap()`…``, y un `{7,}` codicioso se come la `ca` de `called` y devuelve `959025fca`, un SHA que no existe. El error es silencioso y plausible, que es lo peor que puede ser.
+
+**El artefacto es una pista, no la autoridad.** Lo que vale es el string que se pinta en pantalla. Confirmarlo contra la app en la Task 3.
 
 Si salen dos strings distintos, los slices del `.xcframework` se construyeron en momentos distintos y hay que regenerar antes de seguir.
 
@@ -526,7 +530,7 @@ Nota que el diagrama tiene que dejar explícita: la Run Script que copia los con
 - [ ] **Step 4: `README.md` — el resto**
 
 - La tabla de archivos que hoy nombra `Generated/core_financiero.swift` bajo `ios-rust-test/`.
-- **El string de ejemplo del pie está viejo.** El README dice `hoy 1.0.0+b719da3`; el artefacto en disco dice `1.0.0+959025fca` (Task 1, Step 4). Actualizarlo al valor real — es justo el string que el runbook de demo manda comparar entre las cuatro apps.
+- **El string de ejemplo del pie está viejo.** El README dice `hoy 1.0.0+b719da3`; el valor real, verificado en pantalla en iOS y en el Pixel 6, es `1.0.0+959025f`. Actualizarlo al valor real — es justo el string que el runbook de demo manda comparar entre las cuatro apps.
 - Agregar el comando que compila el kit solo, que es el diagnóstico más rápido cuando algo del borde FFI se rompe:
 
 ```bash
