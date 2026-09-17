@@ -10,7 +10,9 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import dev.tohure.android_rust_test.AppContainer
@@ -20,6 +22,8 @@ import dev.tohure.android_rust_test.ui.benchmark.BenchmarkScreen
 import dev.tohure.android_rust_test.ui.benchmark.BenchmarkViewModel
 import dev.tohure.android_rust_test.ui.card.CardScreen
 import dev.tohure.android_rust_test.ui.card.CardViewModel
+import androidx.lifecycle.viewmodel.compose.viewModel
+import dev.tohure.android_rust_test.AppViewModelFactory
 import dev.tohure.android_rust_test.ui.components.CoreVersionFooter
 import dev.tohure.android_rust_test.ui.transfer.TransferScreen
 import dev.tohure.android_rust_test.ui.transfer.TransferViewModel
@@ -47,17 +51,25 @@ sealed interface Tab {
 
 @Composable
 fun BancoApp(container: AppContainer) {
-    var current: Tab by remember { mutableStateOf(Tab.Arithmetic) }
+    // El ÍNDICE y no el objeto: `Tab` es un `sealed interface` y guardarlo pediría un `Saver`
+    // propio para algo que es un número. `rememberSaveable` lo mete en el `Bundle` del estado
+    // de instancia, que es lo que sobrevive a la rotación; con `remember` se volvía a
+    // Aritmética en cada giro.
+    var currentIndex by rememberSaveable { mutableIntStateOf(0) }
+    val current = Tab.all[currentIndex]
 
     // Los cuatro se crean UNA vez, fuera del `when`. Dentro de una rama, Compose descarta el
     // `remember` al salir de composición: cambiar de pestaña y volver reseteaba todo el estado
     // de la pantalla —operandos, resultado, hex cifrado, números del benchmark—.
-    val arithmeticViewModel = remember { ArithmeticViewModel(container.core, container.messages) }
-    val transferViewModel = remember {
-        TransferViewModel(container.core, container.contract, container.messages)
-    }
-    val cardViewModel = remember { CardViewModel(container.core, container.contract, container.messages) }
-    val benchmarkViewModel = remember { BenchmarkViewModel(container.core) }
+    //
+    // Y van por `viewModel()`, no por `remember`: eso los ata al `ViewModelStore` de la
+    // Activity, que sobrevive al cambio de configuración. Con `remember` la rotación se
+    // llevaba puesto todo lo tecleado.
+    val factory = remember(container) { AppViewModelFactory(container) }
+    val arithmeticViewModel: ArithmeticViewModel = viewModel(factory = factory)
+    val transferViewModel: TransferViewModel = viewModel(factory = factory)
+    val cardViewModel: CardViewModel = viewModel(factory = factory)
+    val benchmarkViewModel: BenchmarkViewModel = viewModel(factory = factory)
 
     Scaffold(
         modifier = Modifier.fillMaxSize(),
@@ -67,10 +79,10 @@ fun BancoApp(container: AppContainer) {
                 // comparan los cuatro strings lado a lado.
                 CoreVersionFooter(container.core.coreVersion())
                 NavigationBar {
-                    Tab.all.forEach { tab ->
+                    Tab.all.forEachIndexed { index, tab ->
                         NavigationBarItem(
-                            selected = current == tab,
-                            onClick = { current = tab },
+                            selected = currentIndex == index,
+                            onClick = { currentIndex = index },
                             icon = {},
                             label = { Text(tab.label) },
                         )

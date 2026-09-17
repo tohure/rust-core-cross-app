@@ -61,3 +61,8 @@ veces no agrega señal si los cambios no se pisan entre sí. Mitigación: se com
 —es barato— y el commit por tarea se mantiene, así que un `git bisect` sigue sirviendo. Costo si me
 equivoco: si algo se rompe en la Task 5 me entero en la Task 11 y el diagnóstico es más caro,
 porque hay siete commits de por medio en vez de uno.
+
+Task 4: complete (commit f6667af) — tres tests instrumentados nuevos sobre el adapter real. `MontoInvalido` verificado contra el core (`add` → `parse_amount` → `InvalidAmount`), no adivinado del plan.
+Task 5: complete — rojo verificado antes del arreglo (1 test, 1 fallo tras `recreate()`) y verde después. La pestaña pasa a `rememberSaveable` sobre el ÍNDICE y los cuatro ViewModels a `viewModel(factory)`, atados al `ViewModelStore` de la Activity.
+Task 5: Hallazgo (sexto error del plan, y afecta a dos tareas): tanto el Step 2 de la Task 4 como el Step 3 de la Task 5 mandan correr `./gradlew :app:connectedDebugAndroidTest --tests '*RotationTest*'`. **`--tests` no existe para `connectedAndroidTest`**: es una opción de las tareas `Test` de la JVM, y Gradle corta con «Unknown command-line option '--tests'». El equivalente real es `-Pandroid.testInstrumentationRunnerArguments.class=<FQN>`. Vale la pena que quede escrito: es la forma de correr UN solo test instrumentado, y sin ella el ciclo rojo-verde de TDD sobre aparato obliga a correr la suite entera.
+Task 5: Ruling: el label del campo de tarjeta es `"Número"`, no `"Número de tarjeta"` como escribe el test del plan. Se usó el del código, que es lo que el propio plan indica cuando no coinciden.
