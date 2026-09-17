@@ -101,7 +101,7 @@ inyecta el paso de wasm-bindgen; cargarlo falla con
    `__ubrn_free`, `__ubrn_install_panic_hook` ni `__ubrn_set_panic_log`. Con la línea puesta, el
    módulo pasa de 89 a 93 exports. Es el mismo patrón que llevan **todos** los fixtures de ubrn.
 
-### Bloqueante conocido para la Task 15: el `index.ts` de wasm2 no typechecka
+### ~~Bloqueante: el `index.ts` de wasm2 no typechecka~~ — RESUELTO en el script
 
 `ubrn` **se olvidó el `@ts-nocheck`** en el entrypoint que genera para wasm2. Todos los demás
 archivos generados lo llevan; ése no. Y tiene un error de tipos real contra `@ubjs/wasm`:
@@ -132,7 +132,7 @@ Queda declarado como devDependency. El proyecto `napi` de Jest corre CommonJS, a
 transpilarlo; el `transformIgnorePatterns` de `jest.config.js` ya lo contempla. Es el mismo
 fenómeno que con el preset de React Native, por la misma razón de siempre.
 
-### La consecuencia para la Fase 5, que no es de build
+### La consecuencia para Angular, que no es de build
 
 ```
 wasm32-unknown-unknown  panic="abort"
@@ -148,7 +148,7 @@ proptests `*_never_panics` del core. No hay segunda red.
 
 El binario, para referencia: **178 KB** en release.
 
-### Y el hueco que la Fase 5 va a encontrar si nadie lo tapa
+### ~~El `exports` sin entrada web~~ — el hueco nunca llegó a abrirse
 
 El `exports` de `package.json` **no tiene entrada web**. Hoy es:
 
@@ -161,9 +161,8 @@ El `exports` de `package.json` **no tiene entrada web**. Hoy es:
 Cuando Angular haga `import { calculateItf } from '@banco/core-financiero'` va a caer en
 `default`, que llama a `installRustCrate()` y a Hermes. Nada de eso existe en un browser.
 
-El artefacto va a estar construido y probado, pero **sin la puerta por la que la Fase 5 entra a
-buscarlo**. Corresponde resolverlo en el Bloque 3, cuando `src/generated-wasm/` exista y se sepa a
-qué archivo apuntar.
+Ese era el riesgo previsto mientras la Fase 5 no existía: el artefacto construido y probado, pero
+**sin la puerta por la que Angular entra a buscarlo**.
 
 **Resuelto, pero no como se preveía acá.** La Task 4 de la Fase 5 no le agregó una condición
 `"web"` al `exports` de `@banco/core-financiero`: el WASM pasó a vivir en un paquete propio,
