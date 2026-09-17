@@ -9,7 +9,10 @@ import org.junit.runner.RunWith
 
 @RunWith(AndroidJUnit4::class)
 class AssetSourcesTest {
-    private val assets get() = InstrumentationRegistry.getInstrumentation().targetContext.assets
+    // `context`, no `targetContext`: desde la Fase 6 el `Copy` de contratos vive en
+    // `:core-financiero` y alimenta el APK de **test** de este módulo. El `targetContext` de
+    // una librería no es la app, y con él `open("cases.json")` tira FileNotFoundException.
+    private val assets get() = InstrumentationRegistry.getInstrumentation().context.assets
 
     @Test
     fun theInitialAccountsComeFromTheContract() {

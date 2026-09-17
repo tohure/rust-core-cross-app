@@ -51,6 +51,12 @@ dependencies {
     // públicas, así que `:app` los necesita en su classpath de compilación aunque no declare
     // JNA. Verificado compilando.
     api(variantOf(libs.jna) { artifactType("aar") })
+
+    // Las suites que viven acá: el test de contrato y el smoke del FFI son instrumentados
+    // —cruzan la frontera de verdad—; el del mapeo de mensajes corre en la JVM.
+    testImplementation(libs.junit)
+    androidTestImplementation(libs.androidx.junit)
+    androidTestImplementation(libs.androidx.espresso.core)
 }
 
 // ── Contratos ────────────────────────────────────────────────────────────────
