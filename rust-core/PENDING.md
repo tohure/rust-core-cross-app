@@ -5,6 +5,20 @@ un README que mezcla "cómo se usa" con "qué falta" no sirve para ninguna de la
 
 Nada de acá bloquea la demo. Son decisiones tomadas, no olvidos.
 
+> **Qué es este archivo, para no leerlo mal.** Es un registro de **decisiones tomadas y huecos
+> conocidos**, no una lista de tareas. Buena parte de lo que hay acá está cerrado o se decidió
+> no hacer, y sigue escrito a propósito: **el valor está en el porqué**, que es lo que evita que
+> alguien reabra la discusión dentro de seis meses o "arregle" algo que es deliberado. Que el
+> archivo se llame `PENDING.md` no significa que todo lo de adentro esté pendiente.
+>
+> **Lo que sigue genuinamente abierto, al 2026-09-17:**
+>
+> - **Borrar una función `contract_*` entera no lo caza ninguna guardia** — hueco de cobertura
+>   real, verificado por mutación. Se decidió no cerrarlo y la razón está escrita.
+> - **En wasm no hay red de `catch_unwind`** — no se puede arreglar desde acá: el target impone
+>   `panic = "abort"`.
+> - **El core está anclado a uniffi 0.31** — restricción vigente, la impone React Native.
+
 ## Deuda técnica conocida
 
 ### Borrar una función `contract_*` entera no lo caza ninguna guardia

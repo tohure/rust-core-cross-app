@@ -1,6 +1,24 @@
 # Pendientes y deuda de `apps/react-native`
 
-> **Lo transversal no está acá.** El benchmark que falta repetir en aparato físico, la ausencia
+> **Qué es este archivo, para no leerlo mal.** Es un registro de **decisiones tomadas y huecos
+> conocidos**, no una lista de tareas. Buena parte de lo que hay acá es la explicación de por qué
+> el WASM quedó como quedó, y sigue escrito a propósito: **el valor está en el porqué**, que es lo
+> que evita que alguien reabra la discusión o "arregle" algo deliberado. Que el archivo se llame
+> `PENDING.md` no significa que todo lo de adentro esté pendiente.
+>
+> **Lo que sigue genuinamente abierto, al 2026-09-17:**
+>
+> - **Ninguna prueba automatizada cruza JSI**, y es la diferencia real de esta app con Android e
+>   iOS. Jest mockea los nativos y no hay corredor en dispositivo, así que **el smoke manual es
+>   obligatorio antes de una demo**. Está desarrollado en «No hay CI» y en
+>   [TESTING.md](TESTING.md).
+> - **El benchmark no saca las mediciones del hilo principal, y no puede.**
+> - **`@ubjs/wasm` se publica sólo en ESM**, con su consecuencia para Angular.
+>
+> Lo demás está cerrado, es explicación, o es una decisión —como la de no tener CI—.
+
+> **Lo transversal no está acá.** El cuadro comparativo de los cuatro benchmarks —medidos en
+> aparatos físicos y cerrado en la Fase 7—, la ausencia
 > de CI en las cinco bases de código, el `catch` genérico que muestra texto de diagnóstico como
 > mensaje de usuario, las divergencias de paridad abiertas y la regla de que un `Record` de uniffi
 > se reemplaza y no se muta viven en

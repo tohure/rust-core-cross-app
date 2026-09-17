@@ -5,7 +5,22 @@ README que mezcla "cómo se usa" con "qué falta" no sirve para ninguna de las d
 
 Nada de acá bloquea la demo. Son decisiones tomadas, no olvidos.
 
-> **Lo transversal no está acá.** El benchmark que falta repetir en aparato físico, la ausencia
+> **Qué es este archivo, para no leerlo mal.** Es un registro de **decisiones tomadas y huecos
+> conocidos**, no una lista de tareas. Buena parte de lo que hay acá está cerrado o se decidió
+> no hacer, y sigue escrito a propósito: **el valor está en el porqué**, que es lo que evita que
+> alguien reabra la discusión dentro de seis meses o "arregle" algo que es deliberado. Que el
+> archivo se llame `PENDING.md` no significa que todo lo de adentro esté pendiente.
+>
+> **Lo que sigue genuinamente abierto, al 2026-09-17:**
+>
+> - **El APK pesa 31 MB en debug y 24 en release** — sin minificar, decidido para la POC.
+> - **Detalles menores** — la lista del final.
+>
+> Todo lo demás de este archivo es explicación o está cerrado. En particular, **«Camino a
+> producción»** no son pendientes de la POC: es lo que haría falta si esto fuera una app real.
+
+> **Lo transversal no está acá.** El cuadro comparativo de los cuatro benchmarks —medidos en
+> aparatos físicos y cerrado en la Fase 7—, la ausencia
 > de CI en las cinco bases de código, el `catch` genérico que muestra texto de diagnóstico como
 > mensaje de usuario, las divergencias de paridad abiertas y la regla de que un `Record` de uniffi
 > se reemplaza y no se muta viven en

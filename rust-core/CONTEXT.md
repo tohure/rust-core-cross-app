@@ -283,6 +283,13 @@ mv ../apps/ios/Generated/core_financieroFFI.h ../apps/ios/Generated/include/
 cp ../apps/ios/Generated/core_financieroFFI.modulemap \
    ../apps/ios/Generated/include/module.modulemap
 
+# El `.swift` NO se queda en `Generated/`: desde el split en dos targets lo compila
+# `CoreFinancieroKit`, y esa es una carpeta sincronizada de Xcode que sólo ve lo que está
+# bajo su raíz. Saltear este `mv` deja el binding fuera de todo target: el XCFramework se
+# arma bien, y la app falla con `cannot find 'add' in scope`, lejos de la causa.
+mkdir -p ../apps/ios/CoreFinancieroKit/Generated
+mv ../apps/ios/Generated/core_financiero.swift ../apps/ios/CoreFinancieroKit/Generated/
+
 # `-headers` va una vez por cada `-library`, inmediatamente después del suyo.
 xcodebuild -create-xcframework \
   -library target/aarch64-apple-ios/release/libcore_financiero.a \
