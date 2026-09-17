@@ -30,15 +30,15 @@ Qué se debe ver — `** TEST SUCCEEDED **` y
 | **`ContractTest`** | **11** | **los 31 casos del contrato, más sus cinco guardias** |
 | `CoreSmokeTest` | 4 | que el `.a` está enlazado, que el adapter reexporta y que propaga el error crudo |
 | `ContractFixtures` | 2 | que los dos JSON del contrato llegaron al bundle de test |
-| `ContractMessagesTest` | 3 | el mapeo variante → texto de usuario, con placeholders **crudos** |
+| `ContractMessagesTest` | 5 | el mapeo variante → texto de usuario, con placeholders **crudos**, y que un `Error` que **no** es de dominio no filtre su texto de diagnóstico |
 | `MoneyFormatterTest` | 5 | `S/`, separadores, y que **nunca redondea** |
 | `ArithmeticViewModelTest` | 5 | |
 | `TransferViewModelTest` | 5 | |
 | `CardViewModelTest` | 6 | |
-| `BenchmarkViewModelTest` | 6 | |
+| `BenchmarkViewModelTest` | 8 | |
 | `ios_rust_testTests` | 1 | |
 
-Los 22 de ViewModel usan `FakeCoreFinanciero` y **no** cruzan el FFI: prueban el ViewModel, no
+Los 24 de ViewModel usan `FakeCoreFinanciero` y **no** cruzan el FFI: prueban el ViewModel, no
 el core. Quien prueba el core es `ContractTest`, contra los 31 casos reales.
 
 Para acotar a una suite:

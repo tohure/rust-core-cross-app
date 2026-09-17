@@ -61,7 +61,7 @@ flowchart TD
 | `CoreFinanciero.xcframework` | El núcleo compilado, dos slices | `ios-arm64` es el que se embarca; `ios-arm64-simulator` el que corren los tests. **Son binarios distintos**, y de ahí sale el pendiente de hardware |
 | `Generated/core_financiero.swift` | Bindings generados | **Artefacto generado y gitignored.** Nunca se edita; si algo está mal, se corrige en Rust y se regenera. SourceKit se queja de él en el editor; `xcodebuild` no |
 | `Adapter/CoreFinanciero` | La única superficie que llama al núcleo | Es un **protocolo** para que los ViewModels se testeen con un doble. Reexporta los tipos de uniffi: **no los traduce** |
-| `Adapter/ContractMessages` | Variante de error → texto de usuario | `localizedDescription` es diagnóstico y **nunca** llega a la pantalla |
+| `Adapter/ContractMessages` | Variante de error → texto de usuario | `localizedDescription` es diagnóstico y **nunca** llega a la pantalla. Desde la Fase 6 eso vale también para lo que **no** es un `DomainError`: el `catch` genérico de los ViewModels devolvía `"\(error)"` y ahora cae en `No se pudo completar la operación.`, con el diagnóstico al log |
 | `Contract/` | Lee `cases.json` y `messages.es.json` del bundle | Las cuentas iniciales, la clave y el nonce son **datos del contrato**, no de la app. Hardcodearlos los haría divergir entre las cuatro apps |
 | `Format/MoneyFormatter` | Pone `S/` y separadores **al pintar** | Escrito a mano y no con `NumberFormatter`: el ICU de cada plataforma mete espacios duros y agrupa distinto, y la demo compara carácter por carácter |
 | `UI/*/XxxViewModel` | Un `struct` de estado por pantalla | La UI consume y no calcula. **Todos los montos son `String`** |

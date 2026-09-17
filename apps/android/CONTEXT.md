@@ -144,12 +144,26 @@ import uniffi.core_financiero.executeTransfer
 
 object CoreFinanciero {
     fun transfer(accounts: List<Account>, request: TransferRequest): Result<TransferResult> =
-        runCatching { executeTransfer(accounts, request) }
+        guarded { executeTransfer(accounts, request) }
 
     fun encryptCard(number: String, keyHex: String, nonceHex: String): Result<String> =
-        runCatching { encrypt(number, keyHex, nonceHex) }
+        guarded { encrypt(number, keyHex, nonceHex) }
+
+    /** `runCatching` con una línea de más, y esa línea importa. Ver abajo. */
+    private inline fun <T> guarded(block: () -> T): Result<T> =
+        runCatching(block).onFailure {
+            if (it !is DomainException) Log.e("CoreFinanciero", "error no-dominio", it)
+        }
 }
 ```
+
+> **`runCatching` atrapa TODO `Throwable`, no sólo `DomainException`.** Si
+> `libcore_financiero.so` no carga, o JNA falla al resolver un símbolo, eso vuelve como
+> `Result.failure` por el mismo camino que un error de negocio. La capa de UI lo convierte en un
+> texto genérico —`No se pudo completar la operación.`, normativo en `docs/ui-spec.md`—, así que
+> el diagnóstico se perdería del todo si no quedara logueado acá. Hasta la Fase 6 no se logueaba
+> y además se mostraba crudo: la pantalla de Aritmética llegaba a decir
+> `java.lang.UnsatisfiedLinkError: dlopen failed: …`, verificado con un test.
 
 El adapter **no traduce los nombres del core**: los reexporta. Una segunda nomenclatura en
 Kotlin es una capa que hay que mantener sincronizada a mano y que se desincroniza en la

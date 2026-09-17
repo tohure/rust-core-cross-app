@@ -18,36 +18,47 @@ Dos suites, y la distinción importa: una corre en la JVM y la otra **sobre un d
 
 ```bash
 # JVM — rápidos, sin emulador. Usan FakeCoreFinanciero: NO cruzan el FFI.
-./gradlew :app:testDebugUnitTest
+./gradlew :app:testDebugUnitTest :core-financiero:testDebugUnitTest
 ```
 
-Qué se debe ver — `BUILD SUCCESSFUL` y **31 tests, 0 failures**, en ocho clases:
+**Son cuatro suites y no dos desde la Fase 6**, cuando el borde FFI se mudó al módulo
+`:core-financiero`. Qué se debe ver — `BUILD SUCCESSFUL` y **35 tests de JVM, 0 failures**:
 
-| Clase | Tests |
-|---|---|
-| `format.MoneyFormatterTest` | 3 |
-| `adapter.ContractMessagesTest` | 3 |
-| `adapter.CoreFinancieroAdapterTest` | 2 |
-| `ui.arithmetic.ArithmeticViewModelTest` | 4 |
-| `ui.transfer.TransferViewModelTest` | 6 |
-| `ui.card.CardViewModelTest` | 6 |
-| `ui.benchmark.NativeBaselineTest` | 1 |
-| `ui.benchmark.BenchmarkViewModelTest` | 3 |
+| Módulo | Clase | Tests |
+|---|---|---|
+| `:app` | `format.MoneyFormatterTest` | 3 |
+| `:app` | `adapter.CoreFinancieroAdapterTest` | 2 |
+| `:app` | `ui.arithmetic.ArithmeticViewModelTest` | 5 |
+| `:app` | `ui.transfer.TransferViewModelTest` | 6 |
+| `:app` | `ui.card.CardViewModelTest` | 7 |
+| `:app` | `ui.benchmark.NativeBaselineTest` | 1 |
+| `:app` | `ui.benchmark.BenchmarkViewModelTest` | 5 |
+| `:app` | `UniffiRecordsAreNotMutatedTest` | 2 |
+| **`:core-financiero`** | `adapter.ContractMessagesTest` | **4** |
+
+`ContractMessagesTest` vive en el módulo y no en `:app` porque el mapeo de error a texto de
+usuario se mudó ahí con el adapter. Sus cuatro tests incluyen que un `Throwable` que **no** es de
+dominio no filtre su texto de diagnóstico a la pantalla.
 
 ```bash
 # Instrumentados — necesitan un emulador o dispositivo conectado. Estos SÍ cruzan el FFI.
 adb devices                              # debe listar uno como `device`
-./gradlew :app:connectedDebugAndroidTest
+./gradlew :app:connectedDebugAndroidTest :core-financiero:connectedDebugAndroidTest
 ```
 
-Qué se debe ver — `BUILD SUCCESSFUL` y **15 tests, 0 failures**:
+Qué se debe ver — `BUILD SUCCESSFUL` y **20 tests, 0 failures**:
 
-| Clase | Tests | Qué prueba |
-|---|---|---|
-| `CoreSmokeTest` | 2 | que la `.so` carga y JNA resuelve símbolos |
-| `ContractAssetsTest` | 2 | que los dos JSON del contrato llegaron a los dos APK |
-| `contract.AssetSourcesTest` | 2 | que los seams leen los assets reales |
-| **`ContractTest`** | **10** | **los 31 casos del contrato, más sus guardias** |
+| Módulo | Clase | Tests | Qué prueba |
+|---|---|---|---|
+| **`:core-financiero`** | `CoreSmokeTest` | 2 | que la `.so` carga y JNA resuelve símbolos |
+| **`:core-financiero`** | `ContractAssetsTest` | 2 | que los dos JSON del contrato llegaron a los dos APK |
+| **`:core-financiero`** | `contract.AssetSourcesTest` | 2 | que los seams leen los assets reales |
+| **`:core-financiero`** | `adapter.UniffiCoreFinancieroTest` | 3 | que el `runCatching` del adapter **real** traduce un error del core a `Result.failure` |
+| **`:core-financiero`** | **`ContractTest`** | **10** | **los 31 casos del contrato, más sus guardias** |
+| `:app` | `RotationTest` | 1 | que rotar no se lleve puesta la pestaña ni lo tecleado |
+
+**Las 19 del módulo son las que no se pueden falsear**: cargan la librería nativa de verdad. La
+de `:app` prueba presentación, que es lo único que le quedó a ese módulo.
 
 Para acotar una corrida instrumentada a una clase, **`--tests` no sirve** —ese flag es de la
 tarea de unit tests JVM y AGP 9 lo rechaza acá—. El equivalente que funciona:
