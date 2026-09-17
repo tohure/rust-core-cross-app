@@ -23,6 +23,10 @@ class AssetSourcesTest {
         assertEquals("5000.00", accounts[0].balance)
         assertEquals("01122000987654321065", accounts[1].id)
         assertEquals("Luis Ramos", accounts[1].holder)
+        // El saldo de la segunda cuenta faltaba: se asertaban id y titular, y el único campo
+        // que es DINERO quedaba sin comprobar. Valor tomado de cases.json, no del plan, que
+        // decía "3200.50".
+        assertEquals("1200.50", accounts[1].balance)
     }
 
     @Test
