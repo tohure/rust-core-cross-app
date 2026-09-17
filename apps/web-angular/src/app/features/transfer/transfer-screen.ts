@@ -72,8 +72,16 @@ const AMOUNT_FILTER = /^\d{0,9}(\.\d{0,2})?$/;
 
     @if (receipt()) {
       <app-section-divider title="Resultado" />
-      <app-result-row label="Comisión ITF" [value]="itfFee() | money" />
-      <app-result-row label="Total debitado" [value]="totalDebited() | money" />
+      <!-- Los data-testid no son decorativos: sin ellos, estos dos valores —la comisión y el
+           total, o sea los dos números que la demo compara centavo a centavo entre las cuatro
+           apps— sólo se podían verificar mirando el navegador. Y ojo: este template es un
+           template literal, así que un backtick en un comentario lo cierra a la mitad. -->
+      <app-result-row label="Comisión ITF" data-testid="itf-fee" [value]="itfFee() | money" />
+      <app-result-row
+        label="Total debitado"
+        data-testid="total-debited"
+        [value]="totalDebited() | money"
+      />
       <!-- Monoespaciado, como en Android (mono = true) e iOS (monospaced: true). -->
       <app-result-row
         label="Comprobante"

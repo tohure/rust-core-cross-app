@@ -7,7 +7,7 @@ Es la app que cierra la POC. Con ésta, las cuatro pantallas existen a la vez y 
 lado a lado —cuatro plataformas produciendo el mismo string carácter por carácter— se puede
 hacer de verdad.
 
-**99 tests en verde**, 14 archivos, con el test de contrato **31/31** contra
+**102 tests en verde**, 14 archivos, con el test de contrato **31/31** contra
 `contracts/cases.json` v2.3.0.
 
 ## Cómo está armada
@@ -129,7 +129,7 @@ El `.wasm` **no necesita** servirse con MIME `application/wasm` — ver «Qué N
 
 ```bash
 cd apps/web-angular
-pnpm test          # 99 passed (14 archivos), incluye el contrato 31/31
+pnpm test          # 102 passed (14 archivos), incluye el contrato 31/31
 pnpm lint          # All files pass linting
 pnpm build         # bundle inicial 215.08 kB (57.98 kB transferidos)
 pnpm format:check  # All matched files use Prettier code style!

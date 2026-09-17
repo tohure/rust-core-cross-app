@@ -189,7 +189,14 @@ describe('TransferScreen', () => {
     expect(root.querySelector('[data-testid="receipt"]')).toBeNull();
   });
 
-  it('editar un campo consume el error', async () => {
+  // Los TRES campos, no sólo `origin`. Son idénticos en implementación, y por eso mismo el test
+  // cubría uno solo y se daba por cubiertos los otros dos — que es cómo una regresión en
+  // `setAmount` pasa desapercibida.
+  it.each([
+    ['origin', 'otra-cuenta'],
+    ['destination', 'otra-cuenta'],
+    ['amount', '50.00'],
+  ])('editar %s consume el error', async (campo, valor) => {
     const core = fakeCore({
       executeTransfer: () => {
         throw { tag: 'SameAccount', inner: {} };
@@ -202,8 +209,38 @@ describe('TransferScreen', () => {
     await fixture.whenStable();
     expect(text(root, 'transfer-error')).not.toBe('');
 
-    type(root, 'origin', 'otra-cuenta');
+    type(root, campo, valor);
     await fixture.whenStable();
     expect(root.querySelector('[data-testid="transfer-error"]')).toBeNull();
+  });
+
+  // **Los dos números que la demo compara centavo a centavo entre las cuatro apps**, y hasta la
+  // Fase 6 sólo se verificaban mirando el navegador: no tenían `data-testid`.
+  //
+  // Timers falsos y `detectChanges()` como en el test de arriba: la pantalla espera
+  // `simulatedLatencyMs` antes de pintar, así que con `whenStable()` los valores todavía no
+  // existen en el DOM.
+  it('la comisión y el total debitado se pintan formateados, con el valor del core', () => {
+    vi.useFakeTimers();
+    TestBed.configureTestingModule({
+      imports: [TransferScreen],
+      providers: [
+        { provide: CoreFinancieroService, useValue: fakeCore() },
+        { provide: INITIAL_ACCOUNTS, useValue: FAKE_ACCOUNTS },
+      ],
+    });
+    const fixture = TestBed.createComponent(TransferScreen);
+    fixture.detectChanges();
+    const root = fixture.nativeElement as HTMLElement;
+
+    type(root, 'amount', '100.00');
+    clickButton(root, 'transfer');
+    vi.advanceTimersByTime(10);
+    fixture.detectChanges();
+
+    // `S/` y los separadores son el borde de presentación; el valor viene del core tal cual y el
+    // pipe sólo lo decora. Si alguna vez redondeara o reagrupara, esto lo caza.
+    expect(resultValue(root, 'itf-fee')).toBe('S/ 0.01');
+    expect(resultValue(root, 'total-debited')).toBe('S/ 100.01');
   });
 });

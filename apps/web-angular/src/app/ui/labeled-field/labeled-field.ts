@@ -91,6 +91,21 @@ export class LabeledField {
     });
   }
 
+  /**
+   * **Acá ocurre una llamada re-entrante, y es inocua.** Vale decirlo donde pasa, porque leyendo
+   * sólo este archivo parece un `set` simple.
+   *
+   * La cadena, cuando un filtro del padre rechaza una tecla: el usuario teclea → `onInput` hace
+   * `value.set(loTecleado)` → `model()` lo propaga al padre → el handler del padre
+   * —`setAmount`, `setNumber`, `setIterations`— lo rechaza y, **todavía dentro de este mismo
+   * despacho de evento**, llama `campo().value.set(ultimoValido)`. O sea que el signal se
+   * escribe dos veces antes de que termine el `onInput`.
+   *
+   * **Por qué termina y no cicla:** la segunda escritura lleva un valor que el filtro del padre
+   * acepta por definición —es el último que aceptó—, así que su handler no vuelve a corregir y
+   * la cadena se corta en el segundo `set`. El efecto de más arriba es el que después alinea el
+   * DOM, comparando contra `el.value` real y no contra la anotación interna de Angular.
+   */
   onInput(event: Event): void {
     this.value.set((event.target as HTMLInputElement).value);
   }
