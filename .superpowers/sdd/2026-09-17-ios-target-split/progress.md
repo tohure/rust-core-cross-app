@@ -176,3 +176,24 @@ la corrida sobre el iPhone 12 físico y no sólo en simulador.
 `Test run with 54 tests in 13 suites passed` · `** TEST SUCCEEDED **`
 
 RAMA LISTA para PR. Siete commits de contenido sobre 4f3770b.
+
+## Cierre del ruling T3-a
+
+El ruling T3-a dejó anotado que las tres evidencias sustitutas no confirmaban que el pie **se
+pinta** en el iPhone físico, sólo que el slice de aparato resuelve `coreVersion()`. Quedaba
+pendiente de un dedo humano y se cerró: la app Release se lanzó en el iPhone 12 con
+`xcrun devicectl device process launch` y el usuario confirmó en pantalla **`1.0.0+959025f`**,
+idéntico al que `uiautomator dump` leyó en el Pixel 6 físico. Cadena de evidencia completa.
+
+## Re-medición del benchmark, posterior al cierre de la rama
+
+`FfiCostProbe` en el iPhone 12, Release, `warmup=2000 runs=20000`:
+piso 0,062 µs (idéntico a la Fase 7), `add` x1000 0,410 (era 0,416),
+`NativeBaseline.add` x1000 0,146 (era 0,148), `validateCard` p50 3,42 (era 3,58).
+La baseline nativa no cruza el FFI y se movió el mismo −1,4 % que `add`, lo que identifica la
+variación como ruido entre corridas. El framework estático no agregó indirección medible.
+Registrado en apps/ios/README.md, docs/cross-app-pending.md y apps/ios/TESTING.md.
+
+De paso validó la decisión de no usar `@testable` sobre el kit: esa corrida es
+`-configuration Release ENABLE_TESTABILITY=YES`, la combinación exacta que habría dejado de
+compilar.
