@@ -8,8 +8,8 @@ struct ContractMessagesTest {
         ContractMessages(source: try BundleMessageSource(bundle: Bundle(for: BundleToken.self)))
     }
 
-    @Test("los nueve nombres del contrato salen de las nueve variantes")
-    func theNineVariantsMapToTheNineContractNames() {
+    @Test("los diez nombres del contrato salen de las diez variantes")
+    func theTenVariantsMapToTheTenContractNames() {
         #expect(
             DomainError.Length(field: "cci", expected: 20, received: 18).contractName
                 == "Longitud"
@@ -24,6 +24,7 @@ struct ContractMessagesTest {
                 == "SaldoInsuficiente"
         )
         #expect(DomainError.Encryption(detail: "nonce").contractName == "Cifrado")
+        #expect(DomainError.Decryption(detail: "tag").contractName == "Descifrado")
         #expect(DomainError.OutOfRange(field: "monto").contractName == "FueraDeRango")
     }
 

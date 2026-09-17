@@ -38,16 +38,16 @@ struct ContractInBundleTest {
     func casesIsBundledAtTheExpectedVersion() throws {
         let raw = try JSONSerialization.jsonObject(with: try ContractFixtures.data("cases"))
         let root = try #require(raw as? [String: Any])
-        #expect(root["version"] as? String == "2.3.0")
+        #expect(root["version"] as? String == "2.4.0")
         #expect(root["moneda"] as? String == "PEN")
     }
 
-    @Test("messages.es.json está en el bundle con los nueve mensajes")
+    @Test("messages.es.json está en el bundle con los diez mensajes")
     func messagesIsBundled() throws {
         let raw = try JSONSerialization.jsonObject(with: try ContractFixtures.data("messages.es"))
         let root = try #require(raw as? [String: Any])
         let messages = try #require(root["mensajes"] as? [String: String])
-        #expect(messages.count == 9)
+        #expect(messages.count == 10)
     }
 }
 
@@ -65,6 +65,7 @@ struct ContractFile: Decodable, Sendable {
     let cci: [CciCase]
     let itf: [ItfCase]
     let card: [CardCase]
+    let decrypt: [DecryptCase]
 
     enum CodingKeys: String, CodingKey {
         case version
@@ -78,6 +79,7 @@ struct ContractFile: Decodable, Sendable {
         case cci
         case itf
         case card = "tarjeta"
+        case decrypt = "descifrado"
     }
 }
 
@@ -194,6 +196,31 @@ struct CardCase: Decodable, Sendable, CustomTestStringConvertible {
             case brand = "marca"
             case masked = "enmascarado"
             case cipherHex = "cifrado_hex"
+        }
+    }
+    let id: String
+    let input: String
+    let valid: Bool
+    let expected: Expected?
+    let error: String?
+    enum CodingKeys: String, CodingKey {
+        case id
+        case input = "entrada"
+        case valid = "valido"
+        case expected = "esperado"
+        case error
+    }
+    var testDescription: String { id }
+}
+
+/// El grupo `descifrado`: el camino de vuelta del cifrado, que hasta la v2.4.0 no tenía
+/// casos propios. Un texto plano esperado cuando el hex es válido; el nombre de contrato
+/// `Descifrado` —no `Cifrado`— cuando no lo es.
+struct DecryptCase: Decodable, Sendable, CustomTestStringConvertible {
+    struct Expected: Decodable, Sendable {
+        let text: String
+        enum CodingKeys: String, CodingKey {
+            case text = "texto"
         }
     }
     let id: String
