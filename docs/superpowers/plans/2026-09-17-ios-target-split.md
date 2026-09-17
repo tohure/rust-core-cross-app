@@ -231,7 +231,7 @@ git diff apps/ios/ios-rust-test.xcodeproj/project.pbxproj | grep -E '^[+-]' | gr
 
 Esperado: aparece el target nuevo, `MACH_O_TYPE = staticlib`, y el `CoreFinanciero.xcframework` sigue referenciado por la app. Hay además ~12 líneas de ruido cosmético del round-trip del gem (`exceptions = ()` que aparece, `packageProductDependencies = ()` que desaparece): es esperado, está documentado en la spec.
 
-- [ ] **Step 6: Marcar `public` las 39 declaraciones que cruzan la frontera**
+- [ ] **Step 6: Marcar `public` las 40 declaraciones que cruzan la frontera**
 
 Son mecánicas: agregar `public ` al principio de la declaración, sin tocar nada más. Los `private let` de propiedades almacenadas **no** se tocan.
 
@@ -305,12 +305,21 @@ for f in \
   grep -q '^import CoreFinancieroKit$' "$f" || \
     awk 'NR==1 && !/^import / { print "import CoreFinancieroKit"; print "" } { print }' "$f" > "$f.tmp" && mv "$f.tmp" "$f"
 done
-grep -L '^import CoreFinancieroKit$' ios-rust-test/AppContainer.swift ios-rust-test/UI/*/*.swift
+grep -L '^import CoreFinancieroKit$' \
+  ios-rust-test/AppContainer.swift \
+  ios-rust-test/UI/Arithmetic/Arithmetic{View,ViewModel}.swift \
+  ios-rust-test/UI/Benchmark/Benchmark{View,ViewModel}.swift \
+  ios-rust-test/UI/Card/Card{View,ViewModel}.swift \
+  ios-rust-test/UI/Components/Components.swift \
+  ios-rust-test/UI/Navigation/BancoApp.swift \
+  ios-rust-test/UI/Transfer/Transfer{UiState,View,ViewModel}.swift
 ```
 
 El `awk` inserta el import arriba de todo cuando el archivo **no** empieza con un `import`. Para los que sí empiezan con `import Foundation` o `import SwiftUI`, hay que insertarlo en orden alfabético dentro del bloque de imports existente — revisar archivo por archivo y corregir a mano.
 
-Esperado del último `grep -L`: **sin salida**. `Format/MoneyFormatter.swift` **no** entra en la lista: está verificado que no referencia ningún tipo del core y tiene que quedarse sin `import`.
+Esperado del último `grep -L`: **sin salida**.
+
+**El `grep` va sobre la lista explícita, no sobre `UI/*/*.swift`.** Estos cinco archivos de `UI/` **no** deben llevar el import porque no nombran nada del core, y un glob los reportaría como falsos fallos: `Arithmetic/ArithmeticUiState.swift`, `Benchmark/BenchmarkUiState.swift`, `Benchmark/NativeBaseline.swift`, `Card/CardUiState.swift`, `Theme/Palette.swift`. `Format/MoneyFormatter.swift` tampoco entra, por lo mismo.
 
 - [ ] **Step 10: Agregar `import CoreFinancieroKit` a los 9 archivos de test**
 
@@ -364,8 +373,8 @@ adapter cambia de aislamiento al cruzar de módulo y la app deja de
 compilar por concurrencia, lejos de la causa.
 
 No se usa `@testable import` sobre el kit: ENABLE_TESTABILITY solo está en
-Debug y el benchmark de la Fase 7 se mide en Release. Se pagan ~39
-`public` para no romper esa corrida.
+Debug y el benchmark de la Fase 7 se mide en Release. Se pagan 40
+`public` más un init para no romper esa corrida.
 
 Sin cambios de comportamiento: 54 tests en 13 suites, el mismo conteo.
 
@@ -517,6 +526,7 @@ Nota que el diagrama tiene que dejar explícita: la Run Script que copia los con
 - [ ] **Step 4: `README.md` — el resto**
 
 - La tabla de archivos que hoy nombra `Generated/core_financiero.swift` bajo `ios-rust-test/`.
+- **El string de ejemplo del pie está viejo.** El README dice `hoy 1.0.0+b719da3`; el artefacto en disco dice `1.0.0+959025fca` (Task 1, Step 4). Actualizarlo al valor real — es justo el string que el runbook de demo manda comparar entre las cuatro apps.
 - Agregar el comando que compila el kit solo, que es el diagnóstico más rápido cuando algo del borde FFI se rompe:
 
 ```bash

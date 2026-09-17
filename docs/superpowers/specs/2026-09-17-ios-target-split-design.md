@@ -153,7 +153,7 @@ lo hace el binario de la app, así que el `.a` tiene que estar en los dos lados.
 
 ## 6. La superficie pública
 
-39 declaraciones pasan a `public`, más un `init` que hay que escribir:
+40 declaraciones pasan a `public`, más un `init` que hay que escribir:
 
 - `protocol CoreFinanciero` y sus 9 métodos.
 - `struct UniffiCoreFinanciero` y sus 9 métodos, más un **`public init()` escrito a mano**:
