@@ -63,15 +63,50 @@ C directo. Todo eso vive en código generado, que no se edita.
    y la sonda no miden lo mismo: la sonda calienta 2.000 iteraciones y la pantalla no, así que la
    pantalla sale más alta y más ruidosa. Comparar sólo dentro de la misma tabla.
 
-## 2. No hay CI, en ninguna de las cinco bases de código
+## 2. ~~No hay CI~~ — **CERRADO: se decidió no hacerlo**
 
-Todo se corre a mano. Está anotado en el PENDING de React Native y en el de Angular, y vale igual
-para `rust-core`, Android e iOS. Consecuencia concreta, no teórica: **nada obliga a que los cuatro
-artefactos salgan del mismo `HEAD`**, que es la precondición del primer paso del
-[runbook de demo](demo-runbook.md). Hoy eso lo sostiene una persona acordándose.
+No es un hueco pendiente: es alcance que se evaluó y se descartó. Queda escrito con el
+razonamiento para que nadie lo reabra sin argumentos nuevos.
 
-El chequeo que habría que automatizar primero está escrito y verificado:
-[rust-core/README.md § Comprobar los cuatro artefactos de una vez](../rust-core/README.md#comprobar-los-cuatro-artefactos-de-una-vez).
+**El riesgo que el CI iba a cubrir ya está cubierto, y más barato.** Este punto existía porque
+«nada obliga a que los cuatro artefactos salgan del mismo `HEAD`», que es la precondición del
+primer paso del [runbook de demo](demo-runbook.md). Pero para eso ya están, escritos y
+ejecutados, el pie con `core_version()` en las cuatro pantallas y
+[el bucle sobre los seis artefactos](../rust-core/README.md#comprobar-los-cuatro-artefactos-de-una-vez).
+Son diez segundos antes de la demo. Un CI no agrega nada ahí.
+
+**Y lo que el CI sí agregaría cuesta caro y cubre poco:**
+
+- **Lo que más vale probar es justo lo que un runner no puede correr.** Los tests que cruzan el
+  FFI de verdad necesitan aparato: los 21 instrumentados de Android piden emulador —lento— y los
+  53 de iOS corren sobre un iPhone, cosa que ningún runner hace. Quedaría un CI que verifica todo
+  menos lo que la POC existe para demostrar.
+- **Sería el pipeline más caro del proyecto**: runners macOS para Xcode, NDK para Android, Rust
+  con cinco targets, Node y pnpm, más `napi:generate` y `wasm:generate` antes de cualquier test
+  porque sus salidas están gitignoradas.
+- **El CI protege contra regresiones a lo largo del tiempo**, y las ocho fases están cerradas. Si
+  el repositorio no se mueve todos los días, no hay contra qué protegerse.
+
+**Un argumento que parecía bueno y no lo es.** Al cerrar la Fase 7 se descubrió que la rama de la
+Fase 6 tenía 41 commits que **nunca se habían pusheado**, con todo en verde y sin que nadie se
+enterara. Eso se citó como evidencia a favor del CI. No lo es: **el CI corre cuando hay push**, y
+una rama que no se pushea es invisible para él. Lo que hacía falta ahí era pushear.
+
+### Si algún día el repositorio vuelve a moverse
+
+El pedazo con buena relación costo/beneficio es **uno solo**: un job de Linux con las cuatro
+suites que **no** necesitan aparato —`rust-core` 71, Android JVM 35, React Native 129, Angular
+102: 337 tests en un par de minutos— sin macOS ni emuladores. Cazaría un cambio que rompe el
+contrato, que es el único tipo de regresión que importa acá.
+
+Lo que ese job tendría que hacer, como mínimo: instalar Rust con los targets, instalar pnpm,
+correr `napi:generate` y `wasm:generate` **antes** de `pnpm test`, y correr `cargo test
+--workspace`. Los detalles de por qué el scaffold que venía con `create-react-native-library` no
+podía funcionar están en
+[apps/react-native/PENDING.md](../apps/react-native/PENDING.md#no-hay-ci-y-el-scaffold-que-simulaba-tenerla-se-borró).
+
+**Lo que no cambiaría ni con ese job: nada de eso cruza JSI**, así que el smoke manual de React
+Native seguiría siendo obligatorio antes de una demo.
 
 ## 3. ~~El `catch` genérico guarda texto de diagnóstico como mensaje de usuario~~ — CERRADO
 
