@@ -368,7 +368,7 @@ antes de `pnpm test`, y correr también `cargo test --workspace`. Los tests inst
 Android y los de iOS necesitan además emulador/simulador en el runner. **Nada de eso cruza JSI
 igual**, así que el smoke manual seguiría siendo obligatorio antes de una demo.
 
-## `packages/contract` tiene que declarar `@babel/runtime`, y ningún test lo caza
+## `packages/contract` tiene que declarar `@babel/runtime` — ahora con guardia
 
 Encontrado al cerrar la Fase 5, corriendo la app en el emulador para comparar el pie de
 `coreVersion()` entre las cuatro. La app arrancaba en **pantalla roja**:
@@ -395,3 +395,21 @@ Metro y los 120 tests seguían en verde con la app rota. Es el mismo patrón que
 `collapsable={false}` de Fabric: **el aparato encuentra lo que el runner no puede**. Esta app no
 tiene corredor de tests en dispositivo, así que la única red es el smoke manual — y esta vez
 saltó recién al montar la demo de las cuatro apps, semanas después del cambio que lo introdujo.
+
+**Desde la Fase 6 hay guardia**, en `src/__tests__/jest-setup.test.ts`: deriva de los
+`package.json` qué paquetes del workspace consume esta app **por fuente** —los que tienen un
+entrypoint `.ts`, o sea los que Metro transpila con Babel— y comprueba que cada uno tenga
+`node_modules/@babel/runtime`. Bajo el `node_modules` estricto de pnpm ese symlink existe si y
+sólo si el paquete lo declara, que es exactamente la condición que Metro necesita.
+
+**Y comprueba el filesystem, no el resolver, tras dos intentos fallidos que vale la pena dejar
+escritos.** Dentro de Jest no se puede preguntar «¿esto resolvería bajo pnpm?»: Jest parchea
+`Module._resolveFilename` globalmente, así que su `require.resolve` ignora el `paths` que se le
+pase, y hasta un `createRequire` de `node:module` termina pasando por su resolver. Las dos vías
+daban **verde** para `@banco/core-financiero-wasm`, que no declara `@babel/runtime` — o sea una
+guardia vacua, el mismo defecto que esta fase vino a corregir en otros lados. Se descubrió
+mutando la guardia para que mirara también ese paquete; con la versión de filesystem, la mutación
+falla como debe.
+
+Lo que la guardia **no** cubre sigue igual: reproduce la condición, no el resolver de Metro. La
+red real para esta app sigue siendo el smoke manual.
