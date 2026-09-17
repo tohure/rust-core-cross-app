@@ -53,3 +53,11 @@ Task 2: Ruling: el commit deja la suite instrumentada de `:app` en ROJO por un c
 
 Task 3: complete — las cuatro combinaciones en verde y ningún test perdido. JVM: 25 en `:app` + 4 en `:core-financiero` = 29, los mismos 29 de antes. Instrumentada: 16 en `:core-financiero`, 0 fallos, los mismos 16 de antes. El Step 3 del plan acertó: `AssetSourcesTest` usaba `targetContext`, que era el APK de `:app`; con el `Copy` en el módulo hay que usar `context`, el del APK de test.
 Task 3: Hallazgo que hay que tener presente en las tareas 5 y 6: el androidTest de `:app` quedó **vacío** —los cuatro archivos se mudaron—, así que `:app:connectedDebugAndroidTest` ahora pasa en verde **sin correr un solo test**. Un verde que no prueba nada es exactamente el defecto que esta fase vino a corregir en otros lados. Lo cierran la Task 5 (rotación) y la Task 6 (guardia del `@Immutable`), que agregan instrumentados a `:app`; si alguna se cayera del alcance, hay que decidir explícitamente qué pasa con esa suite en vez de dejarla vacía.
+
+Ruling (a pedido del usuario, tras la Task 3): las tareas 4 a 11 se ejecutan seguidas y la
+verificación va en UNA pasada al final, en vez de correr las suites tarea por tarea como pide cada
+Step. Motivo: la corrida instrumentada necesita emulador y es lo más lento del ciclo; hacerla ocho
+veces no agrega señal si los cambios no se pisan entre sí. Mitigación: se compila tras cada tarea
+—es barato— y el commit por tarea se mantiene, así que un `git bisect` sigue sirviendo. Costo si me
+equivoco: si algo se rompe en la Task 5 me entero en la Task 11 y el diagnóstico es más caro,
+porque hay siete commits de por medio en vez de uno.
