@@ -1,3 +1,4 @@
+import CoreFinancieroKit
 import Foundation
 
 /// Filtros de **texto**, no validaciones: quien decide si el número pasa Luhn o si el hex

@@ -7,10 +7,19 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		28046457D55D46ED55A8DA1E /* CoreFinancieroKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 21BAC2923570776E133C63DC /* CoreFinancieroKit.framework */; };
+		903F0768576A527A299A0252 /* CoreFinanciero.xcframework in Frameworks */ = {isa = PBXBuildFile; fileRef = C0DE000000000000000000F1 /* CoreFinanciero.xcframework */; };
 		C0DE000000000000000000F2 /* CoreFinanciero.xcframework in Frameworks */ = {isa = PBXBuildFile; fileRef = C0DE000000000000000000F1 /* CoreFinanciero.xcframework */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
+		B141770E12B834DAFAD6E324 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = DD8323773053A1AF0038F99E /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 23EC05F426517F9D58E6AA29;
+			remoteInfo = CoreFinancieroKit;
+		};
 		DD83238D3053A1B00038F99E /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = DD8323773053A1AF0038F99E /* Project object */;
@@ -21,6 +30,7 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		21BAC2923570776E133C63DC /* CoreFinancieroKit.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = CoreFinancieroKit.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		C0DE000000000000000000F1 /* CoreFinanciero.xcframework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcframework; path = CoreFinanciero.xcframework; sourceTree = "<group>"; };
 		DD83237F3053A1AF0038F99E /* ios-rust-test.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "ios-rust-test.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		DD83238C3053A1B00038F99E /* ios-rust-testTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "ios-rust-testTests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -29,22 +39,42 @@
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		DD8323813053A1AF0038F99E /* ios-rust-test */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+			);
 			path = "ios-rust-test";
 			sourceTree = "<group>";
 		};
 		DD83238F3053A1B00038F99E /* ios-rust-testTests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+			);
 			path = "ios-rust-testTests";
+			sourceTree = "<group>";
+		};
+		F25E9DC54D57D9D3E2790D55 /* CoreFinancieroKit */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+			);
+			path = CoreFinancieroKit;
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
+		6BD21A9ECBB92AFD253B5B7D /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				903F0768576A527A299A0252 /* CoreFinanciero.xcframework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		DD83237C3053A1AF0038F99E /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
 				C0DE000000000000000000F2 /* CoreFinanciero.xcframework in Frameworks */,
+				28046457D55D46ED55A8DA1E /* CoreFinancieroKit.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -61,6 +91,7 @@
 		DD8323763053A1AF0038F99E = {
 			isa = PBXGroup;
 			children = (
+				F25E9DC54D57D9D3E2790D55 /* CoreFinancieroKit */,
 				DD8323813053A1AF0038F99E /* ios-rust-test */,
 				DD83238F3053A1B00038F99E /* ios-rust-testTests */,
 				C0DE000000000000000000F1 /* CoreFinanciero.xcframework */,
@@ -73,13 +104,45 @@
 			children = (
 				DD83237F3053A1AF0038F99E /* ios-rust-test.app */,
 				DD83238C3053A1B00038F99E /* ios-rust-testTests.xctest */,
+				21BAC2923570776E133C63DC /* CoreFinancieroKit.framework */,
 			);
 			name = Products;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
 
+/* Begin PBXHeadersBuildPhase section */
+		546B2688F21A0B9FE3F2F6D9 /* Headers */ = {
+			isa = PBXHeadersBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXHeadersBuildPhase section */
+
 /* Begin PBXNativeTarget section */
+		23EC05F426517F9D58E6AA29 /* CoreFinancieroKit */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 9BE3D9576604D7573E7AA469 /* Build configuration list for PBXNativeTarget "CoreFinancieroKit" */;
+			buildPhases = (
+				546B2688F21A0B9FE3F2F6D9 /* Headers */,
+				645FD28D00FB0A0AA639CD64 /* Sources */,
+				6BD21A9ECBB92AFD253B5B7D /* Frameworks */,
+				075652B01E4FD519664BCD5F /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				F25E9DC54D57D9D3E2790D55 /* CoreFinancieroKit */,
+			);
+			name = CoreFinancieroKit;
+			productName = CoreFinancieroKit;
+			productReference = 21BAC2923570776E133C63DC /* CoreFinancieroKit.framework */;
+			productType = "com.apple.product-type.framework";
+		};
 		DD83237E3053A1AF0038F99E /* ios-rust-test */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = DD8323A03053A1B00038F99E /* Build configuration list for PBXNativeTarget "ios-rust-test" */;
@@ -92,13 +155,12 @@
 			buildRules = (
 			);
 			dependencies = (
+				45CEC5FE9FFEE146ED2A7A1A /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				DD8323813053A1AF0038F99E /* ios-rust-test */,
 			);
 			name = "ios-rust-test";
-			packageProductDependencies = (
-			);
 			productName = "ios-rust-test";
 			productReference = DD83237F3053A1AF0038F99E /* ios-rust-test.app */;
 			productType = "com.apple.product-type.application";
@@ -121,8 +183,6 @@
 				DD83238F3053A1B00038F99E /* ios-rust-testTests */,
 			);
 			name = "ios-rust-testTests";
-			packageProductDependencies = (
-			);
 			productName = "ios-rust-testTests";
 			productReference = DD83238C3053A1B00038F99E /* ios-rust-testTests.xctest */;
 			productType = "com.apple.product-type.bundle.unit-test";
@@ -137,6 +197,9 @@
 				LastSwiftUpdateCheck = 2660;
 				LastUpgradeCheck = 2660;
 				TargetAttributes = {
+					23EC05F426517F9D58E6AA29 = {
+						CreatedOnToolsVersion = 26.6;
+					};
 					DD83237E3053A1AF0038F99E = {
 						CreatedOnToolsVersion = 26.6;
 					};
@@ -162,11 +225,19 @@
 			targets = (
 				DD83237E3053A1AF0038F99E /* ios-rust-test */,
 				DD83238B3053A1B00038F99E /* ios-rust-testTests */,
+				23EC05F426517F9D58E6AA29 /* CoreFinancieroKit */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
+		075652B01E4FD519664BCD5F /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		DD83237D3053A1AF0038F99E /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -223,6 +294,13 @@
 /* End PBXShellScriptBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
+		645FD28D00FB0A0AA639CD64 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		DD83237B3053A1AF0038F99E /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -240,6 +318,12 @@
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
+		45CEC5FE9FFEE146ED2A7A1A /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			name = CoreFinancieroKit;
+			target = 23EC05F426517F9D58E6AA29 /* CoreFinancieroKit */;
+			targetProxy = B141770E12B834DAFAD6E324 /* PBXContainerItemProxy */;
+		};
 		DD83238E3053A1B00038F99E /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
 			target = DD83237E3053A1AF0038F99E /* ios-rust-test */;
@@ -248,6 +332,57 @@
 /* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
+		320CB3E8D738B351EDE6B6B4 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEFINES_MODULE = YES;
+				DEVELOPMENT_TEAM = PSBE6PYY33;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				MACH_O_TYPE = staticlib;
+				PRODUCT_BUNDLE_IDENTIFIER = dev.tohure.CoreFinancieroKit;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				VERSIONING_SYSTEM = "apple-generic";
+				VERSION_INFO_PREFIX = "";
+			};
+			name = Debug;
+		};
+		A555BC02E7810084B915F282 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEFINES_MODULE = YES;
+				DEVELOPMENT_TEAM = PSBE6PYY33;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				MACH_O_TYPE = staticlib;
+				PRODUCT_BUNDLE_IDENTIFIER = dev.tohure.CoreFinancieroKit;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				VALIDATE_PRODUCT = YES;
+				VERSIONING_SYSTEM = "apple-generic";
+				VERSION_INFO_PREFIX = "";
+			};
+			name = Release;
+		};
 		DD83239E3053A1B00038F99E /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -480,6 +615,15 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
+		9BE3D9576604D7573E7AA469 /* Build configuration list for PBXNativeTarget "CoreFinancieroKit" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				A555BC02E7810084B915F282 /* Release */,
+				320CB3E8D738B351EDE6B6B4 /* Debug */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
 		DD83237A3053A1AF0038F99E /* Build configuration list for PBXProject "ios-rust-test" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (

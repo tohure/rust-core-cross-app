@@ -169,9 +169,11 @@ frontera nativa y su `example/` es la app, que nunca importa uniffi. Es el mismo
 conseguido por frontera de paquete en vez de módulo Gradle. Ver
 [apps/react-native/README.md](../react-native/README.md).
 
-**La única de las cuatro apps que todavía no la aplicó es iOS**, donde `ios-rust-test` sigue
-siendo un target único que contiene el `Generated/`, el XCFramework, el adapter y las cuatro
-pantallas. Está anotado en [apps/ios/PENDING.md](../ios/PENDING.md).
+**iOS también la aplicó**: nació el target `CoreFinancieroKit`, un framework **estático**
+(`MACH_O_TYPE = staticlib`) que se lleva el `Generated/`, el XCFramework y el adapter; el
+target `ios-rust-test` queda con las cuatro pantallas y consume el kit con `import
+CoreFinancieroKit`. El detalle y lo que ese split sí resuelve —y lo que no— está en
+[apps/ios/PENDING.md](../ios/PENDING.md).
 
 ## Fuera de alcance por diseño
 

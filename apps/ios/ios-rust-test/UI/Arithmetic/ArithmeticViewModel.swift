@@ -1,3 +1,4 @@
+import CoreFinancieroKit
 import Foundation
 
 @MainActor

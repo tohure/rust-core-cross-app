@@ -5,7 +5,7 @@ import Foundation
 /// El `init` lanza a propósito: un contrato ausente es un fallo de build —la Run Script
 /// Phase no corrió— y tiene que romper ruidosamente al arrancar, no devolver una lista
 /// vacía que deje la pantalla de Transferencia sin cuentas y sin explicación.
-struct BundleContractSource: ContractSource {
+public struct BundleContractSource: ContractSource {
     enum LoadError: Error, CustomStringConvertible {
         case notInBundle
         case malformed(String)
@@ -23,7 +23,7 @@ struct BundleContractSource: ContractSource {
     private let keyHex: String
     private let nonceHex: String
 
-    init(bundle: Bundle) throws {
+    public init(bundle: Bundle) throws {
         guard let url = bundle.url(forResource: "cases", withExtension: "json") else {
             throw LoadError.notInBundle
         }
@@ -50,7 +50,7 @@ struct BundleContractSource: ContractSource {
         nonceHex = nonce
     }
 
-    func initialAccounts() -> [Account] { accounts }
-    func demoKeyHex() -> String { keyHex }
-    func demoNonceHex() -> String { nonceHex }
+    public func initialAccounts() -> [Account] { accounts }
+    public func demoKeyHex() -> String { keyHex }
+    public func demoNonceHex() -> String { nonceHex }
 }

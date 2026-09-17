@@ -22,6 +22,13 @@ xcodebuild test -project ios-rust-test.xcodeproj -scheme ios-rust-test \
   -destination 'platform=iOS Simulator,name=iPhone 17 Pro'
 ```
 
+> Si `xcodebuild` responde `Unable to find a device matching the provided destination
+> specifier`: el modelo "iPhone 17 Pro" no existe en todos los runtimes de simulador
+> instalados. Verificado el 2026-09-17: en esa máquina `OS:latest` resolvía a iOS 27.0, y ese
+> modelo solo existía para el runtime 26.5 — agregar `,OS=26.5` a la `-destination` lo resolvió.
+> Es un desajuste de entorno, no del proyecto; correr `xcrun simctl list devices available`
+> dice qué runtime tiene ese modelo en tu máquina.
+
 Qué se debe ver — `** TEST SUCCEEDED **` y
 **`Test run with 54 tests in 13 suites passed`**:
 
@@ -275,3 +282,24 @@ Tres cosas de ese comando que cuestan una tarde si no están escritas:
 
 `PROBE_RUNS` y `PROBE_WARMUP` ajustan la forma de la medición, para poder reproducir la de otra
 plataforma. La cantidad de muestras **cambia el resultado**.
+
+### El split en dos targets no movió el número, y hay con qué probarlo
+
+Partir la app en `CoreFinancieroKit` + `ios-rust-test` ponía en riesgo justamente esta cifra: si
+el framework hubiera quedado **dinámico**, cada llamada al core pagaría indirección de `dyld` y
+el piso de 0,062 µs dejaría de valer. Se eligió estático por eso, y después se volvió a medir en
+el mismo iPhone 12, en Release, con la misma sonda:
+
+| | Antes del split | Después |
+|---|---|---|
+| `coreVersion()` x1000 — **el piso del cruce** | 0,062 µs | **0,062 µs** |
+| `add` x1000 | 0,416 µs | 0,410 µs |
+| `NativeBaseline.add` x1000 | 0,148 µs | 0,146 µs |
+
+**Lo que hace concluyente a esta tabla es la tercera fila, no la primera.** `NativeBaseline.add`
+no cruza el FFI —es aritmética de `Double` en Swift— así que el split no puede haberla afectado
+por ningún mecanismo. Se movió **−1,4 %, exactamente lo mismo que `add`**. Esa coincidencia
+identifica la variación como ruido entre corridas y no como señal: si el framework hubiera
+agregado indirección, `add` se habría movido y la baseline no.
+
+Sin esa fila de control, un −1,4 % en `add` no se distingue de una regresión chica.

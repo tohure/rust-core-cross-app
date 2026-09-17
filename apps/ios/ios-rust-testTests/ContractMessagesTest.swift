@@ -1,3 +1,4 @@
+import CoreFinancieroKit
 import Foundation
 import Testing
 @testable import ios_rust_test
@@ -59,7 +60,7 @@ struct ContractMessagesTest {
         struct BoomError: Error { let detail = "dlopen failed: library not found" }
 
         let shown = try messages().userMessage(BoomError() as Error)
-        #expect(shown == "No se pudo completar la operación.")
+        #expect(shown == ContractMessages.fallback)
         #expect(!shown.contains("dlopen"))
         #expect(!shown.contains("BoomError"))
     }

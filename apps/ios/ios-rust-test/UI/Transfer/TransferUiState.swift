@@ -1,3 +1,5 @@
+import CoreFinancieroKit
+
 struct TransferUiState {
     var origin = ""
     var destination = ""

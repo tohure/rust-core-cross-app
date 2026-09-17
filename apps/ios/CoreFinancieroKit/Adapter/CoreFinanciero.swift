@@ -12,7 +12,7 @@
 /// del core, y las cuatro apps mantienen la misma forma, que es lo que hace comparable el
 /// code review. No se justifica como "testabilidad sin FFI", porque en iOS eso no es
 /// cierto.
-protocol CoreFinanciero {
+public protocol CoreFinanciero {
     func add(a: String, b: String) throws -> String
     func subtract(a: String, b: String) throws -> String
     func calculateItf(amount: String) throws -> String

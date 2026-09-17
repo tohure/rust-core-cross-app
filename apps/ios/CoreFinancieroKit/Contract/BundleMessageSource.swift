@@ -1,6 +1,6 @@
 import Foundation
 
-struct BundleMessageSource: MessageSource {
+public struct BundleMessageSource: MessageSource {
     enum LoadError: Error, CustomStringConvertible {
         case notInBundle
         case malformed
@@ -17,7 +17,7 @@ struct BundleMessageSource: MessageSource {
 
     private let table: [String: String]
 
-    init(bundle: Bundle) throws {
+    public init(bundle: Bundle) throws {
         guard let url = bundle.url(forResource: "messages.es", withExtension: "json") else {
             throw LoadError.notInBundle
         }
@@ -28,5 +28,5 @@ struct BundleMessageSource: MessageSource {
         self.table = table
     }
 
-    func messages() -> [String: String] { table }
+    public func messages() -> [String: String] { table }
 }

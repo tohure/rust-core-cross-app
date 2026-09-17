@@ -1,3 +1,4 @@
+import CoreFinancieroKit
 import SwiftUI
 
 /// Cabecera de las cuatro pantallas: título y subtítulo.
