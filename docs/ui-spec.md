@@ -218,11 +218,16 @@ importan: valida por Luhn, cifra, y **descifra**.
 - Labels exactos: `Número`, `Validar y cifrar`, `Resultado`, `Marca`, `Enmascarado`,
   `Cifrado (hex)`, `Descifrado`, `Descifrar un hex de otra plataforma`, `Hex cifrado`,
   `Descifrar`, `Número recuperado`.
-- **El texto del bloque de pegado no nombra plataformas.** Este wireframe decía «el hex que
-  produjo la app de iOS, React Native o Angular», escrito desde la perspectiva de Android — así
-  que en la app de **iOS** el texto se autolistaba, invitando a pegar un hex producido por la app
-  en la que uno ya está parado. La lista además hay que mantenerla cada vez que se agrega una
-  plataforma. El texto normativo es `Pega aquí el hex que produjo cualquiera de las otras apps.`
+- **El texto del bloque de pegado no nombra plataformas**, y es **una sola frase para las cuatro
+  apps**. Este wireframe decía «el hex que produjo la app de iOS, React Native o Angular»,
+  escrito desde la perspectiva de Android — así que en la app de **iOS** el texto se autolistaba,
+  invitando a pegar un hex producido por la app en la que uno ya está parado. El primer arreglo
+  dejó que cada app listara a las otras tres desde su propio punto de vista, y eso trajo un
+  defecto peor: **las cuatro mostraban cuatro strings distintos en la pantalla que existe para
+  ponerlas lado a lado.** Además la lista hay que mantenerla cada vez que se agrega una
+  plataforma. El texto normativo, idéntico en las cuatro, es:
+
+  `Pega aquí el hex que produjo cualquiera de las otras apps. Sale el mismo número, porque las cuatro usan el mismo core.`
 - **El texto de ayuda bajo `Número` es obligatorio**, con estas dos líneas exactas:
   `Puedes probar 4111111111111111 (Visa) o 5555555555554444 (Mastercard).` y
   `Un número inválido lo rechaza el core, no esta pantalla.`

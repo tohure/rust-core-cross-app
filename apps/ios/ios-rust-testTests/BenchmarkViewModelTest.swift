@@ -6,17 +6,28 @@ import Testing
 @MainActor
 @Suite("ViewModel de Benchmark")
 struct BenchmarkViewModelTest {
+    private func makeViewModel(_ core: FakeCoreFinanciero = FakeCoreFinanciero()) throws
+        -> BenchmarkViewModel
+    {
+        BenchmarkViewModel(
+            core: core,
+            messages: ContractMessages(
+                source: try BundleMessageSource(bundle: Bundle(for: BundleToken.self))
+            )
+        )
+    }
+
     @Test("arranca en 1000 iteraciones y sin resultados")
-    func startsAtAThousand() {
-        let vm = BenchmarkViewModel(core: FakeCoreFinanciero())
+    func startsAtAThousand() throws {
+        let vm = try makeViewModel()
         #expect(vm.state.iterations == "1000")
         #expect(vm.state.coreP50 == "—")
         #expect(vm.state.isRunning == false)
     }
 
     @Test("el campo de iteraciones acepta solo dígitos")
-    func theIterationsFieldTakesDigitsOnly() {
-        let vm = BenchmarkViewModel(core: FakeCoreFinanciero())
+    func theIterationsFieldTakesDigitsOnly() throws {
+        let vm = try makeViewModel()
         vm.iterationsChanged("250")
         #expect(vm.state.iterations == "250")
         vm.iterationsChanged("250x")
@@ -24,8 +35,8 @@ struct BenchmarkViewModelTest {
     }
 
     @Test("correr llena los cuatro percentiles y apaga el spinner")
-    func runFillsTheFourPercentiles() async {
-        let vm = BenchmarkViewModel(core: FakeCoreFinanciero())
+    func runFillsTheFourPercentiles() async throws {
+        let vm = try makeViewModel()
         vm.iterationsChanged("50")
         await vm.run()
         #expect(vm.state.isRunning == false)
@@ -36,8 +47,8 @@ struct BenchmarkViewModelTest {
     }
 
     @Test("cero iteraciones no revienta ni deja el spinner colgado")
-    func zeroIterationsIsSafe() async {
-        let vm = BenchmarkViewModel(core: FakeCoreFinanciero())
+    func zeroIterationsIsSafe() async throws {
+        let vm = try makeViewModel()
         vm.iterationsChanged("0")
         await vm.run()
         #expect(vm.state.isRunning == false)
@@ -45,10 +56,10 @@ struct BenchmarkViewModelTest {
     }
 
     @Test("cero iteraciones explica por qué no pasó nada")
-    func zeroIterationsExplainsWhyNothingHappened() async {
+    func zeroIterationsExplainsWhyNothingHappened() async throws {
         // iOS era la ÚNICA de las cuatro que volvía muda: el botón no hacía nada y la
         // pantalla parecía rota. El texto es normativo en `docs/ui-spec.md`.
-        let vm = BenchmarkViewModel(core: FakeCoreFinanciero())
+        let vm = try makeViewModel()
         vm.iterationsChanged("0")
         await vm.run()
         #expect(vm.state.error == "Ingresa un número de iteraciones mayor que cero.")
@@ -61,14 +72,14 @@ struct BenchmarkViewModelTest {
     }
 
     @Test("los tiempos usan PUNTO decimal, no el separador del locale")
-    func timesUseADotRegardlessOfLocale() async {
+    func timesUseADotRegardlessOfLocale() async throws {
         // Esto NO es una corrección: `String(format:)` de Foundation, sin `locale:`, ya es
         // no-localizado y siempre imprime punto. Es una GUARDIA, y existe porque el mismo
         // código en Kotlin hace lo contrario: `"%.2f".format(...)` usa el locale por defecto
         // y en un aparato es-PE imprimía `1,23 µs` — la divergencia que la Fase 6 corrigió en
         // Android. Si alguien acá le agregara un `locale:` "para hacerlo bien", reintroduce
         // la divergencia y este test lo caza.
-        let vm = BenchmarkViewModel(core: FakeCoreFinanciero())
+        let vm = try makeViewModel()
         vm.iterationsChanged("10")
         await vm.run()
         #expect(vm.state.coreP50.contains("."))
@@ -76,8 +87,8 @@ struct BenchmarkViewModelTest {
     }
 
     @Test("el campo de iteraciones se corta en 6 dígitos, igual que Android")
-    func theIterationsFieldCapsAtSixDigits() {
-        let vm = BenchmarkViewModel(core: FakeCoreFinanciero())
+    func theIterationsFieldCapsAtSixDigits() throws {
+        let vm = try makeViewModel()
         vm.iterationsChanged("999999")
         #expect(vm.state.iterations == "999999")
         // El séptimo dígito no entra. Sin este tope, alguien tecleando 10000000 en la demo
@@ -88,7 +99,7 @@ struct BenchmarkViewModelTest {
     }
 
     @Test("una iteración de más de un segundo no se reporta como microsegundos sueltos")
-    func aSampleLongerThanASecondIsNotTruncated() async {
+    func aSampleLongerThanASecondIsNotTruncated() async throws {
         let core = FakeCoreFinanciero()
         // 1.05 s en una sola iteración. Es el único test lento de la suite, y existe porque
         // `Duration.components.attoseconds` solo trae el resto sub-segundo: leerlo sin el
@@ -98,10 +109,32 @@ struct BenchmarkViewModelTest {
             Thread.sleep(forTimeInterval: 1.05)
             return "0.3"
         }
-        let vm = BenchmarkViewModel(core: core)
+        let vm = try makeViewModel(core)
         vm.iterationsChanged("1")
         await vm.run()
         let micros = Int(vm.state.coreP50.split(separator: ".").first ?? "") ?? 0
         #expect(micros >= 1_000_000)
     }
+
+    @Test("un core roto muestra el error en vez de números rápidos y plausibles")
+    func aBrokenBridgeShowsTheErrorAndNotANumber() async throws {
+        // `measure` mide `try?`, así que sin una llamada de prueba fuera del bucle un puente
+        // roto se cronometraría como el tiempo de lanzar la excepción: la pantalla mostraría
+        // números **más rápidos que los reales** y nadie se enteraría. Es la pantalla donde
+        // menos conviene que eso pase, porque sus números se citan.
+        let core = FakeCoreFinanciero()
+        core.addResult = { _, _ in throw DomainError.InvalidAmount(detail: "puente roto") }
+        let vm = try makeViewModel(core)
+
+        await vm.run()
+
+        #expect(vm.state.error != nil)
+        #expect(vm.state.error != "")
+        // Y las medidas no quedan con un número de mentira.
+        #expect(vm.state.coreP50 == "—")
+        #expect(vm.state.coreP95 == "—")
+        #expect(vm.state.isRunning == false)
+    }
+
+    private final class BundleToken {}
 }

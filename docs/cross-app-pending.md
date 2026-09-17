@@ -141,23 +141,32 @@ cada ViewModel tiene su propio `catch`; en React Native y Angular, en `userMessa
 > un solo test, y las dos apps la importan del barrel. Android e iOS mantienen su propia versión
 > porque son otro lenguaje — lo que comparten es el **texto**, normativo en `docs/ui-spec.md`.
 
-## 4. Divergencias de paridad todavía abiertas
+## 4. ~~Divergencias de paridad~~ — CERRADAS
 
 `docs/ui-spec.md` es normativo para las cuatro apps y cambiar un texto obliga a cambiarlo en las
-cuatro. Estas quedan abiertas después del bloque 1:
+cuatro. No queda ninguna abierta.
 
-1. **El subtítulo de la pantalla de Tarjeta se autolista.** `docs/ui-spec.md:195` está escrito
-   desde la perspectiva de Android, así que en iOS el texto dice «el hex que produjo la app de
-   iOS, React Native o Angular» **estando en iOS**.
-2. ~~**Con cero iteraciones, iOS sigue mudo.**~~ **Cerrada.** Las cuatro apps explican ahora por
-   qué no pasó nada, con el mismo texto —`Ingresa un número de iteraciones mayor que cero.`—, que
-   `docs/ui-spec.md` volvió normativo.
-3. **Un fallo al descifrar muestra «No se pudo cifrar…».** Esto ya **no** vale desde la v2.4.0 del
-   contrato, que separó `Descifrado` de `Cifrado` con mensaje propio. Queda listado para que nadie
-   lo reabra: está cerrado.
+1. **El subtítulo del bloque de pegado.** Cerrado, y el diagnóstico original se quedaba corto.
+   Decía que el texto «se autolista en iOS» porque el wireframe estaba escrito desde la
+   perspectiva de Android. El primer arreglo hizo que **cada app listara a las otras tres desde su
+   propio punto de vista**, lo cual es correcto app por app y **peor en conjunto**: las cuatro
+   mostraban cuatro strings distintos en la pantalla que existe justamente para ponerlas lado a
+   lado. Ahora las cuatro dicen lo mismo y no nombran plataformas:
 
-Cerradas por el bloque 1: el campo `Hex cifrado` de Android, que aceptaba mayúsculas contra su
-propia spec; y el silencio de Android con cero iteraciones.
+   `Pega aquí el hex que produjo cualquiera de las otras apps. Sale el mismo número, porque las cuatro usan el mismo core.`
+
+   De paso iOS recupera la segunda frase, que había perdido en el arreglo anterior.
+2. ~~**Con cero iteraciones, iOS sigue mudo.**~~ Cerrada: las cuatro explican por qué no pasó
+   nada, con el mismo texto.
+3. ~~**Un fallo al descifrar muestra «No se pudo cifrar…».**~~ Cerrada desde la v2.4.0 del
+   contrato, que separó `Descifrado` de `Cifrado` con mensaje propio.
+4. **El benchmark se tragaba los errores del core.** Aparecida al cerrar las anteriores: React
+   Native y Angular mostraban el error, iOS y Android lo descartaban y habrían mostrado números
+   rápidos y plausibles con el puente roto. Las cuatro se comportan igual ahora, con un test en
+   cada una de las dos que faltaban.
+
+Cerradas antes: el campo `Hex cifrado` de Android, que aceptaba mayúsculas contra su propia spec;
+y el silencio de Android con cero iteraciones.
 
 ## 5. Un `Record` de uniffi se REEMPLAZA, nunca se muta
 
@@ -181,4 +190,27 @@ falta:**
 - **iOS no.** Verificado en el generado: `public struct Account: Equatable, Hashable` con campos
   `var`. Son tipos de **valor**, así que mutar una propiedad produce una copia y la asignación al
   estado sí se observa. La regla igual vale como estilo, pero **no hace falta portar la guardia**.
-- **React Native y Angular** quedan por evaluar con el mismo criterio antes de portar nada.
+- **React Native y Angular: evaluadas, y el riesgo es real.** Los `Record` generados son objetos
+  planos de TypeScript, sin `readonly`, y en JavaScript son tipos de *referencia* igual que en
+  Kotlin: mutar `accounts[0].balance` y volver a guardar el mismo array no dispara nada, porque
+  React y los signals de Angular comparan con `Object.is`, ven la misma referencia y no vuelven a
+  renderizar.
+
+  **Pero no se portó el test de Android, porque en TypeScript hay algo mejor: el tipo.** El estado
+  declara las cuentas como `readonly Readonly<Account>[]` —un solo lugar en cada app— y con eso
+  **el intento de mutar no compila**. Es una guardia más fuerte que un test y no cuesta nada en
+  tiempo de ejecución. Verificado por mutación en las dos: `TS2540: Cannot assign to 'balance'
+  because it is a read-only property`.
+
+  La firma generada de `executeTransfer` pide un array mutable, así que las dos apps le pasan una
+  copia (`[...accounts]`) en la frontera. No es ceremonia: el core recibe la suya y el estado no
+  queda expuesto.
+
+**Resumen, para no volver a preguntarlo:**
+
+| App | Qué sostiene la regla |
+|---|---|
+| Android | Un test: `UniffiRecordsAreNotMutatedTest`, que deriva los campos del binding y falla nombrando archivo y línea. Kotlin no puede expresarlo en el tipo |
+| iOS | Nada, y no hace falta: los `Record` son `struct`, o sea tipos de **valor**. Mutar produce una copia y la asignación al estado sí se observa |
+| React Native | **El compilador**, vía `readonly` en el estado |
+| Angular | **El compilador**, vía `readonly` en el signal |

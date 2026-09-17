@@ -22,7 +22,7 @@ Dos suites, y la distinción importa: una corre en la JVM y la otra **sobre un d
 ```
 
 **Son cuatro suites y no dos desde la Fase 6**, cuando el borde FFI se mudó al módulo
-`:core-financiero`. Qué se debe ver — `BUILD SUCCESSFUL` y **35 tests de JVM, 0 failures**:
+`:core-financiero`. Qué se debe ver — `BUILD SUCCESSFUL` y **36 tests de JVM, 0 failures**:
 
 | Módulo | Clase | Tests |
 |---|---|---|
@@ -32,7 +32,7 @@ Dos suites, y la distinción importa: una corre en la JVM y la otra **sobre un d
 | `:app` | `ui.transfer.TransferViewModelTest` | 6 |
 | `:app` | `ui.card.CardViewModelTest` | 7 |
 | `:app` | `ui.benchmark.NativeBaselineTest` | 1 |
-| `:app` | `ui.benchmark.BenchmarkViewModelTest` | 5 |
+| `:app` | `ui.benchmark.BenchmarkViewModelTest` | 6 |
 | `:app` | `UniffiRecordsAreNotMutatedTest` | 2 |
 | **`:core-financiero`** | `adapter.ContractMessagesTest` | **4** |
 

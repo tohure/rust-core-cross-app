@@ -90,7 +90,7 @@ const HEX_FILTER = /^[0-9a-f]*$/;
 
     <app-section-divider title="Descifrar un hex de otra plataforma" />
     <p class="card-screen__hint">
-      Pega aquí el hex que produjo la app de Android, iOS o React Native. Sale el mismo número,
+      Pega aquí el hex que produjo cualquiera de las otras apps. Sale el mismo número,
       porque las cuatro usan el mismo core.
     </p>
     <app-labeled-field

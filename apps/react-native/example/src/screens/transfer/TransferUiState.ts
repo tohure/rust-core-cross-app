@@ -2,6 +2,20 @@ import type { Account } from '@banco/core-financiero';
 import { initialAccounts } from '../../contract/sources';
 
 /**
+ * `readonly` **no es estilo: es la guardia contra mutar un `Record` de uniffi en el lugar.**
+ *
+ * Los `Record` generados son objetos mutables, y en JavaScript son tipos de *referencia*. Si
+ * alguien hiciera `state.accounts[0].balance = "…"` y guardara el mismo array, React compara con
+ * `Object.is`, ve la misma referencia y **no vuelve a renderizar**: la pantalla queda mostrando
+ * el saldo viejo. Es un riesgo de corrección, no de rendimiento.
+ *
+ * Android tiene que cazarlo con un test (`UniffiRecordsAreNotMutatedTest`) porque Kotlin no puede
+ * expresarlo en el tipo. **Acá sí se puede, y por eso no hace falta portar aquel test**: con
+ * `readonly` el intento de mutar es un error de compilación, que es una guardia más fuerte y más
+ * barata. iOS no necesita ninguna de las dos: sus `Record` son `struct`, o sea tipos de valor.
+ * Ver docs/cross-app-pending.md.
+ */
+/**
  * Todos los montos son `String`. El estado es el último lugar donde alguien se tienta con un
  * número, y el estado **no calcula**: guarda lo que devolvió el core, tal cual.
  *
@@ -12,7 +26,7 @@ export type TransferUiState = {
   destination: string;
   amount: string;
   loading: boolean;
-  accounts: Account[];
+  readonly accounts: readonly Readonly<Account>[];
   itfFee: string;
   totalDebited: string;
   receipt: string;

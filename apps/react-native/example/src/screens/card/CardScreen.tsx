@@ -83,8 +83,8 @@ export function CardScreen() {
 
       <SectionDivider title="Descifrar un hex de otra plataforma" />
       <Text style={{ color: theme.muted, fontSize: 12 }}>
-        Pega aquí el hex que produjo la app de Android, iOS o Angular. Sale el
-        mismo número, porque las cuatro usan el mismo core.
+        Pega aquí el hex que produjo cualquiera de las otras apps. Sale el mismo
+        número, porque las cuatro usan el mismo core.
       </Text>
       <LabeledField
         label="Hex cifrado"

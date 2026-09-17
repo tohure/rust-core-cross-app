@@ -11,28 +11,51 @@ demo; lo que sí la toca está marcado.
 > palabras en tres archivos, y corregirlo en uno dejaba mintiendo a los otros dos.
 
 
-## `ng serve` no funciona, y no es de esta fase — **toca la demo**
+## ~~`ng serve` no funciona~~ — ARREGLADO
 
-El optimizador de dependencias de Vite se rompe con `@banco/contract`, que es un paquete del
-workspace consumido por código de producción (`core/user-message.ts`). Es **preexistente**: se
-detectó en la Tarea 12, que fue la primera en que una pantalla importó `userMessage`, no la que
-lo introdujo.
+**Funciona.** `pnpm exec ng serve` levanta la app en `http://localhost:4200/` con recarga
+automática, igual que en cualquier proyecto Angular.
 
-Workaround, y es el que se usó en **todas** las verificaciones visuales de la fase:
+El diagnóstico anterior —«el optimizador de dependencias de Vite se rompe con
+`@banco/contract`»— era **el primero de dos fallos encadenados**, y por eso parecía irreparable:
+arreglado ése, aparecía el siguiente.
 
-```bash
-cd apps/web-angular
-pnpm exec ng build --configuration development
-cd dist/web-angular/browser && python3 -m http.server 4311
+**Fallo 1: `@banco/contract` se consume como fuente TypeScript.** Su `exports` apunta a
+`./src/index.ts`, y ese archivo reexporta con rutas sin extensión (`from './messageFor'`). El
+pre-bundler de Vite es esbuild sin la resolución de TypeScript, así que no las encuentra:
+
+```
+✘ [ERROR] Could not resolve "./messageFor"
+    ../../packages/contract/src/index.ts:9:27
 ```
 
-**Ningún gate depende de `ng serve`**: los 102 tests corren en jsdom y la verificación en
-navegador se hizo por CDP contra ese servidor estático. Pero quien levante la app en vivo lo va a
-pisar, así que el runbook usa el servidor estático y no `ng serve`.
+Se resuelve **excluyéndolo del pre-bundling**, en `angular.json`:
 
-No se arregló porque el CONTEXT es explícito en no quemar tiempo de demo en el build, y el
-workaround es de dos líneas. Si alguien lo ataca: mirar `optimizeDeps.exclude` para los paquetes
-del workspace.
+```json
+"serve": { "configurations": { "development": {
+  "prebundle": { "exclude": ["@banco/contract"] }
+} } }
+```
+
+**Fallo 2, el que estaba tapado: `@banco/core-financiero-wasm` no era autocontenido.** Su `build`
+marcaba `@ubjs/wasm` y `@ubjs/core` como externos, así que su `dist/index.js` salía con imports
+desnudos. `ng build` los resuelve porque esbuild parte de la ubicación real del archivo y llega al
+`node_modules/` del propio paquete; **el dev-server no**, porque Vite los resuelve desde la raíz
+de la app Angular, donde pnpm no los hoistea:
+
+```
+Failed to resolve import "@ubjs/wasm/core" from ".angular/vite-root/web-angular/main.js"
+```
+
+Se resuelve sacando los dos `--external` del build de ese paquete. **Es lo correcto
+independientemente de Vite**: ese paquete no se publica, lo consume sólo esta app, y un artefacto
+de navegador debería traer su runtime adentro. El `dist/index.js` pasó de 106 KB con imports
+desnudos a 106 KB autocontenido — el `.wasm` viaja aparte y no cambió.
+
+**Lo que se probó, no deducido:** `ng serve` levanta, la app renderiza las cuatro pantallas y el
+pie muestra `1.0.0+959025f`, o sea que el WASM cruzó de verdad. Los 102 tests siguen verdes, el
+build de producción también, y los 129 de React Native —que consumen el mismo paquete WASM por
+otro camino— tampoco se movieron.
 
 ## El benchmark corre en el hilo principal, y no puede no hacerlo
 

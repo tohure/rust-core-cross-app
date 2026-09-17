@@ -6,7 +6,7 @@ otras tres apps de la POC (Android, React Native, Angular) consumen **sin reescr
 
 Lo que esta app hace con los datos es pedirlos y mostrarlos.
 
-**Estado:** funcional. Las cuatro pantallas andando y **53 tests en verde**, en simulador y
+**Estado:** funcional. Las cuatro pantallas andando y **54 tests en verde**, en simulador y
 **también sobre hardware real** — o sea que el slice `aarch64-apple-ios`, el que se embarca,
 está probado y no solo compilado. El benchmark está medido en un **iPhone 12 con iOS 18**, en
 Release: el piso del cruce cuesta **0,062 µs** contra los **47,1 µs** de Android; ver
@@ -131,7 +131,7 @@ xcodebuild test -project ios-rust-test.xcodeproj -scheme ios-rust-test \
   -destination 'platform=iOS Simulator,name=iPhone 17 Pro'
 ```
 
-Qué se debe ver: `** TEST SUCCEEDED **` y `Test run with 53 tests in 13 suites passed`.
+Qué se debe ver: `** TEST SUCCEEDED **` y `Test run with 54 tests in 13 suites passed`.
 
 Y sobre un aparato conectado, que es lo que ejercita el slice que de verdad se embarca:
 

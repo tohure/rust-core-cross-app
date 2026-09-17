@@ -83,25 +83,33 @@ Los dos se cerraron, cada uno por su lado:
   con el **contrato v2.4.0**, que separó la variante `Descifrado` de `Cifrado` y le dio mensaje
   propio. Ya no hay un solo texto usado en las dos direcciones.
 
-### El texto rechazado por un filtro puede quedar visible en el campo
+### ~~El texto rechazado por un filtro puede quedar visible en el campo~~ — ARREGLADO
 
-Los cuatro filtros de texto —monto, número de tarjeta, hex pegado, iteraciones— hacen `return`
-sin escribir el estado cuando el regex no matchea. Eso convierte el `set` del `Binding` en un
-no-op, `@Observable` no dispara invalidación, y **SwiftUI no tiene por qué revertir el texto
-que el `TextField` ya pintó**: la tecla rechazada puede quedar a la vista hasta que otro cambio
-fuerce a releer el binding.
+Los cuatro filtros —monto, número de tarjeta, hex pegado, iteraciones— hacían `return` sin
+escribir el estado cuando el regex no matcheaba. Eso convertía el `set` del `Binding` en un
+no-op: `@Observable` no invalidaba nada y **SwiftUI no tenía por qué revertir el texto que el
+`TextField` ya había pintado**.
 
-El estado es correcto en todos los casos —lo que viaja al core es el string filtrado—, así que
-es cosmético. Pero no lo cubre ningún test: los tests de ViewModel no pasan por un `TextField`.
-**Se verifica con un dedo, no con la suite**, y es lo primero que conviene tocar antes de una
-demo.
+Ahora los cuatro **escriben siempre**, reasignando el valor actual cuando rechazan. La mutación
+observada se dispara igual y la vista vuelve a leer el valor bueno. La semántica no cambió: se
+sigue rechazando la entrada entera, como en las otras tres apps.
 
-### El benchmark se traga los errores del core
+**Honestidad sobre la verificación:** esto sigue sin cubrirlo ningún test —los tests de ViewModel
+no pasan por un `TextField`— así que lo que se arregló es **el mecanismo que lo causaba**, no una
+reproducción observada. Verificarlo pide un dedo sobre la pantalla.
 
-`measure()` mide `_ = try? core.add(a: "0.1", b: "0.2")`. Si el puente estuviera roto, la
-pantalla mostraría números rápidos y plausibles —el tiempo que tarda en lanzar la excepción—
-en vez de un error. En la pantalla cuyos números se citan, eso es exactamente lo que no
-conviene. Se cierra con una llamada de prueba fuera del bucle antes de medir.
+### ~~El benchmark se traga los errores del core~~ — ARREGLADO
+
+`measure()` medía `_ = try? core.add(...)`: con el puente roto habría cronometrado el tiempo de
+lanzar la excepción y la pantalla habría mostrado **números rápidos y plausibles** en vez de un
+error. En la pantalla cuyos números se citan, eso es exactamente lo que no conviene.
+
+Ahora hay una llamada de prueba **fuera del bucle**, la única que no usa `try?`. Si falla, el
+estado vuelve a `—` y muestra el mensaje de usuario, sin medir nada.
+
+**Era una divergencia de las cuatro apps, no un defecto de iOS**: React Native y Angular ya
+mostraban el error; Android se lo tragaba igual que ésta, y se arregló en el mismo cambio. El
+test que lo fija es `aBrokenBridgeShowsTheErrorAndNotANumber`, en las dos.
 
 ### Detalles menores
 
