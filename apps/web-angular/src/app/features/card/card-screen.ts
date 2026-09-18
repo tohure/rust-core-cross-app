@@ -90,8 +90,8 @@ const HEX_FILTER = /^[0-9a-f]*$/;
 
     <app-section-divider title="Descifrar un hex de otra plataforma" />
     <p class="card-screen__hint">
-      Pega aquí el hex que produjo cualquiera de las otras apps. Sale el mismo número,
-      porque las cuatro usan el mismo core.
+      Pega aquí el hex que produjo cualquiera de las otras apps. Sale el mismo número, porque las
+      cuatro usan el mismo core.
     </p>
     <app-labeled-field
       #pastedHexField
