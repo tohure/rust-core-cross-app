@@ -529,6 +529,18 @@ los lleva. El propio archivo lo dice en un comentario.
 —el equipo de firma y el permiso para generar el perfil— y **no hace falta editar el `.pbxproj`**:
 van como argumentos.
 
+> **Antes, dos pasos que en un clone limpio no están hechos.** Si se instaló con
+> `pnpm install --ignore-scripts` —que es lo que indica el Paso 0 del README raíz—, el codegen
+> de React Native nunca corrió y `ios/generated/` no existe. El build falla con
+> `fatal error: 'CoreFinancieroSpec.h' file not found`, que no nombra la causa. Y el
+> `pod install` que hizo `ubrn:ios` sucedió **antes** de que ese directorio existiera, así que
+> tampoco lo integró al proyecto de Xcode: hay que repetirlo.
+>
+> ```bash
+> cd apps/react-native && pnpm exec bob build --target codegen
+> cd example/ios && pod install
+> ```
+
 ```bash
 cd apps/react-native/example/ios
 xcodebuild -workspace CoreFinancieroExample.xcworkspace -scheme CoreFinancieroExample \

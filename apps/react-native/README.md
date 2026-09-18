@@ -37,43 +37,52 @@ No es una app suelta: es una **librería más un `example/`**, que es la forma q
 app que lo consume, y es donde viven las pantallas.
 
 ```mermaid
-flowchart TD
-    subgraph core["rust-core/ — el único lugar con lógica de negocio"]
-        domain["crates/domain<br/>Rust puro · 7 módulos"]
-        ffi["crates/ffi · core_financiero<br/>fachada uniffi · 9 funciones"]
-        domain --> ffi
+flowchart LR
+    subgraph core["rust-core"]
+        domain["crates/domain"] --> ffi["crates/ffi"]
     end
 
-    ffi -->|"pnpm ubrn:android / ubrn:ios"| jsi["src/generated/ + cpp/<br/>turbo module JSI"]
-    ffi -->|"pnpm napi:generate"| napi["src/generated-napi/<br/>cdylib + N-API"]
-    ffi -->|"pnpm wasm:generate"| wasmgen["packages/core-financiero-wasm/generated/<br/>.wasm + bindings, @ts-nocheck"]
+    ffi -->|"pnpm ubrn:android · ubrn:ios"| jsi["turbo module JSI"]
+    ffi -->|"pnpm napi:generate"| napi["bindings N-API"]
+    ffi -->|"pnpm wasm:generate"| wasm["packages/<br/>core-financiero-wasm"]
 
-    jsi --> bindings["src/bindings.tsx<br/>generado, no se edita"]
-    bindings --> index["src/index.tsx<br/>superficie pública<br/>reexporta bindings + contractName"]
-    index --> adapter["example/src/adapter/core.ts<br/>reexporta, no traduce"]
-    adapter --> hooks["useArithmetic · useTransfer<br/>useCard · useBenchmark"]
-    hooks --> screens["cuatro pantallas<br/>+ pie coreVersion()"]
+    jsi --> index["src/index.tsx"]
+    index --> ejemplo["example/<br/>hooks y pantallas"]
+    napi --> tnapi["contract.napi.test.ts"]
+    wasm --> twasm["contract.wasm.test.ts"]
+    wasm --> angular["apps/web-angular"]
 
-    wasmgen --> wasmfacade["packages/core-financiero-wasm/src/index.ts<br/>fachada tipada · nueve funciones + initCore"]
-
-    napi --> tnapi["__tests__/contract.napi.test.ts<br/>31/31"]
-    wasmfacade --> twasm["__tests__/contract.wasm.test.ts<br/>31/31"]
-    wasmfacade -.->|"esbuild --bundle · dist/index.js"| angular["apps/web-angular"]
-
-    contratoPkg[("packages/contract<br/>CONTRACT_NAMES · contractName<br/>messageFor · userMessage")]
-    contratoPkg -->|"export { contractName }"| index
-    contratoPkg -->|"export { messageFor }"| fuentes
-    contratoPkg -->|"export { userMessage }"| hooks
-    bindings -.->|"import type DomainError"| guard["src/guard.ts<br/>guardia 4 · sólo tipos, nada en runtime"]
-    contratoPkg -.->|"import type ContractTag"| guard
-    guard -.->|"DomainError['tag'] ≡ ContractTag"| index
-
-    contrato[("contracts/<br/>cases.json · messages.es.json")]
-    contrato --> fuentes["example/src/contract/sources.ts"]
-    fuentes --> hooks
-    contrato -.->|"verifica 31 casos"| tnapi
-    contrato -.->|"verifica 31 casos"| twasm
+    pkg["packages/contract"] --> index
+    pkg --> ejemplo
+    contrato[("contracts/")] --> ejemplo
+    contrato -.-> tnapi
+    contrato -.-> twasm
 ```
+
+**Leyenda**
+
+Esta app es la única que produce **tres salidas** del mismo crate, y el diagrama existe
+sobre todo para mostrarlas.
+
+| Caja | Qué es |
+|---|---|
+| `crates/domain` · `crates/ffi` | El núcleo en Rust: la lógica pura y la fachada uniffi de nueve funciones. |
+| `turbo module JSI` | La salida que usa la app. **JSI** es *JavaScript Interface*, la capa que deja a JavaScript llamar funciones de C++ directamente, sin serializar los datos como JSON por un puente asíncrono. |
+| `bindings N-API` | La salida que usa el test de contrato desde **Node**. *Node-API* es la interfaz con que Node carga librerías nativas. Existe porque **ninguna prueba automatizada cruza JSI**: Jest mockea los nativos, así que el contrato se verifica por este camino. |
+| `packages/core-financiero-wasm` | La tercera salida: el `.wasm` más su fachada tipada. **De esta rama depende la app Angular**, que no consume nada más de este proyecto. |
+| `src/index.tsx` | La superficie pública del paquete de React Native. |
+| `packages/contract` | El mapeo de variante de error a nombre del contrato y a texto de usuario. **No cruza el FFI**, así que vive en un paquete neutral que comparten esta app, el paquete WASM y Angular. |
+| `example/` | La app de demostración: los cuatro hooks, las cuatro pantallas y el pie con `coreVersion()`. |
+| `contracts/` | Los dos JSON compartidos, en la raíz del repo. |
+
+| Línea | Significa |
+|---|---|
+| **sólida** | El artefacto fluye: se produce con el comando de la etiqueta, o se consume. |
+| **punteada** | Esa suite corre el contrato y compara por igualdad exacta de strings, 31/31 por cada camino. |
+
+**`FfiCostProbe` no está en el diagrama**: es una sonda de medición con overlay en pantalla,
+apagada con `PROBE_ON = false`, no una pieza de la arquitectura.
+
 
 ### Qué es cada pieza y por qué existe
 
@@ -105,30 +114,61 @@ Ya instalado y verificado en esta máquina: Node 22.16, pnpm, Java 21 LTS, Xcode
 30.0.16248370, Rust 1.98.1 con los targets de Android e iOS.
 
 ```bash
+# desde la raíz del repo — en un clone limpio el flag NO es opcional
+pnpm install --ignore-scripts
+
 cd apps/react-native
-pnpm install
 pnpm exec ubrn --help          # prueba que el CLI compiló (este build no tiene --version)
 ```
 
-Los artefactos nativos **no están en git**. Hay que generarlos al menos una vez:
+**El `--ignore-scripts` no es un detalle, y la causa está en esta misma app:** el
+`prepare: bob build` de este `package.json` se dispara en cualquier `pnpm install` del
+workspace e intenta generar los `.d.ts` desde `src/generated/`, que todavía no existe. El
+porqué completo y qué se pierde al saltearlo están en
+[el Paso 0 del README raíz](../../README.md#paso-0-dejar-el-repo-listo).
+
+Los artefactos generados **no están en git**, así que hay que producirlos al menos una vez.
+Son dos grupos, y **hacen falta cosas distintas según lo que se quiera**: correr los tests no
+pide lo mismo que instalar la app en un aparato.
+
+**Para `pnpm test`** alcanza con esto, y **no hace falta ningún toolchain móvil**:
+
+```bash
+pnpm napi:generate             # el .dylib del host + los bindings N-API
+pnpm wasm:generate             # el .wasm y su fachada; ~40 s
+```
+
+**`napi:generate` es el que más fácil se olvida.** Sin él la suite da **90 de 129 con 3 suites
+rotas**, y ninguno de los errores dice qué falta: `Cannot find module
+'../src/generated-napi/core_financiero'`. Cae también `BancoApp.test.tsx`, y **por el mismo
+módulo**: `jest.config.js` remapea `./bindings` a `src/generated-napi/core_financiero`, así que
+ninguna suite toca lo que producen `ubrn:android`/`ubrn:ios`.
+
+Sin `wasm:generate` faltan otras dos suites —`facade.test.ts` y `contract.wasm.test.ts`— y la
+suite da **92**. Con los dos comandos, **129 de 129 en verde desde un clone limpio**.
+
+**Para correr la app en un aparato** hacen falta además el toolchain nativo y el codegen:
 
 ```bash
 export ANDROID_NDK_HOME="$HOME/Library/Android/sdk/ndk/30.0.16248370"
-pnpm ubrn:android              # ~1:01 — 3 ABIs + bindings, y deja src/bindings.tsx
-pnpm ubrn:ios                  # ~12 s con cargo cacheado; incluye pod install
-pnpm napi:generate             # el .dylib del host + los bindings N-API
+pnpm ubrn:android              # 3 ABIs + bindings, y deja src/bindings.tsx
+pnpm ubrn:ios                  # incluye pod install
+pnpm exec bob build --target codegen   # android/generated/ e ios/generated/
 ```
 
-**`napi:generate` es obligatorio para `pnpm test`, y es el que más fácil se olvida.** Sin él la
-suite da **90 de 129 con 3 suites rotas**, no un error que diga qué falta:
-`Cannot find module '../src/generated-napi/core_financiero'` en las dos de N-API, y
-`BancoApp.test.tsx` cae por `src/bindings`, que sale de `ubrn:android` o `ubrn:ios`.
+**Los tiempos dependen de la caché de cargo, y la diferencia es grande.** Con cargo tibio,
+`ubrn:android` tarda ~1:01 y `ubrn:ios` ~12 s. Desde un clone limpio, que es el caso de quien
+lee esto por primera vez, fueron **3:21 y 3:05** — el primero compila el propio `ubrn` más los
+tres targets desde cero, y el segundo descarga ~55 MB de tarballs de Hermes.
 
-O sea que **los 129 tests de esta app necesitan el toolchain nativo**: `ubrn:android` pide el
-NDK y `ubrn:ios` pide Xcode. Con uno de los dos alcanza para `src/bindings.tsx`. Es la diferencia
-con Angular, que sólo necesita `wasm:generate` y ningún toolchain móvil.
+**El paso de codegen no es opcional y no lo hace `ubrn`.** Lo hace `bob`, dentro del `prepare`
+que el `pnpm install --ignore-scripts` del Paso 0 se saltea; ver
+[el Paso 0 del README raíz](../../README.md#paso-0-dejar-el-repo-listo). Sin él el build de
+Android muere con `Unresolved reference 'NativeCoreFinancieroSpec'` y el de iOS con
+`fatal error: 'CoreFinancieroSpec.h' file not found`, y ninguno de los dos nombra la causa.
 
-Con los tres comandos, la suite da **129 de 129 en verde** desde un clone limpio.
+En iOS hay que **repetir `pod install`** después del codegen: el que corre `ubrn:ios` sucede
+antes de que `ios/generated/` exista, así que no lo integra al proyecto de Xcode.
 
 ### Dónde se cablea, y qué **no** hay que editar
 
@@ -173,6 +213,42 @@ pnpm exec react-native run-ios --no-packager --simulator "iPhone 17 Pro"   # ~20
 
 **Metro muere con la terminal que lo lanzó.** Si la app arranca en pantalla roja diciendo
 `loadJSBundleFromAssets`, no es un fallo del build: es que no hay Metro.
+
+### En Android 17 la app pide permiso de red local al arrancar, y no es esta app
+
+En un aparato con **Android 17 (API 37)** el build de debug muestra un diálogo pidiendo acceso
+a dispositivos de la red local. **No lo pide esta POC: lo pide React Native**, y sólo para
+alcanzar a Metro.
+
+El permiso es `android.permission.ACCESS_LOCAL_NETWORK`, y está declarado en el manifiesto del
+*source set* de **debug del propio framework** —`ReactAndroid/src/debug/AndroidManifest.xml`—,
+no en el de esta app. Quien dispara el diálogo es `LocalNetworkPermissionUtil` de
+`com.facebook.react.devsupport`. Android 17 estrenó el control de acceso a la red local; en
+versiones anteriores llegar a una IP de la LAN no requería pedir nada, y por eso el diálogo es
+nuevo aunque el código no haya cambiado.
+
+**En release no aparece**, y conviene saberlo antes de la demo. Los manifiestos fusionados de
+esta app, comparados:
+
+| Build | Permisos |
+|---|---|
+| `debug` | `INTERNET`, `ACCESS_LOCAL_NETWORK`, `SYSTEM_ALERT_WINDOW` y el receptor dinámico |
+| `release` | `INTERNET` y el receptor dinámico, nada más |
+
+`ACCESS_LOCAL_NETWORK` y `SYSTEM_ALERT_WINDOW` —el del overlay de las pantallas rojas— existen
+**sólo en debug**. El APK de la demo no los lleva y no pregunta nada.
+
+Se comprueba sin creerle a este texto, después de un build:
+
+```bash
+# desde apps/react-native/example/android/, tras ./gradlew assembleDebug assembleRelease
+grep -o 'uses-permission[^/]*' \
+  app/build/intermediates/merged_manifest/release/processReleaseMainManifest/AndroidManifest.xml
+```
+
+**Lo único que esta app declara a mano es `INTERNET`**, en
+`example/android/app/src/main/AndroidManifest.xml`, y viene de la plantilla de React Native: la
+POC no hace red. La app nativa de Android, en comparación, no declara **ningún** permiso.
 
 Para leer la pantalla de Android sin mirarla —útil por ssh o en CI—:
 
@@ -327,6 +403,18 @@ permite, no algo que esta POC no hizo.
   generado está mal, se corrige en `rust-core` y se regenera.
 
 ---
+
+## Glosario
+
+| Término | Qué es |
+|---|---|
+| **Fabric** | El renderer nuevo de React Native. Aplana en el árbol nativo las vistas que sólo aportan layout — por eso los contenedores compartidos llevan `collapsable={false}`: sin eso, insertar un bloque descoloca las filas de abajo. |
+| **Hermes** | El motor de JavaScript que React Native embarca, y el que carga el turbo module. |
+| **Turbo Module** | Un módulo nativo de la arquitectura nueva: se registra con Hermes y se llama por JSI, sin el puente asíncrono serializado de la arquitectura vieja. |
+| **Metro** | El empaquetador de JavaScript de React Native. Corre en su propia terminal y le sirve el bundle al dispositivo; después de reconstruir lo nativo hay que arrancarlo con `--reset-cache`. |
+| **`ubrn`** | *uniffi-bindgen-react-native*: el CLI que genera las tres salidas de este proyecto —turbo module, N-API y WASM— desde el mismo crate de Rust. |
+| **`wasm2`** | El *flavour* de `ubrn` que compila el crate a WebAssembly. Necesita su propio `--config` o pisa los bindings de JSI. |
+| **`bob`** | *react-native-builder-bob*, el empaquetador de librerías de React Native. Es el `prepare` de este `package.json`, y el que obliga al `--ignore-scripts` en un clone limpio. |
 
 ## Dónde está el resto
 
