@@ -3,7 +3,8 @@
 Núcleo de dominio de la POC. Es el único lugar donde vive lógica de negocio: las cuatro
 apps lo consumen sin reescribirlo.
 
-**Estado: Fase 1 completada.** 71 tests en verde —50 unitarios de `domain`, 6 de `proptest`,
+**Estado: cerrado.** El crate se terminó en la Fase 1; la Fase 6 lo actualizó al contrato
+vigente. Hoy: 71 tests en verde —50 unitarios de `domain`, 6 de `proptest`,
 3 del lib de `ffi` y 12 del test de contrato— contra `contracts/cases.json` v2.4.0, 31 casos.
 
 Todos los comandos de esta documentación —los de [BUILD.md](BUILD.md) y los de
@@ -15,16 +16,28 @@ salida que sigue a cada uno es la que devolvieron. Ninguno está deducido del
 ## Cómo está organizado
 
 ```mermaid
-graph TD
-    ffi["<b>crates/ffi</b> · paquete core_financiero<br/>uniffi::export · cdylib + staticlib + lib<br/>único crate exportado"]
-    domain["<b>crates/domain</b><br/>Rust puro · NO declara uniffi<br/>error · arithmetic · itf · transfer<br/>cci · card · crypto"]
-    contrato[("contracts/cases.json<br/>v2.4.0 · 31 casos")]
-    bindings["target/release/libcore_financiero.dylib<br/>+ bindings Kotlin / Swift"]
+flowchart LR
+    subgraph ws["rust-core"]
+        domain["crates/domain"] --> ffi["crates/ffi"]
+    end
 
-    ffi --> domain
-    ffi -. "tests/contract.rs lee" .-> contrato
-    ffi ==> bindings
+    ffi --> artefactos["libcore_financiero<br/>+ bindings"]
+    ffi -.-> contrato[("contracts/cases.json")]
 ```
+
+**Leyenda**
+
+| Caja | Qué es |
+|---|---|
+| **crates/domain** | El cálculo puro, siete módulos: `arithmetic`, `card`, `cci`, `crypto`, `error`, `itf`, `transfer`. No declara uniffi en su `Cargo.toml`. |
+| **crates/ffi** | Paquete `core_financiero`. La fachada: las nueve funciones marcadas con `#[uniffi::export]`. Único crate que se exporta, y se compila en tres formatos — `cdylib` (librería dinámica, la que carga Android), `staticlib` (el `.a` que iOS enlaza dentro del binario) y `lib` (para que los tests de Rust lo usen como un crate normal). |
+| **libcore_financiero + bindings** | Lo que sale hacia las apps: el binario por plataforma más el código Kotlin, Swift y TypeScript que genera uniffi. Todo eso es **artefacto generado**: nunca se edita a mano. |
+| **contracts/cases.json** | Los 31 casos del contrato, v2.4.0. `tests/contract.rs` los lee y compara string contra string. |
+
+| Línea | Significa |
+|---|---|
+| **sólida** | El código fluye en esa dirección: `ffi` depende de `domain`, y de `ffi` salen los artefactos. |
+| **punteada** | Se verifica contra el contrato. |
 
 Son dos crates y no más porque la POC argumenta **una** frontera: la lógica de negocio no
 conoce el FFI. Y no es una convención de estilo — `crates/domain` no declara `uniffi` en su
@@ -79,7 +92,7 @@ El cuadro completo, con el piso del cruce y la descomposición de qué parte es 
 Ese último punto explica una regla que parece caprichosa: **`panic = "abort"` está prohibido**.
 uniffi envuelve cada llamada en un `catch_unwind`, así que un pánico de Rust vuelve como error
 del FFI en vez de matar la app. Con `abort` esa red se desactiva — y en wasm el target la
-**impone**, así que la app Angular no va a tenerla.
+**impone**, así que la app Angular no la tiene.
 
 **Y por qué todo es `String` en la frontera.** Cuanto más simple el tipo que cruza, menos puede
 romperse en la traducción. `Decimal` no existe en Kotlin, ni en Swift, ni en JavaScript;
@@ -201,8 +214,7 @@ raíz. Las dos que más fácil se rompen:
 - **`panic = "unwind"`, nunca `abort`.** Con `abort` se desactiva el `catch_unwind` de
   uniffi y cualquier pánico de Rust mata la app en vez de volver como error del FFI.
   **Con una salvedad que no es opcional:** `wasm32-unknown-unknown` impone `abort` desde el
-  target —el wasm base no tiene unwinding— así que en la Fase 5 la app Angular **no va a
-  tener esa red**. Se verifica sin instalar nada:
+  target —el wasm base no tiene unwinding— así que la app Angular **no tiene esa red**. Se verifica sin instalar nada:
 
   ```bash
   rustc --print cfg --target wasm32-unknown-unknown | grep panic   # panic="abort"
@@ -217,5 +229,5 @@ raíz. Las dos que más fácil se rompen:
   a ser el mecanismo de seguridad.
 
 Los comandos de exportación por plataforma (cargo-ndk, `xcodebuild -create-xcframework`,
-`ubrn build android|ios|web`) están en [CONTEXT.md](CONTEXT.md); no se duplican aquí porque
+`ubrn build android|ios|wasm2`) están en [CONTEXT.md](CONTEXT.md); no se duplican aquí porque
 se desincronizan.

@@ -312,7 +312,11 @@ xcodebuild -create-xcframework \
 # React Native y web: desde apps/react-native, vía ubrn
 ubrn build android --and-generate
 ubrn build ios --and-generate
-ubrn build web
+
+# El flavour del WASM es `wasm2`, no `web`, y el `--config` NO es opcional: sin él `ubrn`
+# escribe los bindings de wasm2 sobre los de JSI y deja la app de React Native rota.
+# Envuelto en el script `wasm:generate` de apps/react-native, que además copia el artefacto.
+ubrn build wasm2 --release --and-generate --config ubrn.wasm.yaml
 ```
 
 Requisito: NDK r27 o superior. Con NDK anterior la librería compila pero
