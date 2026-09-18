@@ -26,43 +26,51 @@ Release: el piso del cruce cuesta **0,062 µs** contra los **47,1 µs** de Andro
 ## Cómo está armada
 
 ```mermaid
-flowchart TD
-    subgraph core["rust-core/ — el único lugar con lógica de negocio"]
-        domain["crates/domain<br/>Rust puro · 7 módulos"]
-        ffi["crates/ffi<br/>fachada uniffi · 9 funciones"]
-        domain --> ffi
+flowchart LR
+    subgraph core["rust-core"]
+        domain["crates/domain"] --> ffi["crates/ffi"]
     end
 
-    ffi -->|"cargo build --target aarch64-apple-ios"| dev["ios-arm64<br/>libcore_financiero.a"]
-    ffi -->|"--target aarch64-apple-ios-sim"| sim["ios-arm64-simulator<br/>libcore_financiero.a"]
-    ffi -.->|"uniffi-bindgen swift"| gen["core_financiero.swift<br/>generado, no se edita"]
+    ffi -->|"cargo build · 2 targets"| slices["libcore_financiero.a"]
+    ffi -->|"uniffi-bindgen swift"| gen["core_financiero.swift"]
+    slices -->|"xcodebuild -create-xcframework"| xcf["CoreFinanciero.xcframework"]
 
-    dev --> xcf["CoreFinanciero.xcframework<br/>enlazado ESTÁTICAMENTE"]
-    sim --> xcf
-
-    subgraph kit["target CoreFinancieroKit — framework estático"]
-        gen2["Generated/core_financiero.swift"]
-        adapter["Adapter/CoreFinanciero<br/>protocolo · 9 funciones"]
-        source["Contract/<br/>ContractSource · MessageSource"]
-        gen2 --> adapter
+    subgraph kit["CoreFinancieroKit — framework estático"]
+        adapter["Adapter/"]
+        source["Contract/"]
     end
 
-    subgraph app["target ios-rust-test — presentación"]
-        vm["UI/*/XxxViewModel<br/>@MainActor @Observable"]
-        screens["UI/*/XxxView<br/>SwiftUI"]
-        tabs["UI/Navigation/BancoApp<br/>TabView · 4 pestañas + pie"]
-        vm --> screens --> tabs
+    subgraph app["ios-rust-test — presentación"]
+        vm["ViewModels"] --> screens["Views"]
     end
 
-    xcf --> kit
-    gen --> gen2
+    xcf --> adapter
+    gen --> adapter
+    contrato[("contracts/")] -->|"Run Script"| source
     adapter -->|"import CoreFinancieroKit"| vm
     source --> vm
-
-    contrato[("contracts/<br/>cases.json · messages.es.json")]
-    contrato -->|"Run Script copia al bundle de la APP"| source
-    contrato -.->|"verifica 31 casos"| adapter
 ```
+
+**Leyenda**
+
+| Caja | Qué es |
+|---|---|
+| `crates/domain` · `crates/ffi` | El núcleo en Rust: la lógica pura y la fachada uniffi de nueve funciones. |
+| `libcore_financiero.a` | El núcleo compilado como librería **estática**, y son **dos**: un *slice* para `aarch64-apple-ios` (el aparato) y otro para `-sim` (el simulador). Son binarios distintos, y de ahí sale el pendiente de hardware. |
+| `core_financiero.swift` | Los **bindings**: el Swift autogenerado que expone las nueve funciones. No se edita. |
+| `CoreFinanciero.xcframework` | El formato con que Xcode empaqueta los dos slices en un solo paquete y elige el que corresponde al compilar. |
+| `CoreFinancieroKit` | El target que se lleva todo el borde FFI. **Estático y no dinámico a propósito**: el `.a` queda dentro del binario de la app, así que no hay puente en ejecución — por eso el cruce cuesta 0,062 µs. Uno dinámico metería indirección de `dyld` en cada llamada. |
+| `Adapter/` · `Contract/` | La única superficie que llama al núcleo, y el código que lee los dos JSON del bundle. |
+| `ViewModels` · `Views` | Presentación en SwiftUI. Ningún cálculo, y todos los montos son `String`. |
+
+| Línea | Significa |
+|---|---|
+| **sólida** | El artefacto fluye: se produce con el comando de la etiqueta, o se consume. |
+| **caja dentro de caja** | Pertenece a ese target de Xcode. |
+
+**`FfiCostProbe` no está en el diagrama**: no es arquitectura sino una sonda de medición,
+apagada salvo con `PROBE=1`. Vive en [«Correr los tests»](#correr-los-tests).
+
 
 Nota clave del diagrama: la Run Script que copia los contratos al bundle de test sigue en el
 target de la **app**, no en el kit, porque un framework estático no embarca recursos. Es una
@@ -116,10 +124,13 @@ compilar el núcleo Rust primero — eso pide `rustup` y los dos targets de iOS,
 Para saber en cuál de los dos casos se está:
 
 ```bash
-ls CoreFinanciero.xcframework/*/libcore_financiero.a
+# desde apps/ios/ — con find y no con `ls …/*/…`: ante un comodín sin coincidencias
+# cada shell hace una cosa distinta, y alguno ni siquiera llega a ejecutar el ls
+find CoreFinanciero.xcframework -name libcore_financiero.a 2>/dev/null
 ```
 
-Si lista **dos** archivos —`ios-arm64` y `ios-arm64-simulator`— se puede correr ya. Si no, ir a
+Debe imprimir los dos slices, `ios-arm64` y `ios-arm64-simulator`. **Si no imprime nada, o
+falta uno**, hay que generar el núcleo: ir a
 [BUILD.md](BUILD.md).
 
 ### Dónde se cablea, y qué **no** hay que editar
@@ -154,7 +165,7 @@ xcodebuild build -project ios-rust-test.xcodeproj -scheme ios-rust-test \
 > `OS:latest` resolviendo a iOS 27.0, ese modelo solo existe
 > para el runtime 26.5, así que el `-destination` de arriba, sin más, fallaba. La salida fue
 > agregar el runtime explícito: `-destination 'platform=iOS Simulator,name=iPhone 17
-> Pro,OS=26.5'`. Corré `xcrun simctl list devices available` para ver qué modelo/runtime
+> Pro,OS=26.5'`. Ejecute `xcrun simctl list devices available` para ver qué modelo/runtime
 > existe en la tuya y ajustá el `OS=` en consecuencia — el síntoma es de entorno, no del
 > proyecto.
 
@@ -322,6 +333,16 @@ de los tres, que es el que recorre el camino de error.
   que eso deja afuera está dicho en [PENDING.md](PENDING.md).
 
 ---
+
+## Glosario
+
+| Término | Qué es |
+|---|---|
+| **target** | Una unidad de compilación de Xcode, con sus propias fuentes y dependencias. Aquí son dos: `CoreFinancieroKit`, que se lleva el borde FFI, y `ios-rust-test`, la app. |
+| **slice** | Cada uno de los binarios por arquitectura que contiene un XCFramework. Hay dos, y **no** son intercambiables: `ios-arm64` es el que se embarca en el teléfono, `ios-arm64-simulator` el que corren los tests en el Mac. |
+| **modulemap** | El archivo que le dice a Swift cómo ver una librería escrita en C como un módulo importable. El XCFramework trae el de `core_financieroFFI`; sin él, `import` no encuentra nada. |
+| **Run Script** | Una fase de build de Xcode que ejecuta un shell script. Aquí es la que copia `cases.json` y `messages.es.json` al bundle de la app. |
+| **`@Observable`** | El macro de Swift que hace que SwiftUI vuelva a pintar cuando cambia una propiedad del objeto. Reemplaza al viejo `ObservableObject`. |
 
 ## Dónde está el resto
 

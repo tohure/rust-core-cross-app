@@ -74,6 +74,13 @@ destino de todos los `xcodebuild test` de esta fase es, verbatim:
 Las tareas siguientes de la Fase 3 deben usar el mismo destino, para no introducir una
 segunda variable al comparar resultados.
 
+> **Esto envejeció, y hay que saberlo antes de copiar el destino de arriba.** Al instalarse un
+> runtime de iOS más nuevo, `OS:latest` pasa a resolver a esa versión, y «iPhone 17 Pro» puede
+> no existir para ella: `xcodebuild` corta con `Unable to find a device matching the provided
+> destination specifier`. Hay que fijar el runtime a mano —`,OS=26.5`, o el que muestre
+> `xcrun simctl list devices available`—. La instrucción vigente, con la salvedad, está en
+> [README.md](README.md).
+
 ## Step 1 — Instalar los dos targets de Rust
 
 ```bash
@@ -295,7 +302,7 @@ Pro` sin más): en esta máquina, al ejecutar este split, "OS:latest" resolvió 
 simulador "iPhone 17 Pro" solo existe en el runtime 26.5, no en el 27.0. El síntoma es
 `xcodebuild: error: Unable to find a device matching the provided destination specifier`. Si
 en otra máquina "iPhone 17 Pro" sí existe en el runtime "latest", el `-destination` sin `OS=`
-funciona igual; si no, corré `xcrun simctl list devices available` y agregá el `OS=` del
+funciona igual; si no, ejecute `xcrun simctl list devices available` y agregue el `OS=` del
 runtime donde ese modelo exista. El mismo ajuste aplica a los comandos de
 [README.md](README.md) y [TESTING.md](TESTING.md).
 
