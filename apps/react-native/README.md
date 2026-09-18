@@ -11,10 +11,6 @@ JSI que consume la app, los bindings N-API con que el test de contrato llama al 
 Node, y el **`.wasm` del que depende la Fase 5** — `apps/web-angular` no consume `rust-core`
 directamente, consume lo que se construye aquí.
 
-**Estado:** funcional. Las cuatro pantallas andando en Android y en iOS, el pie de
-`coreVersion()` visible en las cuatro, y **129 tests en verde**, con el contrato **31/31 por
-N-API y 31/31 por WASM**.
-
 Lo que esta app **no** tiene, y conviene saberlo de entrada: **ninguna prueba automatizada
 cruza JSI.** El cruce se verifica con un smoke manual. El porqué está en
 [TESTING.md](TESTING.md#qué-no-prueba-nada-de-esto).
@@ -30,7 +26,7 @@ cruza JSI.** El cruce se verifica con un smoke manual. El porqué está en
 
 ---
 
-## Cómo está armada
+## Arquitectura
 
 No es una app suelta: es una **librería más un `example/`**, que es la forma que impone
 `react-native-builder-bob`. La librería es el paquete que envuelve al core; `example/` es la
@@ -75,10 +71,6 @@ sobre todo para mostrarlas.
 | `example/` | La app de demostración: los cuatro hooks, las cuatro pantallas y el pie con `coreVersion()`. |
 | `contracts/` | Los dos JSON compartidos, en la raíz del repo. |
 
-| Línea | Significa |
-|---|---|
-| **sólida** | El artefacto fluye: se produce con el comando de la etiqueta, o se consume. |
-| **punteada** | Esa suite corre el contrato y compara por igualdad exacta de strings, 31/31 por cada camino. |
 
 **`FfiCostProbe` no está en el diagrama**: es una sonda de medición con overlay en pantalla,
 apagada con `PROBE_ON = false`, no una pieza de la arquitectura.
@@ -93,7 +85,7 @@ apagada con `PROBE_ON = false`, no una pieza de la arquitectura.
 | `src/bindings.tsx` | Entrypoint que genera `ubrn` | Registra el crate con Hermes. **Se reescribe entero en cada `--and-generate`**: no se edita |
 | `src/index.tsx` | La superficie pública del paquete | Reexporta `bindings` y `contractName`, que ahora vive en `@banco/contract` y no aquí |
 | `packages/contract` | `CONTRACT_NAMES`/`contractName`/`messageFor`: variante de `DomainError` → nombre del contrato → mensaje de usuario | Ese mapeo **no cruza el FFI**. Vive en un paquete neutral (fuera de `apps/react-native`) porque lo necesitan también el paquete WASM y Angular — dos copias se desincronizan |
-| `src/guard.ts` | La guardia 4: aserta `DomainError['tag'] ≡ ContractTag` | La tabla vive en un paquete que no puede depender de ningún flavour generado; la equivalencia contra el tipo real se aserta aquí. No exporta nada en runtime, existe sólo para que `tsc` lo mire — ver [TESTING.md](TESTING.md#guardia-4-ya-no-la-sostiene-un-satisfies-local-la-sostiene-srcguardts) |
+| `src/guard.ts` | asserts `DomainError['tag'] ≡ ContractTag` | La tabla vive en un paquete que no puede depender de ningún flavour generado; la equivalencia contra el tipo real se aserta aquí. No exporta nada en runtime, existe sólo para que `tsc` lo mire — ver [TESTING.md](TESTING.md#guardia-4-ya-no-la-sostiene-un-satisfies-local-la-sostiene-srcguardts) |
 | `example/src/adapter/core.ts` | Reexporta las nueve funciones | **No traduce nombres ni tipos**: una segunda nomenclatura se desincroniza en la primera regeneración |
 | `example/src/contract/sources.ts` | Lee `cases.json` y reexporta `messageFor` de `@banco/contract` | Las cuentas, la clave y el nonce son **datos del contrato**, no constantes de la app; `messageFor` ya no se reimplementa aquí, era una copia exacta |
 | `userMessage`, de `@banco/contract` | `DomainError` → texto de usuario, en el borde de UI | **Ya no vive en esta app.** Era `example/src/adapter/ContractMessages.ts`, una copia casi idéntica de la de Angular; el arreglo de la Fase 6 —que el diagnóstico dejara de llegar a la pantalla— hubo que aplicarlo en los dos lugares. Ahora los hooks lo importan del paquete |
@@ -102,7 +94,7 @@ apagada con `PROBE_ON = false`, no una pieza de la arquitectura.
 
 ---
 
-## Antes de correrla
+## Antes de correr la demo
 
 **El binario de Rust se genera primero, para las cuatro apps a la vez.** La secuencia
 completa, en orden, vive en
@@ -195,7 +187,7 @@ del que depende Angular.
 
 ---
 
-## Correrla
+## Correr la demo
 
 Los comandos de abajo son los que **efectivamente se corrieron** para cerrar esta fase.
 
