@@ -7,10 +7,8 @@ Es la app que cierra la POC. Con ésta, las cuatro pantallas existen a la vez y 
 lado a lado —cuatro plataformas produciendo el mismo string carácter por carácter— se puede
 hacer de verdad.
 
-**102 tests en verde**, 14 archivos, con el test de contrato **31/31** contra
-`contracts/cases.json` v2.4.0.
 
-## Cómo está armada
+## Arquitectura
 
 ```mermaid
 flowchart LR
@@ -18,7 +16,7 @@ flowchart LR
         domain["crates/domain"] --> ffi["crates/ffi"]
     end
 
-    ffi -->|"pnpm wasm:generate<br/>se corre en apps/react-native"| gen["core-financiero-wasm/<br/>generated/"]
+    ffi -->|"pnpm wasm:generate<br/>(se corre de RN)"| gen["core-financiero-wasm/<br/>generated/"]
     gen --> facade["core-financiero-wasm/<br/>src/"]
 
     subgraph app["apps/web-angular"]
@@ -32,8 +30,9 @@ flowchart LR
     facade --> svc
     contrato[("contracts/")] --> pkg["packages/contract"]
     pkg --> screens
-    contrato -.-> spec["contract.spec.ts"]
+    pkg -.-> spec["contract.spec.ts"]
     facade -.-> spec
+    svc -.-> spec
 ```
 
 **Leyenda**
@@ -47,11 +46,8 @@ flowchart LR
 | `packages/contract` | El mapeo de error a texto de usuario, compartido con React Native. No cruza el FFI. |
 | `ui/` · `features/` | Los seis componentes compartidos y las cuatro pantallas. Ningún cálculo, y todos los montos son `String`. |
 | `contracts/` | Los dos JSON compartidos, en la raíz del repo. |
+| `contract.spec.ts` | Los 31 casos del contrato contra el borde real: las nueve funciones entran por `CoreFinancieroService` —el mismo que usan las pantallas—, y del paquete WASM sólo sale `initCore`. Las punteadas son suyas: marcan lo que el test consume. |
 
-| Línea | Significa |
-|---|---|
-| **sólida** | El artefacto fluye: se produce con el comando de la etiqueta, o se consume. |
-| **punteada** | `contract.spec.ts` corre los 31 casos contra el WASM real y compara por igualdad exacta de strings. |
 
 **El comando que produce el `.wasm` se ejecuta desde `apps/react-native`** porque ahí viven
 el CLI de `ubrn` y su config — pero esta app depende del **paquete**, no de esa app: su
@@ -63,7 +59,9 @@ el CLI de `ubrn` y su config — pero esta app depende del **paquete**, no de es
 - **`apps/web-angular` no depende de `rust-core`, depende de `apps/react-native`.** El `.wasm`
   lo produce `ubrn build wasm2` allí, no aquí. Es la única arista rara del grafo de build de la
   POC y está así a propósito: `ubrn` ya sabía compilar a wasm y montar un segundo pipeline en
-  `rust-core` habría sido ceremonia.
+  `rust-core` habría sido ceremonia. Eso explica **dónde** vive el comando; por qué el core se
+  compila con uniffi y no con `wasm-pack`, que sería lo habitual para una app web, está más
+  abajo.
 - **`packages/core-financiero-wasm` tiene dos capas y las dos hacen falta.** `generated/` es
   churn del generador y va con `@ts-nocheck`; `src/index.ts` lo envuelve a mano con una
   superficie que no se mueve cuando el generador cambia. Sin esa capa, cada regeneración
@@ -83,7 +81,35 @@ el CLI de `ubrn` y su config — pero esta app depende del **paquete**, no de es
   una segunda copia que se desincroniza. Se importa del barrel y no de
   `@banco/contract/testing`, que toca `node:fs` y no se puede empaquetar para el navegador.
 
-## Antes de correrla
+### Por qué no `wasm-pack`, que es el camino estándar
+
+Para un proyecto de Rust y Angular y nada más, el pipeline habitual del ecosistema es
+**`wasm-pack` / `wasm-bindgen`**: se anotan las funciones con `#[wasm_bindgen]`, se corre
+`wasm-pack build --target web`, y sale un paquete npm con el `.wasm` y sus tipos. Sin uniffi, sin
+`ubrn`, sin nada que mencione React Native. Es razonable preguntarse por qué esta POC toma el
+camino largo.
+
+La razón es consecuencia directa de las cuatro plataformas. El core tiene **cero anotaciones
+`#[wasm_bindgen]`** —verificado sobre `crates/ffi` y `crates/domain`, no supuesto—: su única
+superficie de exportación es `#[uniffi::export]`, y esas nueve funciones sirven a las cuatro apps
+a la vez.
+
+Adoptar `wasm-pack` obligaría a anotar las mismas nueve funciones **dos veces**
+—`#[uniffi::export]` para Android, iOS y React Native, `#[wasm_bindgen]` para esta app— y a
+mantener las dos superficies sincronizadas a mano. Es el mismo modo de falla que el adapter de
+Android evita al reexportar los tipos de uniffi en vez de traducirlos, sólo que adentro del core,
+que es el peor lugar donde ponerlo.
+
+Hay un segundo costo, menos visible: `wasm-bindgen` y uniffi generan APIs con convenciones
+distintas, así que esta app terminaría consumiendo el núcleo con una forma diferente a la de las
+otras tres. La tesis de la POC —cuatro plataformas, el mismo núcleo, los mismos strings— se
+sostiene peor cuando una de las cuatro llama al core de otra manera.
+
+> `wasm-bindgen` **sí** aparece en el árbol de dependencias: `ubrn` lo lleva compilado adentro,
+> anclado en `=0.2.100`. Lo que no existe es una sola anotación escrita a mano en el core. La
+> distinción importa para quien corra `cargo tree` y encuentre el crate.
+
+## Antes de correr la demo
 
 **El binario de Rust se genera primero, para las cuatro apps a la vez.** La secuencia
 completa, en orden, vive en
@@ -125,7 +151,7 @@ Si se saltea, la app falla al arrancar con un mensaje que dice exactamente qué 
 construir — **pero ese mensaje va a la consola del navegador, no a la pantalla**: lo que se ve
 es una página en blanco. Quien no abra las herramientas de desarrollo no tiene ninguna pista.
 
-El mensaje, literal:
+El mensaje:
 
 ```
 No se pudo cargar core_financiero.wasm desde http://localhost:4200/core_financiero.wasm
@@ -168,7 +194,7 @@ Esta app **no consume `rust-core` directamente**: consume lo que produce
 `apps/react-native`. Es la única de las cuatro con esa dependencia, y es la razón por la que su
 paso de build no se corre ni aquí ni en `rust-core/`.
 
-## Correrla
+## Correr la demo
 
 ```bash
 cd apps/web-angular
