@@ -22,48 +22,55 @@ Lo que esta app hace con los datos es pedirlos y mostrarlos.
 ## Cómo está armada
 
 ```mermaid
-flowchart TD
-    subgraph core["rust-core/ — el único lugar con lógica de negocio"]
-        domain["crates/domain<br/>Rust puro · 7 módulos"]
-        ffi["crates/ffi<br/>fachada uniffi · 9 funciones"]
-        domain --> ffi
+flowchart LR
+    subgraph core["rust-core"]
+        domain["crates/domain"] --> ffi["crates/ffi"]
     end
 
-    subgraph modulo[":core-financiero — Android Library, TODO el borde FFI"]
-        so["src/generated/jniLibs/*.so<br/>arm64-v8a · armeabi-v7a · x86_64"]
-        kt["src/generated/java/uniffi/<br/>core_financiero.kt"]
-        jna["JNA<br/>libjnidispatch.so"]
-        adapter["adapter/<br/>CoreFinanciero · UniffiCoreFinanciero"]
-        source["contract/<br/>ContractSource · MessageSource"]
+    subgraph modulo[":core-financiero — todo el borde FFI"]
+        so["jniLibs/*.so"]
+        kt["core_financiero.kt"]
+        jna["JNA"]
+        adapter["adapter/"]
+        source["contract/"]
         so --> jna
         kt --> jna
         jna --> adapter
     end
 
-    subgraph app[":app — Compose, ViewModels, formateo"]
-        vm["ui/*/XxxViewModel<br/>StateFlow&lt;XxxUiState&gt;"]
-        screens["ui/*/XxxScreen<br/>Compose"]
-        vm --> screens
+    subgraph app[":app — Compose y presentación"]
+        vm["ViewModels"] --> screens["Screens"]
     end
 
     ffi -->|"cargo ndk"| so
-    ffi -.->|"uniffi-bindgen"| kt
+    ffi -->|"uniffi-bindgen"| kt
+    contrato[("contracts/")] -->|"Copy de Gradle"| source
+
     adapter --> vm
     source --> vm
-
-    contrato[("contracts/<br/>cases.json · messages.es.json")]
-    contrato -->|"Copy en :core-financiero"| source
-
-    insCore["androidTest de :core-financiero<br/>19 tests · cruzan el FFI de verdad"]
-    jvmCore["test de :core-financiero<br/>4 tests"]
-    insApp["androidTest de :app<br/>1 test · rotación"]
-    jvmApp["test de :app<br/>30 tests · con FakeCoreFinanciero"]
-
-    insCore -.->|"verifica"| adapter
-    jvmCore -.->|"verifica"| adapter
-    insApp -.->|"verifica"| screens
-    jvmApp -.->|"verifica"| vm
 ```
+
+
+**Leyenda**
+
+| Caja | Qué es |
+|---|---|
+| `crates/domain` · `crates/ffi` | El núcleo en Rust: la lógica pura y la fachada uniffi de nueve funciones. |
+| `jniLibs/*.so` | El núcleo compilado, un binario por **ABI** (arquitectura de CPU: arm64-v8a, armeabi-v7a, x86_64). El APK embarca los tres. |
+| `core_financiero.kt` | Los **bindings**: el Kotlin autogenerado que expone las nueve funciones. No se edita. |
+| `JNA` | El puente: *Java Native Access*, que deja a la máquina virtual de Java llamar código nativo. Es el cruce más caro de las cuatro apps. |
+| `adapter/` | La única clase que llama al núcleo. Reexporta los tipos de uniffi, no los traduce. |
+| `contract/` · `contracts/` | Los dos JSON compartidos y el código que los lee. Un `Copy` de Gradle los mete como assets. |
+| `ViewModels` · `Screens` | Presentación: estado inmutable y Compose. Ningún cálculo, y todos los montos son `String`. |
+
+| Línea | Significa |
+|---|---|
+| **sólida** | El artefacto fluye: se produce con el comando de la etiqueta, o se consume. |
+| **caja dentro de caja** | Pertenece a ese módulo de Gradle. `:app` no ve lo que vive en `:core-financiero` salvo lo que el adapter expone. |
+
+**Las cuatro suites de test no están en el diagrama a propósito**: son otra pregunta, y la
+contesta [«Correr los tests»](#correr-los-tests), con el detalle de qué prueba cada una.
+
 
 **Dos módulos, no uno, y la frontera la sostiene Gradle.** `:app` no declara JNA ni conoce la
 `.so`: todo el borde FFI vive en `:core-financiero`. Lo que sí cruza son los **tipos** del core
@@ -81,12 +88,14 @@ volver a correr el paso de Rust, y eso se descubre el día de la demo.
 |---|---|---|
 | `crates/domain` | La lógica: decimales, ITF, Luhn, ChaCha20-Poly1305 | Rust puro, sin uniffi. Un `#[uniffi::export]` ahí **no compila**: la frontera la sostiene el compilador |
 | `crates/ffi` | Las nueve funciones públicas | La única superficie que cruza a Kotlin |
-| `jniLibs/*.so` | El núcleo compilado por ABI | Lo que el APK embarca y carga en runtime |
-| `uniffi/core_financiero.kt` | Bindings generados | **Artefacto generado.** Nunca se edita; si algo está mal, se corrige en Rust y se regenera |
-| **JNA** | El puente nativo real | Los bindings de uniffi corren sobre JNA, **no JNI**. Sin esta dependencia la app compila y revienta al primer llamado |
-| `adapter/CoreFinanciero` | La única clase que llama al núcleo | Es una **interfaz** para que los ViewModels se testeen en JVM sin emulador. Reexporta los tipos de uniffi: **no los traduce** |
+| `jniLibs/*.so` | El núcleo compilado, un `.so` por ABI — arm64-v8a, armeabi-v7a y x86_64 | **ABI** es la arquitectura de CPU del aparato. Cada una necesita su propio binario, y el APK los embarca los tres y carga el que corresponde |
+| `core_financiero.kt` | Los bindings: el Kotlin que expone las nueve funciones | **Artefacto generado.** Nunca se edita; si algo está mal, se corrige en Rust y se regenera |
+| **JNA** | El puente nativo real, en tiempo de ejecución | Los bindings de uniffi corren sobre JNA —*Java Native Access*, que deja a la JVM llamar código nativo sin escribir C—, **no sobre JNI**. Sin esta dependencia la app compila y revienta al primer llamado |
+| `adapter/` | `CoreFinanciero`, la única clase que llama al núcleo | Es una **interfaz** para que los ViewModels se testeen en JVM sin emulador. Reexporta los tipos de uniffi: **no los traduce** |
 | `contract/` | Lee `cases.json` y `messages.es.json` | Las cuentas iniciales y los mensajes de error son **datos del contrato**, no de la app. Hardcodearlos los haría divergir entre las cuatro apps |
-| `ui/*/XxxViewModel` | Un estado inmutable por pantalla | La UI consume y no calcula. Todos los montos son `String` |
+| `ViewModels` | Un estado inmutable por pantalla, en `ui/*/XxxViewModel` | La UI consume y no calcula. Todos los montos son `String` |
+| `Screens` | Las cuatro pantallas de Compose, en `ui/*/XxxScreen` | Sólo pintan estado: el formateo con `S/` y separadores ocurre aquí, en el borde, y nada más |
+| `contracts/` | Los dos JSON compartidos, en la raíz del repo | Un `Copy` de Gradle los mete como assets de `:core-financiero`. Es el mismo archivo que leen las otras tres apps |
 | `ui/components/` | Los cinco componentes compartidos | Las cuatro apps usan la misma descomposición para que las pantallas sean comparables |
 | `AppContainer` | Cableado manual | Sin Hilt ni Koin: cinco pantallas y tres dependencias no los justifican |
 
@@ -99,7 +108,7 @@ completa, en orden, vive en
 [rust-core/BUILD.md](../../rust-core/BUILD.md#generar-el-core-que-consumen-las-cuatro-apps);
 aquí abajo está solo el paso puntual que le toca a esta app.
 
-Necesitás **Java 21**, el **SDK de Android** y un emulador o teléfono conectado.
+Hacen falta **Java 21**, el **SDK de Android** y un emulador o teléfono conectado.
 
 Si el repo ya viene con los artefactos construidos, eso alcanza. **Si no**, hay que compilar el
 núcleo Rust primero — eso pide `rustup`, `cargo-ndk` y el NDK r27+, y está todo en
@@ -108,10 +117,13 @@ núcleo Rust primero — eso pide `rustup`, `cargo-ndk` y el NDK r27+, y está t
 Para saber en cuál de los dos casos se está:
 
 ```bash
-ls core-financiero/src/generated/jniLibs/*/libcore_financiero.so
+# desde apps/android/ — con find y no con `ls …/*/…`: ante un comodín sin coincidencias
+# cada shell hace una cosa distinta, y alguno ni siquiera llega a ejecutar el ls
+find core-financiero/src/generated/jniLibs -name libcore_financiero.so 2>/dev/null
 ```
 
-Si lista tres archivos, se puede correr ya. Si no, ver [BUILD.md](BUILD.md).
+Debe imprimir una `.so` por cada ABI; con el build documentado son tres. **Si no imprime
+nada**, falta generar el núcleo: ver [BUILD.md](BUILD.md).
 
 ### Dónde se cablea, y qué **no** hay que editar
 
@@ -282,6 +294,16 @@ Y dos reglas que valen para quien toque el código:
   se arregla en `rust-core` y se regenera.
 
 ---
+
+## Glosario
+
+| Término | Qué es |
+|---|---|
+| **módulo de Gradle** | Una unidad de compilación con su propio `build.gradle.kts` y sus propias dependencias. Este proyecto tiene dos —`:app` y `:core-financiero`—, y esa separación es la que impide que `:app` toque el borde FFI. |
+| **source set** | Un directorio de fuentes que Gradle compila junto con `src/main`. Los generados viven en `src/generated/` y no en `build/` a propósito: un `clean` los borraría y dejaría la app sin compilar hasta rehacer el paso de Rust. |
+| **AGP** | *Android Gradle Plugin*: el plugin que le enseña a Gradle a construir un proyecto Android. Su versión va atada a la de Gradle y a la del SDK. |
+| **Compose** | Jetpack Compose, la librería de UI declarativa de Android: la pantalla se describe como funciones que reciben estado y lo pintan. |
+| **test instrumentado** | El que corre **dentro** de un emulador o teléfono (`androidTest/`), y por eso es el único que puede cargar la `.so` y cruzar el FFI de verdad. El de JVM (`test/`) corre en la máquina y no puede. |
 
 ## Dónde está el resto
 

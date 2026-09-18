@@ -128,7 +128,7 @@ El comando que uno escribiría —apuntarle al `.so` de Android que se acaba de 
 ```bash
 cargo run --bin uniffi-bindgen -- generate \
   --library target/aarch64-linux-android/release/libcore_financiero.so \
-  --language kotlin --out-dir ../apps/android/app/src/main/java
+  --language kotlin --out-dir ../apps/android/core-financiero/src/generated/java
 # No UniFFI metadata found in target/aarch64-linux-android/release/libcore_financiero.so
 ```
 
@@ -146,7 +146,7 @@ de la arquitectura**, así que esto no es un atajo: es el camino.
 ```bash
 cargo run --quiet --bin uniffi-bindgen -- generate \
   --library target/release/libcore_financiero.dylib \
-  --language kotlin --out-dir ../apps/android/app/src/main/java
+  --language kotlin --out-dir ../apps/android/core-financiero/src/generated/java
 ```
 
 Qué se debe ver:
@@ -155,7 +155,14 @@ Qué se debe ver:
 Code generation complete, formatting with ktlint (use --no-format to disable)
 ```
 
-`--out-dir app/src/main/java` alcanza: uniffi-bindgen crea él mismo el árbol del paquete
+**El destino es `:core-financiero`, no `:app`.** Desde el split de módulos de la Fase 6 el
+borde FFI vive en ese módulo, y su `build.gradle.kts` declara `kotlin.srcDir("src/generated/java")`:
+es el único source set donde Gradle va a buscar el binding. Apuntarlo a `app/src/main/java`
+—como decía esta sección antes de la Fase 6— deja a `:core-financiero` sin bindings, hace fallar
+la compilación por referencias no resueltas, y encima deposita un archivo generado dentro del
+código escrito a mano de `:app`, que no está en `.gitignore`.
+
+Dentro de ese `--out-dir`, uniffi-bindgen crea él mismo el árbol del paquete
 `uniffi.core_financiero`. No hay que mover nada.
 
 ```bash
@@ -187,12 +194,16 @@ jna = { group = "net.java.dev.jna", name = "jna", version.ref = "jna" }
 ```
 
 ```kotlin
-// app/build.gradle.kts
-implementation(variantOf(libs.jna) { artifactType("aar") })
+// core-financiero/build.gradle.kts — en :core-financiero, NO en :app
+api(variantOf(libs.jna) { artifactType("aar") })
 ```
 
 **El `@aar` no es opcional.** El artefacto `jar` de JNA no trae las `.so` de
 `libjnidispatch`; el `aar` sí. Con el `jar`, la app compila y revienta en runtime.
+
+**Y va con `api`, no con `implementation`.** Los bindings generados exponen tipos de JNA en su
+superficie, así que `:app` necesita verlos de forma transitiva. Con `implementation` no los ve
+y la compilación falla.
 
 ## Construir el APK
 
@@ -228,7 +239,7 @@ de arriba. Sin filtro, el APK carga **541 456 bytes** de slices que ningún disp
 ejecutar, y uno de ellos —`x86`— instalaría una app que revienta al primer `loadLibrary`.
 
 ```kotlin
-// app/build.gradle.kts, dentro de defaultConfig
+// dentro de defaultConfig — está en los DOS módulos: app/ y core-financiero/
 ndk {
     abiFilters += listOf("arm64-v8a", "armeabi-v7a", "x86_64")
 }

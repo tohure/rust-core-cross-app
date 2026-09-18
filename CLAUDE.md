@@ -73,22 +73,16 @@ a los cuatro consumidores más `contracts/cases.json` en el mismo cambio.
 
 ## Arquitectura: el grafo de dependencias de build
 
-No es una estrella. Angular **no** consume el core directamente:
+No es una estrella. Angular **no** consume el core directamente.
 
-```
-rust-core/crates/ffi  (único crate exportado; crates/domain es Rust puro y no conoce uniffi)
-   │
-   ├── cargo ndk + uniffi-bindgen kotlin ──> apps/android  (jniLibs/*.so + java/uniffi/core_financiero/)
-   ├── xcodebuild -create-xcframework    ──> apps/ios      (CoreFinanciero.xcframework + CoreFinancieroKit/Generated/)
-   └── ubrn (desde apps/react-native)
-         ├── build android|ios --and-generate ──> apps/react-native (cpp/, src/generated/)
-         └── build web                        ──> paquete WASM ──> apps/web-angular
-```
+**El grafo vive en un solo lugar: el diagrama Mermaid de la cabecera de [README.md](README.md).**
+Ahí están el fan-out y el comando de build de cada rama. No se duplica aquí: dos copias del
+mismo grafo se desincronizan, que es exactamente lo que pasó con el PNG que reemplazó.
 
 Consecuencias que hay que tener presentes:
 
 - **`apps/web-angular` depende del build de `apps/react-native`**, no del de `rust-core`.
-  El `.wasm` se consume como paquete local del workspace (`@banco/core-financiero`);
+  El `.wasm` se consume como paquete local del workspace (`@banco/core-financiero-wasm`);
   nunca se copia a mano dentro de `assets/`.
 - `crates/domain` es Rust puro y no declara uniffi en su `Cargo.toml`. Eso lo mantiene
   testeable rápido, sin FFI de por medio, y hace que un `#[uniffi::export]` ahí adentro

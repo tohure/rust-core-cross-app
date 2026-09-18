@@ -201,7 +201,7 @@ además coinciden entre sí.
 | Hermes / iOS (simulador iPhone 17 Pro) | `S/ 4,899.99` | `53 2f a0 34 2c 38 39 39 2e 39 39` |
 | Node / V8 (proxy del navegador) | `S/ 4,899.99` | `53 2f a0 34 2c 38 39 39 2e 39 39` |
 
-**Y sin embargo la decisión del plan era la correcta, por una razón mucho más fuerte.** Mirá el
+**Y sin embargo la decisión del plan era la correcta, por una razón mucho más fuerte.** Véase el
 tercer code point: `a0`. Es **U+00A0, espacio duro**, no un espacio normal (`20`).
 
 Las otras dos apps formatean a mano:

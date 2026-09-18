@@ -8,53 +8,55 @@ lado a lado —cuatro plataformas produciendo el mismo string carácter por car�
 hacer de verdad.
 
 **102 tests en verde**, 14 archivos, con el test de contrato **31/31** contra
-`contracts/cases.json` v2.3.0.
+`contracts/cases.json` v2.4.0.
 
 ## Cómo está armada
 
 ```mermaid
-flowchart TD
-    subgraph core["rust-core/"]
-        DOMAIN["crates/domain<br/>Rust puro, 7 módulos"]
-        FFI["crates/ffi<br/>core_financiero, fachada uniffi"]
-        DOMAIN --> FFI
+flowchart LR
+    subgraph core["rust-core"]
+        domain["crates/domain"] --> ffi["crates/ffi"]
     end
 
-    subgraph rn["apps/react-native/"]
-        UBRN["pnpm wasm:generate<br/>ubrn build wasm2 --release"]
+    ffi -->|"pnpm wasm:generate<br/>se corre en apps/react-native"| gen["core-financiero-wasm/<br/>generated/"]
+    gen --> facade["core-financiero-wasm/<br/>src/"]
+
+    subgraph app["apps/web-angular"]
+        svc["CoreFinancieroService"]
+        ui["ui/"]
+        screens["features/"]
+        svc --> screens
+        ui --> screens
     end
 
-    subgraph pkgs["packages/ (workspace pnpm)"]
-        GEN["core-financiero-wasm/generated/<br/>core_financiero.wasm + index.ts<br/>GENERADO, gitignoreado, @ts-nocheck"]
-        FACADE["core-financiero-wasm/src/index.ts<br/>fachada estable a mano<br/>initCore angosta WasmSource a bytes"]
-        GUARD["core-financiero-wasm/src/guard.ts<br/>guardia 4 del contrato"]
-        CONTRACT["packages/contract<br/>contractName · messageFor · userMessage<br/>lee cases.json y messages.es.json"]
-        GEN --> FACADE
-    end
-
-    subgraph app["apps/web-angular/src/app/"]
-        LOAD["core/core-financiero.service.ts<br/>loadCore: fetch bytes + initCore<br/>en un app initializer"]
-        SVC["CoreFinancieroService<br/>9 funciones SÍNCRONAS, reexportadas"]
-        MSG["userMessage<br/>de @banco/contract<br/>DomainError → texto de usuario"]
-        FMT["format/money.pipe.ts<br/>formatPEN, string a string"]
-        UI["ui/<br/>7 componentes compartidos"]
-        SCREENS["features/<br/>arithmetic · transfer · card · benchmark"]
-        LOAD --> SVC --> SCREENS
-        MSG --> SCREENS
-        FMT --> SCREENS
-        UI --> SCREENS
-    end
-
-    WASMFILE["public/core_financiero.wasm<br/>SYMLINK al generated/"]
-
-    FFI --> UBRN --> GEN
-    FACADE --> SVC
-    GUARD -.-> TEST["core/contract.spec.ts<br/>31/31"]
-    CONTRACT --> MSG
-    CONTRACT --> TEST
-    GEN -.symlink.-> WASMFILE --> LOAD
-    SCREENS --> FOOT["ui/core-version-footer<br/>coreVersion() al pie"]
+    facade --> svc
+    contrato[("contracts/")] --> pkg["packages/contract"]
+    pkg --> screens
+    contrato -.-> spec["contract.spec.ts"]
+    facade -.-> spec
 ```
+
+**Leyenda**
+
+| Caja | Qué es |
+|---|---|
+| `crates/domain` · `crates/ffi` | El núcleo en Rust: la lógica pura y la fachada uniffi de nueve funciones. |
+| `core-financiero-wasm/generated/` | El `.wasm` —el núcleo compilado para correr dentro del navegador— más los bindings que escribe el generador. Va con `@ts-nocheck`, está gitignoreado y **no se edita**. |
+| `core-financiero-wasm/src/` | La fachada escrita a mano: una superficie estable que no se mueve cuando el generador cambia, más `initCore`. Sin esta capa, cada regeneración rompería el `tsc` de la app. |
+| `CoreFinancieroService` | Las nueve funciones, **síncronas**. El módulo se carga una sola vez en un *app initializer*, así que no hace falta un `await` por método. |
+| `packages/contract` | El mapeo de error a texto de usuario, compartido con React Native. No cruza el FFI. |
+| `ui/` · `features/` | Los seis componentes compartidos y las cuatro pantallas. Ningún cálculo, y todos los montos son `String`. |
+| `contracts/` | Los dos JSON compartidos, en la raíz del repo. |
+
+| Línea | Significa |
+|---|---|
+| **sólida** | El artefacto fluye: se produce con el comando de la etiqueta, o se consume. |
+| **punteada** | `contract.spec.ts` corre los 31 casos contra el WASM real y compara por igualdad exacta de strings. |
+
+**El comando que produce el `.wasm` se ejecuta desde `apps/react-native`** porque ahí viven
+el CLI de `ubrn` y su config — pero esta app depende del **paquete**, no de esa app: su
+`package.json` no la nombra.
+
 
 ### Qué es cada pieza y por qué existe
 
@@ -107,23 +109,28 @@ pnpm install --ignore-scripts
 cd apps/react-native && pnpm wasm:generate
 ```
 
-**El `--ignore-scripts` no es opcional en un clone limpio, y es un bug conocido.** Sin él,
-`pnpm install` falla: el `prepare: bob build` de `apps/react-native` intenta generar los `.d.ts`,
-esos archivos importan de `src/generated/`, y ese directorio está gitignoreado y todavía no
-existe. Huevo y gallina. Peor: el `pnpm wasm:generate` de después **ni siquiera arranca**, porque
-pnpm detecta la instalación incompleta, reintenta el install solo, y aborta con
-`[ERROR] Command failed with exit code 1: pnpm install`.
+**El `--ignore-scripts` no es opcional en un clone limpio.** Es un bug conocido **del
+workspace, no de esta app**: lo provoca el `prepare` de `apps/react-native`, que corre en
+cualquier `pnpm install` desde la raíz. La causa y qué se pierde al saltearlo están en
+[el Paso 0 del README raíz](../../README.md#paso-0-dejar-el-repo-listo).
 
-Saltear ese `prepare` no pierde nada aquí: `bob build` empaqueta la librería de React Native para
-publicarla, cosa que la demo web no usa.
+Lo que sí es propio de aquí: sin el flag, el `pnpm wasm:generate` de después **ni siquiera
+arranca**, porque pnpm detecta la instalación incompleta, reintenta el install solo, y aborta
+con `[ERROR] Command failed with exit code 1: pnpm install`.
 
 Ese segundo comando hace tres cosas: `ubrn build wasm2 --release --and-generate`, le pega el
 `@ts-nocheck` al `index.ts` generado, y compila la fachada con esbuild. Tarda ~40 s la primera vez, y **no necesita ningún toolchain móvil**.
 
-Si se saltea, la app arranca y falla en el arranque con un mensaje que dice exactamente qué
-falta construir. Eso es deliberado: el symlink apunta a un artefacto gitignoreado y el server de
-Angular contesta el `index.html` del SPA con status 200, así que sin el chequeo de `response.ok`
-el error sería un trap opaco de WebAssembly en vez de una instrucción.
+Si se saltea, la app falla al arrancar con un mensaje que dice exactamente qué falta
+construir — **pero ese mensaje va a la consola del navegador, no a la pantalla**: lo que se ve
+es una página en blanco. Quien no abra las herramientas de desarrollo no tiene ninguna pista.
+
+El mensaje, literal:
+
+```
+No se pudo cargar core_financiero.wasm desde http://localhost:4200/core_financiero.wasm
+(status 404). ¿Está construido el paquete @banco/core-financiero-wasm?
+```
 
 ### Dónde se cablea, y qué **no** hay que editar
 
@@ -140,9 +147,22 @@ proyecto y los artefactos caen en rutas fijas. Si están en su lugar, compila.
 | **Qué NO se toca** | **No hay carpeta `src/assets/`, y no hay que crearla.** El `.wasm` no se copia a mano en ningún lado: el symlink ya está en git y apunta al artefacto |
 
 **El symlink está versionado pero su destino no**, y por eso el servicio chequea
-`response.ok` antes de leer los bytes: en un clone sin construir, el dev-server de Angular
-contesta el `index.html` del SPA con status 200, así que sin ese chequeo el error sería un trap
-opaco de WebAssembly en vez de un mensaje que dice qué falta.
+`response.ok` antes de leer los bytes: en un clone sin construir el symlink queda colgando, y
+sin ese chequeo los bytes del error entrarían a `WebAssembly.compile` y el fallo sería un trap
+opaco en vez de un mensaje que dice qué falta.
+
+Qué contesta el dev-server, medido y no supuesto — un `.wasm` que no está da **404**, no el
+`index.html` del SPA:
+
+| Pedido | Respuesta |
+|---|---|
+| `/core_financiero.wasm` con el symlink colgando | `404`, `text/html`, 153 bytes |
+| Una ruta de navegación cualquiera | `200`, `text/html`, el `index.html` del SPA |
+| `/core_financiero.wasm` con el paquete construido | `200`, **`application/wasm`**, 180 644 bytes |
+
+El *fallback* del SPA existe, pero **no se aplica a una ruta con extensión de archivo**, así que
+la explicación importa poco para el resultado —`response.ok` es falso en los dos casos— y mucho
+para entender qué se está viendo.
 
 Esta app **no consume `rust-core` directamente**: consume lo que produce
 `apps/react-native`. Es la única de las cuatro con esa dependencia, y es la razón por la que su
@@ -266,6 +286,15 @@ puente.
   pasa **bytes** (`response.arrayBuffer()`) a `initCore`, y con bytes se usa
   `WebAssembly.compile`, que no mira el `Content-Type`; sólo `compileStreaming` lo exige. Se
   pierde la compilación en streaming, irrelevante para 180 KB.
+
+## Glosario
+
+| Término | Qué es |
+|---|---|
+| **standalone** | Componentes de Angular que declaran sus propias dependencias y no necesitan un `NgModule`. Es el modo por defecto de las versiones recientes, y el que usa esta app. |
+| **app initializer** | Un paso que Angular ejecuta **antes** de pintar la primera pantalla. Aquí carga el módulo WASM una sola vez, y es lo que permite que el servicio sea síncrono en vez de pedir un `await` por método. |
+| **symlink** | Un enlace simbólico. `public/core_financiero.wasm` no es una copia sino un puntero al artefacto generado — copiarlo a mano está prohibido. En un clone limpio sin el paquete construido, ese puntero apunta a la nada. |
+| **`ubrn` / `wasm2`** | *uniffi-bindgen-react-native* y su *flavour* de WebAssembly: juntos producen el `.wasm`. Se ejecutan desde `apps/react-native`, no aquí. |
 
 ## Dónde está el resto
 
