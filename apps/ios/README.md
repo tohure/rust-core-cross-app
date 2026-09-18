@@ -4,26 +4,19 @@ App iOS nativa que **no contiene ni una sola regla de negocio**. Todo el cálcul
 transferencias, validación de tarjetas, cifrado— lo resuelve un núcleo escrito en Rust que las
 otras tres apps de la POC (Android, React Native, Angular) consumen **sin reescribirlo**.
 
-Lo que esta app hace con los datos es pedirlos y mostrarlos.
-
-**Estado:** funcional. Las cuatro pantallas andando y **54 tests en verde**, en simulador y
-**también sobre hardware real** — o sea que el slice `aarch64-apple-ios`, el que se embarca,
-está probado y no solo compilado. El benchmark está medido en un **iPhone 12 con iOS 18**, en
-Release: el piso del cruce cuesta **0,062 µs** contra los **47,1 µs** de Android; ver
-[TESTING.md](TESTING.md).
 
 | | |
 |---|---|
 | **Lenguaje / UI** | Swift 6.3.3 · SwiftUI · `@Observable` |
 | **Build** | Xcode 26.6 (17F113) |
-| **Deployment target** | **iOS 17.0** — no se negocia |
+| **Deployment target** | **iOS 17.0** |
 | **Puente al núcleo** | uniffi 0.31 sobre un **XCFramework estático** |
 | **Núcleo** | Rust, `libcore_financiero.a` en dos slices |
 | **Targets** | `CoreFinancieroKit` (framework estático, el borde FFI) + `ios-rust-test` (la app, presentación) |
 
 ---
 
-## Cómo está armada
+## Arquitectura
 
 ```mermaid
 flowchart LR
@@ -63,13 +56,9 @@ flowchart LR
 | `Adapter/` · `Contract/` | La única superficie que llama al núcleo, y el código que lee los dos JSON del bundle. |
 | `ViewModels` · `Views` | Presentación en SwiftUI. Ningún cálculo, y todos los montos son `String`. |
 
-| Línea | Significa |
-|---|---|
-| **sólida** | El artefacto fluye: se produce con el comando de la etiqueta, o se consume. |
-| **caja dentro de caja** | Pertenece a ese target de Xcode. |
 
 **`FfiCostProbe` no está en el diagrama**: no es arquitectura sino una sonda de medición,
-apagada salvo con `PROBE=1`. Vive en [«Correr los tests»](#correr-los-tests).
+apagada salvo con `PROBE=1`. Vive en [«Tests»](#correr-los-tests).
 
 
 Nota clave del diagrama: la Run Script que copia los contratos al bundle de test sigue en el
@@ -108,7 +97,7 @@ Lo que impide que esos cuatro ViewModels diverjan son tres artefactos, no un mó
 
 ---
 
-## Antes de correrla
+## Antes de correr la demo
 
 **El binario de Rust se genera primero, para las cuatro apps a la vez.** La secuencia
 completa, en orden, vive en
@@ -152,7 +141,7 @@ carpeta sincronizada de Xcode: sólo ve lo que está bajo su raíz. Si el `core_
 queda en `Generated/`, el XCFramework se arma sin error y la app falla después con
 `cannot find 'add' in scope`, lejos de la causa.
 
-## Correrla
+## Correr la demo
 
 ```bash
 cd apps/ios

@@ -3,17 +3,7 @@
 Núcleo de dominio de la POC. Es el único lugar donde vive lógica de negocio: las cuatro
 apps lo consumen sin reescribirlo.
 
-**Estado: cerrado.** El crate se terminó en la Fase 1; la Fase 6 lo actualizó al contrato
-vigente. Hoy: 71 tests en verde —50 unitarios de `domain`, 6 de `proptest`,
-3 del lib de `ffi` y 12 del test de contrato— contra `contracts/cases.json` v2.4.0, 31 casos.
-
-Todos los comandos de esta documentación —los de [BUILD.md](BUILD.md) y los de
-[TESTING.md](TESTING.md)— **se ejecutaron tal como están escritos**, desde `rust-core/`, y la
-salida que sigue a cada uno es la que devolvieron. Ninguno está deducido del
-[CONTEXT.md](CONTEXT.md): un comando sin correr se descubre roto el día de la demo, que es el
-único día que importa.
-
-## Cómo está organizado
+## Arquitectura
 
 ```mermaid
 flowchart LR
@@ -34,12 +24,7 @@ flowchart LR
 | **libcore_financiero + bindings** | Lo que sale hacia las apps: el binario por plataforma más el código Kotlin, Swift y TypeScript que genera uniffi. Todo eso es **artefacto generado**: nunca se edita a mano. |
 | **contracts/cases.json** | Los 31 casos del contrato, v2.4.0. `tests/contract.rs` los lee y compara string contra string. |
 
-| Línea | Significa |
-|---|---|
-| **sólida** | El código fluye en esa dirección: `ffi` depende de `domain`, y de `ffi` salen los artefactos. |
-| **punteada** | Se verifica contra el contrato. |
-
-Son dos crates y no más porque la POC argumenta **una** frontera: la lógica de negocio no
+La lógica de negocio no
 conoce el FFI. Y no es una convención de estilo — `crates/domain` no declara `uniffi` en su
 `Cargo.toml`, así que un `#[uniffi::export]` ahí adentro **no compila**. Quien sostiene la
 regla es el compilador, no la disciplina de quien edita.
@@ -85,9 +70,6 @@ barato** — `add("0.1","0.2")`, p50:
 | React Native | C++ / **JSI**, vía `ubrn` | **9,44 µs** en el mismo Pixel 6 y **4,71 µs** en un iPhone 12: 15× más barato que JNA |
 | iOS | `.a` enlazado **estáticamente** en un XCFramework | **0,42 µs** en el iPhone 12 — tan barato que el reloj del sistema no lo resuelve llamada por llamada |
 | Web | **WebAssembly** | ~1,5 µs, pero en una Mac y con el reloj del navegador cuantizado: ubica el orden de magnitud y nada más. Y ahí **no hay red de `catch_unwind`** |
-
-El cuadro completo, con el piso del cruce y la descomposición de qué parte es el aparato, está en
-[docs/cross-app-pending.md](../docs/cross-app-pending.md).
 
 Ese último punto explica una regla que parece caprichosa: **`panic = "abort"` está prohibido**.
 uniffi envuelve cada llamada en un `catch_unwind`, así que un pánico de Rust vuelve como error

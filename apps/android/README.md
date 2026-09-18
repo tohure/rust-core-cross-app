@@ -19,7 +19,7 @@ Lo que esta app hace con los datos es pedirlos y mostrarlos.
 
 ---
 
-## Cómo está armada
+## Arquitectura
 
 ```mermaid
 flowchart LR
@@ -27,7 +27,7 @@ flowchart LR
         domain["crates/domain"] --> ffi["crates/ffi"]
     end
 
-    subgraph modulo[":core-financiero — todo el borde FFI"]
+    subgraph modulo[":core-financiero — FFI"]
         so["jniLibs/*.so"]
         kt["core_financiero.kt"]
         jna["JNA"]
@@ -38,7 +38,7 @@ flowchart LR
         jna --> adapter
     end
 
-    subgraph app[":app — Compose y presentación"]
+    subgraph app[":app — Compose"]
         vm["ViewModels"] --> screens["Screens"]
     end
 
@@ -62,15 +62,6 @@ flowchart LR
 | `adapter/` | La única clase que llama al núcleo. Reexporta los tipos de uniffi, no los traduce. |
 | `contract/` · `contracts/` | Los dos JSON compartidos y el código que los lee. Un `Copy` de Gradle los mete como assets. |
 | `ViewModels` · `Screens` | Presentación: estado inmutable y Compose. Ningún cálculo, y todos los montos son `String`. |
-
-| Línea | Significa |
-|---|---|
-| **sólida** | El artefacto fluye: se produce con el comando de la etiqueta, o se consume. |
-| **caja dentro de caja** | Pertenece a ese módulo de Gradle. `:app` no ve lo que vive en `:core-financiero` salvo lo que el adapter expone. |
-
-**Las cuatro suites de test no están en el diagrama a propósito**: son otra pregunta, y la
-contesta [«Correr los tests»](#correr-los-tests), con el detalle de qué prueba cada una.
-
 
 **Dos módulos, no uno, y la frontera la sostiene Gradle.** `:app` no declara JNA ni conoce la
 `.so`: todo el borde FFI vive en `:core-financiero`. Lo que sí cruza son los **tipos** del core
@@ -101,7 +92,7 @@ volver a correr el paso de Rust, y eso se descubre el día de la demo.
 
 ---
 
-## Antes de correrla
+## Antes de correr la demo
 
 **El binario de Rust se genera primero, para las cuatro apps a la vez.** La secuencia
 completa, en orden, vive en
@@ -142,7 +133,7 @@ Los generados viven en un source set aparte del código escrito a mano, para que
 vistazo qué se edita y qué no. **No van en `build/`**: un `clean` dejaría el módulo sin compilar
 hasta volver a correr el paso de Rust.
 
-## Correrla
+## Correr la demo
 
 ```bash
 adb devices                    # debe listar un dispositivo
